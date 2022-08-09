@@ -97,7 +97,9 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	// Establish gRPC connection to the Consul server
 	// TODO: Use TLS for the gRPC connection
 	gRPCTarget := fmt.Sprintf("%s:%d", cdp.consulServer.address.String(), cdp.cfg.Consul.GRPCPort)
-	grpcClientConn, err := grpc.Dial(gRPCTarget, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	grpcCtx, cancel := context.WithTimeout(ctx, time.Duration(10*time.Second))
+	defer cancel()
+	grpcClientConn, err := grpc.DialContext(grpcCtx, gRPCTarget, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		cdp.logger.Error("could not connect to consul server over grpc", "error", err, "grpc-target", gRPCTarget)
 		return err
