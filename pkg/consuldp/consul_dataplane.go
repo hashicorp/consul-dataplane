@@ -14,7 +14,7 @@ import (
 )
 
 // consulServer maintains the settings of the Consul server with which
-// consul-dataplane has established a gRPC connection with
+// consul-dataplane has established a gRPC connection
 type consulServer struct {
 	// address is the IP address of the Consul server
 	address net.IPAddr
@@ -25,13 +25,13 @@ type consulServer struct {
 // ConsulDataplane represents the consul-dataplane process
 type ConsulDataplane struct {
 	logger          hclog.Logger
-	runtimeCfg      *RuntimeConfig
+	cfg             *Config
 	consulServer    *consulServer
 	dpServiceClient pbdataplane.DataplaneServiceClient
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
-func NewConsulDP(cfg *RuntimeConfig) (*ConsulDataplane, error) {
+func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 	if cfg.Consul == nil || cfg.Consul.Addresses == "" {
 		return nil, fmt.Errorf("consul addresses not specified")
 	}
@@ -49,13 +49,13 @@ func NewConsulDP(cfg *RuntimeConfig) (*ConsulDataplane, error) {
 		JSONFormat: cfg.Logging.LogJSON,
 	})
 
-	return &ConsulDataplane{logger: logger, runtimeCfg: cfg}, nil
+	return &ConsulDataplane{logger: logger, cfg: cfg}, nil
 }
 
 // TODO (CSLC-151): Integrate with server discovery library to determine a healthy server for grpc/xds connection
 func (cdp *ConsulDataplane) resolveAndPickConsulServerAddress(ctx context.Context) error {
 	netAddrLogger := cdp.logger.Named("go-netaddrs")
-	addresses, err := netaddrs.IPAddrs(ctx, cdp.runtimeCfg.Consul.Addresses, netAddrLogger)
+	addresses, err := netaddrs.IPAddrs(ctx, cdp.cfg.Consul.Addresses, netAddrLogger)
 	if err != nil {
 		errMsg := "failure resolving consul server addresses"
 		cdp.logger.Error(errMsg, "error", err)
@@ -95,7 +95,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 
 	// Establish gRPC connection to the Consul server
 	// TODO: Use TLS for the gRPC connection
-	gRPCTarget := fmt.Sprintf("%s:%d", cdp.consulServer.address.String(), cdp.runtimeCfg.Consul.GRPCPort)
+	gRPCTarget := fmt.Sprintf("%s:%d", cdp.consulServer.address.String(), cdp.cfg.Consul.GRPCPort)
 	grpcClientConn, err := grpc.Dial(gRPCTarget, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
 	if err != nil {
 		cdp.logger.Error("could not connect to consul server over grpc", "error", err, "grpc-target", gRPCTarget)

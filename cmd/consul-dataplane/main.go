@@ -24,7 +24,7 @@ func init() {
 		"	b) on failure - exit with a non-zero code and optionally print an error message of upto 1024 bytes to stderr.\n"+
 		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.")
 
-	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on consul servers")
+	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on Consul servers")
 
 	flag.StringVar(&logLevel, "log-level", "info", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
@@ -47,7 +47,7 @@ func main() {
 
 	validateFlags()
 
-	runtimeCfg := &consuldp.RuntimeConfig{
+	consuldpCfg := &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{Addresses: addresses, GRPCPort: grpcPort},
 		Logging: &consuldp.LoggingConfig{
 			Name:     "consul-dataplane",
@@ -55,7 +55,7 @@ func main() {
 			LogJSON:  logJSON,
 		},
 	}
-	consuldpInstance, err := consuldp.NewConsulDP(runtimeCfg)
+	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {
 		log.Fatal(err)
 	}

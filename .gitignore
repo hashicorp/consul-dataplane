@@ -1,1 +1,2 @@
-cmd/consuldp/main
+cmd/consul-dataplane/main
+/consul-dataplane

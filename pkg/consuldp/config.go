@@ -20,9 +20,9 @@ type LoggingConfig struct {
 	LogJSON bool
 }
 
-// RuntimeConfig is the configuration used by consul-dataplane, consolidated
+// Config is the configuration used by consul-dataplane, consolidated
 // from various sources - CLI flags, env vars, config file settings.
-type RuntimeConfig struct {
+type Config struct {
 	Consul *ConsulConfig
 
 	Logging *LoggingConfig
