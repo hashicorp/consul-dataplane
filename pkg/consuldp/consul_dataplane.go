@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	netaddrs "github.com/hashicorp/go-netaddrs"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // consulServer maintains the settings of the Consul server with which
@@ -96,7 +97,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	// Establish gRPC connection to the Consul server
 	// TODO: Use TLS for the gRPC connection
 	gRPCTarget := fmt.Sprintf("%s:%d", cdp.consulServer.address.String(), cdp.cfg.Consul.GRPCPort)
-	grpcClientConn, err := grpc.Dial(gRPCTarget, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	grpcClientConn, err := grpc.Dial(gRPCTarget, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
 	if err != nil {
 		cdp.logger.Error("could not connect to consul server over grpc", "error", err, "grpc-target", gRPCTarget)
 		return err

@@ -1,4 +1,4 @@
-name: test-consul-dataplane
+name: consul-dataplane-checks
 
 on:
   push:
