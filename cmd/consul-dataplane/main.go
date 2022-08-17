@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"log"
+	"os"
+	"os/signal"
 	"strings"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
@@ -98,8 +100,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// TODO: Pass cancellable context
-	err = consuldpInstance.Run(context.Background())
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+
+	go func() {
+		<-sigCh
+		cancel()
+	}()
+
+	err = consuldpInstance.Run(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

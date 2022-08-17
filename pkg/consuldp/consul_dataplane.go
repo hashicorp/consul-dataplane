@@ -7,11 +7,13 @@ import (
 	"net"
 	"time"
 
-	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
 	"github.com/hashicorp/go-hclog"
 	netaddrs "github.com/hashicorp/go-netaddrs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
+	"github.com/hashicorp/consul-dataplane/pkg/envoy"
 )
 
 // consulServer maintains the settings of the Consul server with which
@@ -50,7 +52,10 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 		JSONFormat: cfg.Logging.LogJSON,
 	})
 
-	return &ConsulDataplane{logger: logger, cfg: cfg}, nil
+	return &ConsulDataplane{
+		logger: logger,
+		cfg:    cfg,
+	}, nil
 }
 
 // TODO (CSLC-151): Integrate with server discovery library to determine a healthy server for grpc/xds connection
@@ -122,5 +127,27 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
+	proxy, err := envoy.NewProxy(envoy.ProxyConfig{
+		Logger:          cdp.logger,
+		BootstrapConfig: cfg,
+	})
+	if err != nil {
+		return err
+	}
+	if err := proxy.Run(); err != nil {
+		return err
+	}
+
+	doneCh := make(chan struct{})
+	go func() {
+		<-ctx.Done()
+		if err := proxy.Stop(); err != nil {
+			cdp.logger.Error("failed to stop proxy", "error", err)
+		}
+		close(doneCh)
+	}()
+
+	// Wait for the tear-down to finish.
+	<-doneCh
 	return nil
 }
