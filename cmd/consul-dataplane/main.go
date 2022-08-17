@@ -12,8 +12,19 @@ import (
 var (
 	addresses string
 	grpcPort  int
-	logLevel  string
-	logJSON   bool
+
+	logLevel string
+	logJSON  bool
+
+	nodeName  string
+	nodeID    string
+	serviceID string
+	namespace string
+	partition string
+
+	token string
+
+	useCentralTelemetryConfig bool
 )
 
 func init() {
@@ -24,12 +35,22 @@ func init() {
 		"	b) on failure - exit with a non-zero code and optionally print an error message of upto 1024 bytes to stderr.\n"+
 		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.")
 
-	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on Consul servers")
+	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on Consul servers.")
 
 	flag.StringVar(&logLevel, "log-level", "info", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
 	flag.BoolVar(&logJSON, "log-json", false, "Controls consul-dataplane logging in JSON format. By default this is false.")
+
+	flag.StringVar(&nodeName, "service-node-name", "", "The name of the node to which the proxy service instance is registered.")
+	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the node to which the proxy service instance is registered.")
+	flag.StringVar(&serviceID, "service-id", "", "The proxy service instance's ID.")
+	flag.StringVar(&namespace, "service-namespace", "", "The Consul Enterprise namespace in which the proxy service instance is registered.")
+	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
+
+	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -login-method is set to static).")
+
+	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy will apply the central telemetry configuration.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -48,11 +69,29 @@ func main() {
 	validateFlags()
 
 	consuldpCfg := &consuldp.Config{
-		Consul: &consuldp.ConsulConfig{Addresses: addresses, GRPCPort: grpcPort},
+		Consul: &consuldp.ConsulConfig{
+			Addresses: addresses,
+			GRPCPort:  grpcPort,
+			Credentials: &consuldp.CredentialsConfig{
+				Static: &consuldp.StaticCredentialsConfig{
+					Token: token,
+				},
+			},
+		},
+		Service: &consuldp.ServiceConfig{
+			NodeName:  nodeName,
+			NodeID:    nodeID,
+			ServiceID: serviceID,
+			Namespace: namespace,
+			Partition: partition,
+		},
 		Logging: &consuldp.LoggingConfig{
 			Name:     "consul-dataplane",
 			LogLevel: strings.ToUpper(logLevel),
 			LogJSON:  logJSON,
+		},
+		Telemetry: &consuldp.TelemetryConfig{
+			UseCentralConfig: useCentralTelemetryConfig,
 		},
 	}
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
