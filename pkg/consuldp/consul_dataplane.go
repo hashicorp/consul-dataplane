@@ -116,7 +116,11 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: Generate envoy bootstrap configuration and exec envoy process
+	cfg, err := cdp.bootstrapConfig(ctx)
+	if err != nil {
+		return err
+	}
+	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
 	return nil
 }
