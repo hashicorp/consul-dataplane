@@ -38,10 +38,13 @@ type Proxy struct {
 
 // ProxyConfig contains the configuration required to run an Envoy proxy.
 type ProxyConfig struct {
-	// ExecutablePath is the (absolute) path to the Envoy executable.
+	// ExecutablePath is the path to the Envoy executable.
 	//
 	// Defaults to whichever executable called envoy is found on $PATH.
 	ExecutablePath string
+
+	// ExtraArgs are additional arguments that will be passed to Envoy.
+	ExtraArgs []string
 
 	// Logger that will be used to emit log messages.
 	Logger hclog.Logger
@@ -93,7 +96,7 @@ func (p *Proxy) Run() error {
 	// Run the Envoy process.
 	p.cmd = p.buildCommand(configPath)
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
-	if err := p.cmd.Run(); err != nil {
+	if err := p.cmd.Start(); err != nil {
 		// Clean up the pipe if we weren't able to run Envoy.
 		if err := p.cleanup(); err != nil {
 			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
@@ -117,6 +120,11 @@ func (p *Proxy) Stop() error {
 	case err == nil || errors.Is(err, os.ErrProcessDone):
 		// Everything is fine!
 	default:
+		return err
+	}
+
+	// Reap the process so we don't leave a zombie.
+	if _, err := p.cmd.Process.Wait(); err != nil {
 		return err
 	}
 
@@ -173,8 +181,13 @@ func writeBootstrapConfig(cfg []byte) (string, func() error, error) {
 // buildCommand builds the exec.Cmd to run Envoy with the relevant arguments
 // (e.g. config path) and its logs redirected to the logger.
 func (p *Proxy) buildCommand(cfgPath string) *exec.Cmd {
-	// TODO: Do we want to enable/disable hot restart?
-	cmd := exec.Command(p.cfg.ExecutablePath, "--config-path", cfgPath)
+	args := append(
+		// TODO: Do we want to enable/disable hot restart?
+		[]string{"--config-path", cfgPath},
+		p.cfg.ExtraArgs...,
+	)
+
+	cmd := exec.Command(p.cfg.ExecutablePath, args...)
 
 	// TODO: send the logs somewhere more sensible.
 	logger := p.cfg.Logger.Named("envoy").StandardWriter(&hclog.StandardLoggerOptions{})
