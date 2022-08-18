@@ -8,7 +8,7 @@ BOOTSTRAP_PACKAGE_DIR=internal/bootstrap
 # we copy the files from the Consul repo, and do a small amount of processing
 # to rename the package and remove a dependency on the Consul api module.
 copy-bootstrap-config:
-	for file in bootstrap_config.go bootstrap_tpl.go; do \
+	for file in bootstrap_config.go bootstrap_config_test.go bootstrap_tpl.go; do \
 		curl --fail https://raw.githubusercontent.com/hashicorp/consul/main/command/connect/envoy/$$file | \
 		sed 's/package envoy/package bootstrap/' | \
 		sed '/github.com\/hashicorp\/consul\/api/d' | \
