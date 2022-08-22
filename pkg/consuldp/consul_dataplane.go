@@ -2,6 +2,7 @@ package consuldp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -139,20 +140,17 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
-	doneCh := make(chan struct{})
+	doneCh := make(chan error)
 	go func() {
 		select {
 		case <-ctx.Done():
 			if err := proxy.Stop(); err != nil {
 				cdp.logger.Error("failed to stop proxy", "error", err)
 			}
+			doneCh <- nil
 		case <-proxy.Exited():
-			cdp.logger.Warn("envoy proxy exited unexpectedly")
+			doneCh <- errors.New("envoy proxy exited unexpectedly")
 		}
-		close(doneCh)
 	}()
-
-	// Wait for the tear-down to finish.
-	<-doneCh
-	return nil
+	return <-doneCh
 }
