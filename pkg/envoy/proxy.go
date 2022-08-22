@@ -128,7 +128,9 @@ func (p *Proxy) Run() error {
 		err := p.cmd.Wait()
 		p.cfg.Logger.Info("envoy process exited", "error", err)
 		p.transitionState(stateRunning, stateStopped)
-		cleanup()
+		if err := cleanup(); err != nil {
+			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
+		}
 		close(p.exitedCh)
 	}()
 
