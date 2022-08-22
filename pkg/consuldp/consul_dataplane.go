@@ -129,6 +129,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 
 	proxy, err := envoy.NewProxy(envoy.ProxyConfig{
 		Logger:          cdp.logger,
+		LogJSON:         cdp.cfg.Logging.LogJSON,
 		BootstrapConfig: cfg,
 	})
 	if err != nil {

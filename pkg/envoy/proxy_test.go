@@ -3,12 +3,14 @@ package envoy
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,6 +25,8 @@ func TestProxy(t *testing.T) {
 	t.Cleanup(func() { _ = os.Remove(outputPath) })
 
 	p, err := NewProxy(ProxyConfig{
+		Logger:          hclog.New(&hclog.LoggerOptions{Level: hclog.Warn, Output: io.Discard}),
+		EnvoyLogOutput:  io.Discard,
 		ExecutablePath:  "testdata/fake-envoy",
 		ExtraArgs:       []string{"--test-output", outputPath},
 		BootstrapConfig: bootstrapConfig,
@@ -34,7 +38,7 @@ func TestProxy(t *testing.T) {
 	// Read the output written by fake-envoy. It might take a while, so poll the
 	// file for a couple of seconds.
 	var output struct {
-		Args       string
+		Args       []byte
 		ConfigData []byte
 	}
 	require.Eventually(t, func() bool {
@@ -53,8 +57,11 @@ func TestProxy(t *testing.T) {
 	// Check that fake-envoy was able to read the config from the pipe.
 	require.Equal(t, bootstrapConfig, output.ConfigData)
 
+	// Check that we're correctly configuring the log level.
+	require.Contains(t, string(output.Args), "--log-level warn")
+
 	// Check that we're disabling hot restarts.
-	require.Contains(t, output.Args, "--disable-hot-restart")
+	require.Contains(t, string(output.Args), "--disable-hot-restart")
 
 	// Check the process is still running.
 	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
@@ -75,6 +82,7 @@ func TestProxy_Crash(t *testing.T) {
 		ExecutablePath:  "testdata/fake-envoy",
 		ExtraArgs:       []string{"--test-output", outputPath},
 		BootstrapConfig: []byte(`hello world`),
+		EnvoyLogOutput:  io.Discard,
 	})
 	require.NoError(t, err)
 	require.NoError(t, p.Run())

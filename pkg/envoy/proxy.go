@@ -3,6 +3,7 @@ package envoy
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +21,11 @@ const (
 	stateInitial state = iota
 	stateRunning
 	stateStopped
+)
+
+const (
+	logFormatPlain = "%Y-%m-%dT%T.%eZ%z [%l] envoy.%n(%t) %v"
+	logFormatJSON  = `{"@timestamp":"%Y-%m-%dT%T.%fZ%z","@module":"envoy.%n","@level":"%l","@message":"%j","thread":%t}`
 )
 
 // Proxy manages an Envoy proxy process.
@@ -45,7 +51,16 @@ type ProxyConfig struct {
 	ExtraArgs []string
 
 	// Logger that will be used to emit log messages.
+	//
+	// Note: Envoy logs are *not* written to this logger, and instead are written
+	// directly to EnvoyLogOutput.
 	Logger hclog.Logger
+
+	// LogJSON determines whether the logs emitted by Envoy will be in JSON format.
+	LogJSON bool
+
+	// EnvoyLogOutput is the io.Writer to which Envoy logs will be written.
+	EnvoyLogOutput io.Writer
 
 	// BootstrapConfig is the Envoy bootstrap configuration (in YAML or JSON format)
 	// that will be provided to Envoy via the --config-path flag.
@@ -68,6 +83,9 @@ func NewProxy(cfg ProxyConfig) (*Proxy, error) {
 	}
 	if len(cfg.BootstrapConfig) == 0 {
 		return nil, errors.New("BootstrapConfig is required to run an Envoy proxy")
+	}
+	if cfg.EnvoyLogOutput == nil {
+		cfg.EnvoyLogOutput = hclog.DefaultOutput
 	}
 	return &Proxy{
 		cfg:      cfg,
@@ -197,9 +215,39 @@ func writeBootstrapConfig(cfg []byte) (string, func() error, error) {
 // buildCommand builds the exec.Cmd to run Envoy with the relevant arguments
 // (e.g. config path) and its logs redirected to the logger.
 func (p *Proxy) buildCommand(cfgPath string) *exec.Cmd {
+	var logFormat string
+	if p.cfg.LogJSON {
+		logFormat = logFormatJSON
+	} else {
+		logFormat = logFormatPlain
+	}
+
+	// Infer the log level from the logger. We don't pass the config value as-is
+	// because Envoy is slightly stricter about what it accepts than go-hclog.
+	var (
+		logger   = p.cfg.Logger
+		logLevel string
+	)
+	switch {
+	case logger.IsTrace():
+		logLevel = "trace"
+	case logger.IsDebug():
+		logLevel = "debug"
+	case logger.IsInfo():
+		logLevel = "info"
+	case logger.IsWarn():
+		logLevel = "warn"
+	case logger.IsError():
+		logLevel = "error"
+	default:
+		logLevel = "info"
+	}
+
 	args := append(
 		[]string{
 			"--config-path", cfgPath,
+			"--log-format", logFormat,
+			"--log-level", logLevel,
 
 			// TODO(NET-713): support hot restarts.
 			"--disable-hot-restart",
@@ -208,11 +256,8 @@ func (p *Proxy) buildCommand(cfgPath string) *exec.Cmd {
 	)
 
 	cmd := exec.Command(p.cfg.ExecutablePath, args...)
-
-	// TODO: send the logs somewhere more sensible.
-	logger := p.cfg.Logger.Named("envoy").StandardWriter(&hclog.StandardLoggerOptions{})
-	cmd.Stdout = logger
-	cmd.Stderr = logger
+	cmd.Stdout = p.cfg.EnvoyLogOutput
+	cmd.Stderr = p.cfg.EnvoyLogOutput
 
 	return cmd
 }

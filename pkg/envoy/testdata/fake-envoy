@@ -34,11 +34,12 @@ if [ -z "$test_output" ]; then
 fi
 
 # Base64 encode the data to avoid having to escape it in the JSON output.
-config_data=$(base64 -i $config_path)
+args=$(echo "$@" | base64 | tr -d \\n)
+config_data=$(base64 -i $config_path | tr -d \\n)
 
 cat <<EOF > "$test_output"
 {
-  "Args": "$@",
+  "Args": "$args",
   "ConfigData": "$config_data"
 }
 EOF
