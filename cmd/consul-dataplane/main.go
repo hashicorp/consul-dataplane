@@ -46,7 +46,7 @@ func init() {
 
 	flag.StringVar(&nodeName, "service-node-name", "", "The name of the node to which the proxy service instance is registered.")
 	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the node to which the proxy service instance is registered.")
-	flag.StringVar(&serviceID, "service-id", "", "The proxy service instance's ID.")
+	flag.StringVar(&serviceID, "proxy-service-id", "", "The proxy service instance's ID.")
 	flag.StringVar(&namespace, "service-namespace", "", "The Consul Enterprise namespace in which the proxy service instance is registered.")
 	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
