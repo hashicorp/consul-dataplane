@@ -3,6 +3,7 @@ package consuldp
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 
 	"github.com/mitchellh/mapstructure"
@@ -22,21 +23,22 @@ const (
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
 func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error) {
-	svcCfg := cdp.cfg.Service
+	svc := cdp.cfg.Service
+	envoy := cdp.cfg.Envoy
 
 	req := &pbdataplane.GetEnvoyBootstrapParamsRequest{
-		ServiceId: svcCfg.ServiceID,
-		Namespace: svcCfg.Namespace,
-		Partition: svcCfg.Partition,
+		ServiceId: svc.ServiceID,
+		Namespace: svc.Namespace,
+		Partition: svc.Partition,
 	}
 
-	if svcCfg.NodeID != "" {
+	if svc.NodeID != "" {
 		req.NodeSpec = &pbdataplane.GetEnvoyBootstrapParamsRequest_NodeId{
-			NodeId: svcCfg.NodeID,
+			NodeId: svc.NodeID,
 		}
 	} else {
 		req.NodeSpec = &pbdataplane.GetEnvoyBootstrapParamsRequest_NodeName{
-			NodeName: svcCfg.NodeName,
+			NodeName: svc.NodeName,
 		}
 	}
 
@@ -56,12 +58,12 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 			AgentTLS:     false,
 		},
 		ProxyCluster:          rsp.Service,
-		ProxyID:               svcCfg.ServiceID,
+		ProxyID:               svc.ServiceID,
 		NodeName:              rsp.NodeName,
 		ProxySourceService:    rsp.Service,
 		AdminAccessLogPath:    defaultAdminAccessLogsPath,
-		AdminBindAddress:      cdp.cfg.Envoy.AdminBindAddress,
-		AdminBindPort:         strconv.Itoa(cdp.cfg.Envoy.AdminBindPort),
+		AdminBindAddress:      envoy.AdminBindAddress,
+		AdminBindPort:         strconv.Itoa(envoy.AdminBindPort),
 		LocalAgentClusterName: localClusterName,
 		// TODO(NET-??): Support login via an ACL auth-method.
 		Token:      cdp.cfg.Consul.Credentials.Static.Token,
@@ -70,8 +72,10 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		Datacenter: rsp.Datacenter,
 	}
 
-	// TODO(NET-??): Setup ready listener for ingress gateways.
 	var bootstrapConfig bootstrap.BootstrapConfig
+	if envoy.ReadyBindAddress != "" && envoy.ReadyBindPort != 0 {
+		bootstrapConfig.ReadyBindAddr = net.JoinHostPort(envoy.ReadyBindAddress, strconv.Itoa(envoy.ReadyBindPort))
+	}
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
 		if err := mapstructure.WeakDecode(rsp.Config, &bootstrapConfig); err != nil {

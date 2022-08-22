@@ -30,6 +30,8 @@ var (
 
 	adminBindAddr string
 	adminBindPort int
+	readyBindAddr string
+	readyBindPort int
 )
 
 func init() {
@@ -57,8 +59,10 @@ func init() {
 
 	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy will apply the central telemetry configuration.")
 
-	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address to which the Envoy admin server will bind.")
-	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port to which the Envoy admin server will bind.")
+	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address on which the Envoy admin server will be available.")
+	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server will be available.")
+	flag.StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "The address on which Envoy's readiness probe will be available.")
+	flag.IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "The port on which Envoy's readiness probe will be available.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -104,6 +108,8 @@ func main() {
 		Envoy: &consuldp.EnvoyConfig{
 			AdminBindAddress: adminBindAddr,
 			AdminBindPort:    adminBindPort,
+			ReadyBindAddress: readyBindAddr,
+			ReadyBindPort:    readyBindPort,
 		},
 	}
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)

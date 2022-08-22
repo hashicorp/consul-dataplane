@@ -66,10 +66,14 @@ type TelemetryConfig struct {
 
 // EnvoyConfig contains configuration for the Envoy process.
 type EnvoyConfig struct {
-	// AdminBindAddress is the address the Envoy admin server will bind to.
+	// AdminBindAddress is the address on which the Envoy admin server will be available.
 	AdminBindAddress string
-	// AdminBindPort is the port the Envoy admin server will bind to.
+	// AdminBindPort is the port on which the Envoy admin server will be available.
 	AdminBindPort int
+	// ReadyBindAddress is the address on which the Envoy readiness probe will be available.
+	ReadyBindAddress string
+	// ReadyBindPort is the port on which the Envoy readiness probe will be available.
+	ReadyBindPort int
 }
 
 // Config is the configuration used by consul-dataplane, consolidated
