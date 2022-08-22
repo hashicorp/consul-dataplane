@@ -24,7 +24,9 @@ const (
 // Proxy manages an Envoy proxy process.
 //
 // TODO(NET-118): properly handle the Envoy process lifecycle, including
-// restarting crashed processes.
+// restarting crashed processes. In lieu of that, we could run a goroutine
+// to watch the process and have it crash consul-dataplane if Envoy crashes
+// and let the OS supervisor/scheduler take care of it.
 //
 // Note: Proxy is not thread-safe, callers are responsible for synchronizing
 // access to it.
@@ -182,8 +184,12 @@ func writeBootstrapConfig(cfg []byte) (string, func() error, error) {
 // (e.g. config path) and its logs redirected to the logger.
 func (p *Proxy) buildCommand(cfgPath string) *exec.Cmd {
 	args := append(
-		// TODO: Do we want to enable/disable hot restart?
-		[]string{"--config-path", cfgPath},
+		[]string{
+			"--config-path", cfgPath,
+
+			// TODO(NET-713): support hot restarts.
+			"--disable-hot-restart",
+		},
 		p.cfg.ExtraArgs...,
 	)
 

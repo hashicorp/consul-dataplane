@@ -34,6 +34,7 @@ func TestProxy(t *testing.T) {
 	// Read the output written by fake-envoy. It might take a while, so poll the
 	// file for a couple of seconds.
 	var output struct {
+		Args       string
 		ConfigData []byte
 	}
 	require.Eventually(t, func() bool {
@@ -51,6 +52,9 @@ func TestProxy(t *testing.T) {
 
 	// Check that fake-envoy was able to read the config from the pipe.
 	require.Equal(t, bootstrapConfig, output.ConfigData)
+
+	// Check that we're disabling hot restarts.
+	require.Contains(t, output.Args, "--disable-hot-restart")
 
 	// Check the process is still running.
 	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
