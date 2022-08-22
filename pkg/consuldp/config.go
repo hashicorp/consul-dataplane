@@ -64,6 +64,14 @@ type TelemetryConfig struct {
 	// TODO(NET-??): Local telemetry configuration.
 }
 
+// EnvoyConfig contains configuration for the Envoy process.
+type EnvoyConfig struct {
+	// AdminBindAddress is the address the Envoy admin server will bind to.
+	AdminBindAddress string
+	// AdminBindPort is the port the Envoy admin server will bind to.
+	AdminBindPort int
+}
+
 // Config is the configuration used by consul-dataplane, consolidated
 // from various sources - CLI flags, env vars, config file settings.
 type Config struct {
@@ -71,4 +79,5 @@ type Config struct {
 	Service   *ServiceConfig
 	Logging   *LoggingConfig
 	Telemetry *TelemetryConfig
+	Envoy     *EnvoyConfig
 }

@@ -18,10 +18,6 @@ const (
 
 	// By default we send logs from Envoy's admin interface to /dev/null.
 	defaultAdminAccessLogsPath = "/dev/null"
-
-	// By default we bind Envoy's admin interface to localhost port 19000.
-	defaultAdminBindAddress = "127.0.0.1"
-	defaultAdminBindPort    = 19000
 )
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
@@ -59,14 +55,13 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 			AgentPort:    strconv.Itoa(cdp.cfg.Consul.GRPCPort),
 			AgentTLS:     false,
 		},
-		ProxyCluster:       rsp.Service,
-		ProxyID:            svcCfg.ServiceID,
-		NodeName:           rsp.NodeName,
-		ProxySourceService: rsp.Service,
-		// TODO(NET-??): Support configuration of these.
+		ProxyCluster:          rsp.Service,
+		ProxyID:               svcCfg.ServiceID,
+		NodeName:              rsp.NodeName,
+		ProxySourceService:    rsp.Service,
 		AdminAccessLogPath:    defaultAdminAccessLogsPath,
-		AdminBindAddress:      defaultAdminBindAddress,
-		AdminBindPort:         strconv.Itoa(defaultAdminBindPort),
+		AdminBindAddress:      cdp.cfg.Envoy.AdminBindAddress,
+		AdminBindPort:         strconv.Itoa(cdp.cfg.Envoy.AdminBindPort),
 		LocalAgentClusterName: localClusterName,
 		// TODO(NET-??): Support login via an ACL auth-method.
 		Token:      cdp.cfg.Consul.Credentials.Static.Token,

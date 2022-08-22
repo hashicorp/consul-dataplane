@@ -27,6 +27,9 @@ var (
 	token string
 
 	useCentralTelemetryConfig bool
+
+	adminBindAddr string
+	adminBindPort int
 )
 
 func init() {
@@ -53,6 +56,9 @@ func init() {
 	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -login-method is set to static).")
 
 	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy will apply the central telemetry configuration.")
+
+	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address to which the Envoy admin server will bind.")
+	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port to which the Envoy admin server will bind.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -94,6 +100,10 @@ func main() {
 		},
 		Telemetry: &consuldp.TelemetryConfig{
 			UseCentralConfig: useCentralTelemetryConfig,
+		},
+		Envoy: &consuldp.EnvoyConfig{
+			AdminBindAddress: adminBindAddr,
+			AdminBindPort:    adminBindPort,
 		},
 	}
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
