@@ -7,13 +7,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 )
 
-type state uint16
+type state uint32
 
 const (
 	stateInitial state = iota
@@ -24,18 +25,13 @@ const (
 // Proxy manages an Envoy proxy process.
 //
 // TODO(NET-118): properly handle the Envoy process lifecycle, including
-// restarting crashed processes. In lieu of that, we could run a goroutine
-// to watch the process and have it crash consul-dataplane if Envoy crashes
-// and let the OS supervisor/scheduler take care of it.
-//
-// Note: Proxy is not thread-safe, callers are responsible for synchronizing
-// access to it.
+// restarting crashed processes.
 type Proxy struct {
 	cfg ProxyConfig
 
-	state   state
-	cmd     *exec.Cmd
-	cleanup func() error
+	state    state
+	cmd      *exec.Cmd
+	exitedCh chan struct{}
 }
 
 // ProxyConfig contains the configuration required to run an Envoy proxy.
@@ -73,24 +69,25 @@ func NewProxy(cfg ProxyConfig) (*Proxy, error) {
 	if len(cfg.BootstrapConfig) == 0 {
 		return nil, errors.New("BootstrapConfig is required to run an Envoy proxy")
 	}
-	return &Proxy{cfg: cfg}, nil
+	return &Proxy{
+		cfg:      cfg,
+		exitedCh: make(chan struct{}),
+	}, nil
 }
 
 // Run the Envoy proxy process.
 //
-// The caller is responsible for terminating the Envoy process with Stop.
+// The caller is responsible for terminating the Envoy process with Stop. If it
+// crashes the caller can be notified by receiving on the Exited channel.
+//
+// Run may only be called once. It is not possible to restart a stopped proxy.
 func (p *Proxy) Run() error {
-	if p.state != stateInitial {
-		return errors.New("proxy must not have already been run")
+	if !p.transitionState(stateInitial, stateRunning) {
+		return errors.New("proxy may only be run once")
 	}
-	p.state = stateRunning
 
 	// Write the bootstrap config to a pipe.
-	var (
-		configPath string
-		err        error
-	)
-	configPath, p.cleanup, err = writeBootstrapConfig(p.cfg.BootstrapConfig)
+	configPath, cleanup, err := writeBootstrapConfig(p.cfg.BootstrapConfig)
 	if err != nil {
 		return err
 	}
@@ -100,37 +97,54 @@ func (p *Proxy) Run() error {
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
 		// Clean up the pipe if we weren't able to run Envoy.
-		if err := p.cleanup(); err != nil {
+		if err := cleanup(); err != nil {
 			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
 		}
 		return err
 	}
+
+	// This goroutine is responsible for waiting on the process (which reaps it
+	// preventing a zombie), triggering cleanup, and notifying the caller that the
+	// process has exited.
+	go func() {
+		err := p.cmd.Wait()
+		p.cfg.Logger.Info("envoy process exited", "error", err)
+		p.transitionState(stateRunning, stateStopped)
+		cleanup()
+		close(p.exitedCh)
+	}()
+
 	return nil
 }
 
 // Stop the Envoy proxy process.
+//
+// Note: the caller is responsible for ensuring Stop is not called concurrently
+// with Run, as this is thread-unsafe.
 func (p *Proxy) Stop() error {
-	if p.state != stateRunning {
+	switch p.getState() {
+	case stateStopped:
+		// Nothing to do!
+		return nil
+	case stateRunning:
+		// Kill the process.
+		p.cfg.Logger.Debug("stopping envoy")
+		return p.cmd.Process.Kill()
+	default:
 		return errors.New("proxy must be running to be stopped")
 	}
-	p.state = stateStopped
+}
 
-	p.cfg.Logger.Debug("stopping envoy")
+// Exited returns a channel that is closed when the Envoy process exits. It can
+// be used to detect and act on process crashes.
+func (p *Proxy) Exited() chan struct{} { return p.exitedCh }
 
-	err := p.cmd.Process.Kill()
-	switch {
-	case err == nil || errors.Is(err, os.ErrProcessDone):
-		// Everything is fine!
-	default:
-		return err
-	}
+func (p *Proxy) getState() state {
+	return state(atomic.LoadUint32((*uint32)(&p.state)))
+}
 
-	// Reap the process so we don't leave a zombie.
-	if _, err := p.cmd.Process.Wait(); err != nil {
-		return err
-	}
-
-	return p.cleanup()
+func (p *Proxy) transitionState(before, after state) bool {
+	return atomic.CompareAndSwapUint32((*uint32)(&p.state), uint32(before), uint32(after))
 }
 
 // writeBootstrapConfig writes the given Envoy bootstrap config to a named pipe

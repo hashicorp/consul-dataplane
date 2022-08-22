@@ -140,9 +140,13 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 
 	doneCh := make(chan struct{})
 	go func() {
-		<-ctx.Done()
-		if err := proxy.Stop(); err != nil {
-			cdp.logger.Error("failed to stop proxy", "error", err)
+		select {
+		case <-ctx.Done():
+			if err := proxy.Stop(); err != nil {
+				cdp.logger.Error("failed to stop proxy", "error", err)
+			}
+		case <-proxy.Exited():
+			cdp.logger.Warn("envoy proxy exited unexpectedly")
 		}
 		close(doneCh)
 	}()

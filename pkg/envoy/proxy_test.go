@@ -61,7 +61,38 @@ func TestProxy(t *testing.T) {
 
 	// Ensure Stop kills and reaps the process.
 	require.NoError(t, p.Stop())
-	require.Equal(t, os.ErrProcessDone, p.cmd.Process.Signal(syscall.Signal(0)))
+
+	require.Eventually(t, func() bool {
+		return p.cmd.Process.Signal(syscall.Signal(0)) == os.ErrProcessDone
+	}, 2*time.Second, 50*time.Millisecond)
+}
+
+func TestProxy_Crash(t *testing.T) {
+	outputPath := testOutputPath()
+	t.Cleanup(func() { _ = os.Remove(outputPath) })
+
+	p, err := NewProxy(ProxyConfig{
+		ExecutablePath:  "testdata/fake-envoy",
+		ExtraArgs:       []string{"--test-output", outputPath},
+		BootstrapConfig: []byte(`hello world`),
+	})
+	require.NoError(t, err)
+	require.NoError(t, p.Run())
+	t.Cleanup(func() { _ = p.Stop() })
+
+	// Check the process is running.
+	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
+
+	// Kill it!
+	require.NoError(t, p.cmd.Process.Kill())
+
+	select {
+	case <-p.Exited():
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for Exited channel to be closed")
+	}
+
+	require.Equal(t, stateStopped, p.getState())
 }
 
 func testOutputPath() string {
