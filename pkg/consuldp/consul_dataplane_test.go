@@ -6,16 +6,39 @@ import (
 	"net"
 	"testing"
 
-	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
 	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
 )
 
-func TestNewConsulDP(t *testing.T) {
-	cfg := &Config{
-		Consul:  &ConsulConfig{Addresses: "consul.servers.dns.com", GRPCPort: 8502},
-		Logging: &LoggingConfig{Name: "consul-dataplane"},
+func validConfig() *Config {
+	return &Config{
+		Consul: &ConsulConfig{
+			Addresses: "consul.servers.dns.com",
+			GRPCPort:  1234,
+			Credentials: &CredentialsConfig{
+				Static: &StaticCredentialsConfig{
+					Token: "some-acl-token",
+				},
+			},
+		},
+		Service: &ServiceConfig{
+			NodeName:  "agentless-node",
+			ServiceID: "web-proxy",
+		},
+		Logging: &LoggingConfig{
+			LogLevel: "INFO",
+		},
+		Envoy: &EnvoyConfig{
+			AdminBindAddress: "127.0.0.1",
+			AdminBindPort:    19000,
+		},
 	}
+}
+
+func TestNewConsulDP(t *testing.T) {
+	cfg := validConfig()
 	consulDP, err := NewConsulDP(cfg)
 	require.NoError(t, err)
 	require.NotNil(t, consulDP)
@@ -28,44 +51,103 @@ func TestNewConsulDP(t *testing.T) {
 func TestNewConsulDPError(t *testing.T) {
 	type testCase struct {
 		name      string
-		cfg       *Config
+		modFn     func(*Config)
 		expectErr string
-	}
-
-	run := func(t *testing.T, tc testCase) {
-		_, err := NewConsulDP(tc.cfg)
-		require.EqualError(t, err, tc.expectErr)
 	}
 
 	testCases := []testCase{
 		{
 			name:      "missing consul config",
-			cfg:       &Config{},
+			modFn:     func(c *Config) { c.Consul = nil },
 			expectErr: "consul addresses not specified",
 		},
 		{
 			name:      "missing consul addresses",
-			cfg:       &Config{Consul: &ConsulConfig{}},
+			modFn:     func(c *Config) { c.Consul.Addresses = "" },
 			expectErr: "consul addresses not specified",
 		},
 		{
 			name:      "missing consul server grpc port",
-			cfg:       &Config{Consul: &ConsulConfig{Addresses: "consul.servers.dns.com"}},
+			modFn:     func(c *Config) { c.Consul.GRPCPort = 0 },
 			expectErr: "consul server gRPC port not specified",
+		},
+		{
+			name:      "missing credentials",
+			modFn:     func(c *Config) { c.Consul.Credentials = nil },
+			expectErr: "consul credentials not specified",
+		},
+		{
+			name:      "missing static credentials",
+			modFn:     func(c *Config) { c.Consul.Credentials.Static = nil },
+			expectErr: "only static credentials are supported but none were specified",
+		},
+		{
+			name:      "missing static credentials token",
+			modFn:     func(c *Config) { c.Consul.Credentials.Static.Token = "" },
+			expectErr: "only static credentials are supported but none were specified",
+		},
+		{
+			name:      "missing service config",
+			modFn:     func(c *Config) { c.Service = nil },
+			expectErr: "service details not specified",
+		},
+		{
+			name: "missing node details",
+			modFn: func(c *Config) {
+				c.Service.NodeName = ""
+				c.Service.NodeID = ""
+			},
+			expectErr: "node name or ID not specified",
+		},
+		{
+			name: "missing node details",
+			modFn: func(c *Config) {
+				c.Service.NodeName = ""
+				c.Service.NodeID = ""
+			},
+			expectErr: "node name or ID not specified",
+		},
+		{
+			name:      "missing service id",
+			modFn:     func(c *Config) { c.Service.ServiceID = "" },
+			expectErr: "proxy service ID not specified",
+		},
+		{
+			name:      "missing envoy config",
+			modFn:     func(c *Config) { c.Envoy = nil },
+			expectErr: "envoy settings not specified",
+		},
+		{
+			name:      "missing envoy admin bind address",
+			modFn:     func(c *Config) { c.Envoy.AdminBindAddress = "" },
+			expectErr: "envoy admin bind address not specified",
+		},
+		{
+			name:      "missing envoy admin bind port",
+			modFn:     func(c *Config) { c.Envoy.AdminBindPort = 0 },
+			expectErr: "envoy admin bind port not specified",
+		},
+		{
+			name:      "missing logging config",
+			modFn:     func(c *Config) { c.Logging = nil },
+			expectErr: "logging settings not specified",
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			run(t, tc)
+			cfg := validConfig()
+			tc.modFn(cfg)
+
+			_, err := NewConsulDP(cfg)
+			require.EqualError(t, err, tc.expectErr)
 		})
 	}
 }
 
 func TestResolveAndPickConsulServerAddress(t *testing.T) {
-	cfg := &Config{
-		Consul:  &ConsulConfig{Addresses: "exec=echo 127.0.0.1", GRPCPort: 8502},
-		Logging: &LoggingConfig{Name: "consul-dataplane"},
-	}
+	cfg := validConfig()
+	cfg.Consul.Addresses = "exec=echo 127.0.0.1"
+
 	consulDP, err := NewConsulDP(cfg)
 	require.NoError(t, err)
 
@@ -74,10 +156,9 @@ func TestResolveAndPickConsulServerAddress(t *testing.T) {
 }
 
 func TestResolveAndPickConsulServerAddressError(t *testing.T) {
-	cfg := &Config{
-		Consul:  &ConsulConfig{Addresses: "invalid-dns", GRPCPort: 8502},
-		Logging: &LoggingConfig{Name: "consul-dataplane"},
-	}
+	cfg := validConfig()
+	cfg.Consul.Addresses = "invalid-dns"
+
 	consulDP, err := NewConsulDP(cfg)
 	require.NoError(t, err)
 	require.ErrorContains(t, consulDP.resolveAndPickConsulServerAddress(context.Background()), "failure resolving consul server addresses")
@@ -85,10 +166,7 @@ func TestResolveAndPickConsulServerAddressError(t *testing.T) {
 }
 
 func TestSetConsulServerSupportedFeatures(t *testing.T) {
-	cfg := &Config{
-		Consul:  &ConsulConfig{Addresses: "exec=echo 127.0.0.1", GRPCPort: 8502},
-		Logging: &LoggingConfig{Name: "consul-dataplane"},
-	}
+	cfg := validConfig()
 	consulDP, err := NewConsulDP(cfg)
 	require.NoError(t, err)
 
@@ -120,10 +198,7 @@ func TestSetConsulServerSupportedFeatures(t *testing.T) {
 }
 
 func TestSetConsulServerSupportedFeaturesError(t *testing.T) {
-	cfg := &Config{
-		Consul:  &ConsulConfig{Addresses: "exec=echo 127.0.0.1", GRPCPort: 8502},
-		Logging: &LoggingConfig{Name: "consul-dataplane"},
-	}
+	cfg := validConfig()
 	consulDP, err := NewConsulDP(cfg)
 	require.NoError(t, err)
 

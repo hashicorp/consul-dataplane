@@ -36,11 +36,8 @@ type ConsulDataplane struct {
 
 // NewConsulDP creates a new instance of ConsulDataplane
 func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
-	if cfg.Consul == nil || cfg.Consul.Addresses == "" {
-		return nil, fmt.Errorf("consul addresses not specified")
-	}
-	if cfg.Consul.GRPCPort == 0 {
-		return nil, fmt.Errorf("consul server gRPC port not specified")
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
 	}
 
 	hclogLevel := hclog.LevelFromString(cfg.Logging.LogLevel)
@@ -57,6 +54,34 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 		logger: logger,
 		cfg:    cfg,
 	}, nil
+}
+
+func validateConfig(cfg *Config) error {
+	switch {
+	case cfg.Consul == nil || cfg.Consul.Addresses == "":
+		return errors.New("consul addresses not specified")
+	case cfg.Consul.Credentials == nil:
+		return errors.New("consul credentials not specified")
+	case cfg.Consul.Credentials.Static == nil || cfg.Consul.Credentials.Static.Token == "":
+		return errors.New("only static credentials are supported but none were specified")
+	case cfg.Consul.GRPCPort == 0:
+		return errors.New("consul server gRPC port not specified")
+	case cfg.Service == nil:
+		return errors.New("service details not specified")
+	case cfg.Service.NodeID == "" && cfg.Service.NodeName == "":
+		return errors.New("node name or ID not specified")
+	case cfg.Service.ServiceID == "":
+		return errors.New("proxy service ID not specified")
+	case cfg.Envoy == nil:
+		return errors.New("envoy settings not specified")
+	case cfg.Envoy.AdminBindAddress == "":
+		return errors.New("envoy admin bind address not specified")
+	case cfg.Envoy.AdminBindPort == 0:
+		return errors.New("envoy admin bind port not specified")
+	case cfg.Logging == nil:
+		return errors.New("logging settings not specified")
+	}
+	return nil
 }
 
 // TODO (CSLC-151): Integrate with server discovery library to determine a healthy server for grpc/xds connection
