@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 
 	"github.com/mitchellh/mapstructure"
@@ -18,7 +19,7 @@ const (
 	localClusterName = "consul-dataplane"
 
 	// By default we send logs from Envoy's admin interface to /dev/null.
-	defaultAdminAccessLogsPath = "/dev/null"
+	defaultAdminAccessLogsPath = os.DevNull
 )
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
@@ -78,7 +79,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 	}
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
-		if err := mapstructure.WeakDecode(rsp.Config, &bootstrapConfig); err != nil {
+		if err := mapstructure.WeakDecode(rsp.Config.AsMap(), &bootstrapConfig); err != nil {
 			return nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
 		}
 	}
