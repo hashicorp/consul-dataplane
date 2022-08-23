@@ -66,7 +66,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		AdminBindAddress:      envoy.AdminBindAddress,
 		AdminBindPort:         strconv.Itoa(envoy.AdminBindPort),
 		LocalAgentClusterName: localClusterName,
-		// TODO(NET-??): Support login via an ACL auth-method.
+		// TODO(NET-148): Support login via an ACL auth-method.
 		Token:      cdp.cfg.Consul.Credentials.Static.Token,
 		Namespace:  rsp.Namespace,
 		Partition:  rsp.Partition,

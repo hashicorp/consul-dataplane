@@ -61,7 +61,7 @@ type TelemetryConfig struct {
 	// configuration.
 	UseCentralConfig bool
 
-	// TODO(NET-??): Local telemetry configuration.
+	// TODO(NET-100): Local telemetry configuration.
 }
 
 // EnvoyConfig contains configuration for the Envoy process.
