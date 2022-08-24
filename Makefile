@@ -17,3 +17,12 @@ copy-bootstrap-config:
 		gofmt \
 		> $(BOOTSTRAP_PACKAGE_DIR)/$$file; \
 	done
+
+.PHONY: unit-tests
+unit-tests:
+	go test ./...
+
+# TODO: Install dependencies before running this target
+.PHONY: consul-proto
+consul-proto:
+	buf generate "https://github.com/hashicorp/consul.git#branch=main,subdir=proto-public"
