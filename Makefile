@@ -26,3 +26,7 @@ unit-tests:
 .PHONY: consul-proto
 consul-proto:
 	buf generate "https://github.com/hashicorp/consul.git#branch=main,subdir=proto-public"
+
+.PHONY: docker-build
+docker-build:
+	docker build --no-cache . -t consul-dataplane
