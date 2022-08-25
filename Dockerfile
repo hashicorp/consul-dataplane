@@ -6,7 +6,7 @@
 
 FROM envoyproxy/envoy:v1.23-latest as envoy-binary
 
-FROM golang:1.18 as consul-dataplane-binary
+FROM golang:1.18-alpine as consul-dataplane-binary
 WORKDIR /cdp
 # TODO: Directly go install the consul-dataplane CLI once repo is public
 COPY cmd ./cmd
@@ -20,8 +20,9 @@ RUN go build ./cmd/consul-dataplane
 # to fix depencencies is merged. (https://github.com/hashicorp/go-discover/pull/202)
 # RUN go get -u github.com/hashicorp/go-discover/cmd/discover
 
-FROM ubuntu:latest as consul-dataplane-container
+FROM alpine:3.16 as consul-dataplane-container
 WORKDIR /root/
+RUN apk add gcompat
 COPY --from=consul-dataplane-binary /cdp/consul-dataplane ./
 COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/envoy
 ENTRYPOINT [ "./consul-dataplane" ]
