@@ -3,6 +3,7 @@ module github.com/hashicorp/consul-dataplane
 go 1.18
 
 require (
+	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-netaddrs v0.0.0-20220509001840-90ed9d26ec46
 	github.com/mitchellh/mapstructure v1.5.0
@@ -20,8 +21,9 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
-	golang.org/x/net v0.0.0-20220624214902-1bab6f366d9e // indirect
-	golang.org/x/sys v0.0.0-20220624220833-87e55d714810 // indirect
+	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
+	golang.org/x/sys v0.0.0-20220825204002-c680a09ffe64 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20220624142145-8cd45d7dbd1f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

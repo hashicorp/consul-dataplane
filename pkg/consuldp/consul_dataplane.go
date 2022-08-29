@@ -24,6 +24,8 @@ type consulServer struct {
 	address net.IPAddr
 	// supportedFeatures is a map of the dataplane features supported by the Consul server
 	supportedFeatures map[pbdataplane.DataplaneFeatures]bool
+
+	grpcClientConn *grpc.ClientConn
 }
 
 // ConsulDataplane represents the consul-dataplane process
@@ -32,6 +34,9 @@ type ConsulDataplane struct {
 	cfg             *Config
 	consulServer    *consulServer
 	dpServiceClient pbdataplane.DataplaneServiceClient
+
+	gRPCListener net.Listener
+	gRPCServer   *grpc.Server
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -132,6 +137,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 	defer grpcClientConn.Close()
+	cdp.consulServer.grpcClientConn = grpcClientConn
 	cdp.logger.Info("connected to consul server over grpc", "grpc-target", gRPCTarget)
 
 	dpservice := pbdataplane.NewDataplaneServiceClient(grpcClientConn)
@@ -143,6 +149,12 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		cdp.logger.Error("failed to set supported features", "error", err)
 		return fmt.Errorf("failed to set supported features: %w", err)
 	}
+
+	err = cdp.setupGRPCServer()
+	if err != nil {
+		return err
+	}
+	go cdp.startGRPCServer()
 
 	cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {

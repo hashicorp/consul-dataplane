@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -24,6 +25,9 @@ const (
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
 func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error) {
+	cdpFullAddr := strings.Split(cdp.gRPCListener.Addr().String(), ":")
+	cdpAddr := cdpFullAddr[0]
+	cdpPort := cdpFullAddr[1]
 	svc := cdp.cfg.Service
 	envoy := cdp.cfg.Envoy
 
@@ -50,12 +54,9 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{
-			// TODO(NET-99): This should be a listener on the consul-dataplane process
-			// that proxies streams to the server, handles load-balancing, SDS etc.
-			//
 			// For now we just give the server address directly.
-			AgentAddress: cdp.consulServer.address.String(),
-			AgentPort:    strconv.Itoa(cdp.cfg.Consul.GRPCPort),
+			AgentAddress: cdpAddr,
+			AgentPort:    cdpPort,
 			AgentTLS:     false,
 		},
 		ProxyCluster:          rsp.Service,
