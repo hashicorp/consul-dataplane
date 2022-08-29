@@ -6,7 +6,7 @@ import (
 	"net"
 	"testing"
 
-	mock "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
@@ -70,21 +70,6 @@ func TestNewConsulDPError(t *testing.T) {
 			name:      "missing consul server grpc port",
 			modFn:     func(c *Config) { c.Consul.GRPCPort = 0 },
 			expectErr: "consul server gRPC port not specified",
-		},
-		{
-			name:      "missing credentials",
-			modFn:     func(c *Config) { c.Consul.Credentials = nil },
-			expectErr: "consul credentials not specified",
-		},
-		{
-			name:      "missing static credentials",
-			modFn:     func(c *Config) { c.Consul.Credentials.Static = nil },
-			expectErr: "only static credentials are supported but none were specified",
-		},
-		{
-			name:      "missing static credentials token",
-			modFn:     func(c *Config) { c.Consul.Credentials.Static.Token = "" },
-			expectErr: "only static credentials are supported but none were specified",
 		},
 		{
 			name:      "missing service config",

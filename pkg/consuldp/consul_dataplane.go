@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	netaddrs "github.com/hashicorp/go-netaddrs"
+	"github.com/hashicorp/go-netaddrs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -60,10 +60,6 @@ func validateConfig(cfg *Config) error {
 	switch {
 	case cfg.Consul == nil || cfg.Consul.Addresses == "":
 		return errors.New("consul addresses not specified")
-	case cfg.Consul.Credentials == nil:
-		return errors.New("consul credentials not specified")
-	case cfg.Consul.Credentials.Static == nil || cfg.Consul.Credentials.Static.Token == "":
-		return errors.New("only static credentials are supported but none were specified")
 	case cfg.Consul.GRPCPort == 0:
 		return errors.New("consul server gRPC port not specified")
 	case cfg.Service == nil:
@@ -144,12 +140,14 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	// TODO: Acquire ACL token and pass it in gRPC calls.
 
 	if err := cdp.setConsulServerSupportedFeatures(ctx); err != nil {
-		return err
+		cdp.logger.Error("failed to set supported features", "error", err)
+		return fmt.Errorf("failed to set supported features: %w", err)
 	}
 
 	cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
-		return err
+		cdp.logger.Error("failed to get bootstrap config", "error", err)
+		return fmt.Errorf("failed to get bootstrap config: %w", err)
 	}
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
@@ -159,10 +157,12 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		BootstrapConfig: cfg,
 	})
 	if err != nil {
-		return err
+		cdp.logger.Error("failed to create new proxy", "error", err)
+		return fmt.Errorf("failed to create new proxy: %w", err)
 	}
 	if err := proxy.Run(); err != nil {
-		return err
+		cdp.logger.Error("failed to run proxy", "error", err)
+		return fmt.Errorf("failed to run proxy: %w", err)
 	}
 
 	doneCh := make(chan error)
