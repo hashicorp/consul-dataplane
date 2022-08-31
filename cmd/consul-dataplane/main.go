@@ -15,6 +15,13 @@ var (
 	addresses string
 	grpcPort  int
 
+	tlsEnabled            bool
+	tlsCertFile           string
+	tlsKeyFile            string
+	tlsCACertsPath        string
+	tlsServerName         string
+	tlsInsecureSkipVerify bool
+
 	logLevel string
 	logJSON  bool
 
@@ -43,6 +50,14 @@ func init() {
 		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.")
 
 	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on Consul servers.")
+
+	flag.BoolVar(&tlsEnabled, "tls-enabled", false, "If true, use TLS to connect to Consul servers.")
+	flag.StringVar(&tlsCertFile, "tls-cert-file", "", "Path to the client certificate file for making TLS connections to Consul.")
+	flag.StringVar(&tlsKeyFile, "tls-key-file", "", "Path to the client key file for making TLS connections to Consul.")
+	flag.StringVar(&tlsCACertsPath, "tls-ca-certs-path", "", "Path to a directory or a single file of the CA certificate(s) "+
+		"for making TLS connections to Consul.")
+	flag.StringVar(&tlsServerName, "tls-server-name", "", "The name of the server to use for TLS hostname verification.")
+	flag.BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "If true, skip TLS certificate verification of the Consul server.")
 
 	flag.StringVar(&logLevel, "log-level", "info", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
@@ -111,6 +126,15 @@ func main() {
 			ReadyBindAddress: readyBindAddr,
 			ReadyBindPort:    readyBindPort,
 		},
+	}
+	if tlsEnabled {
+		consuldpCfg.Consul.TLS = &consuldp.TLSConfig{
+			CertFile:           tlsCertFile,
+			KeyFile:            tlsKeyFile,
+			CACertsPath:        tlsCACertsPath,
+			ServerName:         tlsServerName,
+			InsecureSkipVerify: tlsInsecureSkipVerify,
+		}
 	}
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {

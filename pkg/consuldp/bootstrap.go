@@ -3,9 +3,11 @@ package consuldp
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -71,6 +73,17 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		Namespace:  rsp.Namespace,
 		Partition:  rsp.Partition,
 		Datacenter: rsp.Datacenter,
+	}
+	if cdp.cfg.Consul.TLS != nil {
+		args.GRPC.AgentTLS = true
+		// todo: this is hacky as we're assuming that the CA is always a file but it's ok because
+		// this will not be needed once we implement xds server for consul-dataplane.
+		caPEMBytes, err := ioutil.ReadFile(cdp.cfg.Consul.TLS.CACertsPath)
+		if err != nil {
+			return nil, err
+		}
+		caPEM := strings.Replace(string(caPEMBytes), "\n", "\\n", -1)
+		args.AgentCAPEM = string(caPEM)
 	}
 
 	var bootstrapConfig bootstrap.BootstrapConfig

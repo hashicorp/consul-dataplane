@@ -2,6 +2,7 @@ package consuldp
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -11,10 +12,13 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-netaddrs"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
 	"github.com/hashicorp/consul-dataplane/pkg/envoy"
+	"github.com/hashicorp/go-rootcerts"
 )
 
 // consulServer maintains the settings of the Consul server with which
@@ -124,9 +128,27 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	// Establish gRPC connection to the Consul server
 	// TODO: Use TLS for the gRPC connection
 	gRPCTarget := fmt.Sprintf("%s:%d", cdp.consulServer.address.String(), cdp.cfg.Consul.GRPCPort)
-	grpcCtx, cancel := context.WithTimeout(ctx, time.Duration(10*time.Second))
+	grpcCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	grpcClientConn, err := grpc.DialContext(grpcCtx, gRPCTarget, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if cdp.cfg.Consul.Credentials.Static != nil && cdp.cfg.Consul.Credentials.Static.Token != "" {
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-consul-token", cdp.cfg.Consul.Credentials.Static.Token)
+	}
+	grpcCreds := insecure.NewCredentials()
+	if cdp.cfg.Consul.TLS != nil {
+		consulTLSConfig := cdp.cfg.Consul.TLS
+		tlsConfig := &tls.Config{}
+		err := rootcerts.ConfigureTLS(tlsConfig, &rootcerts.Config{
+			//CAFile:        consulTLSConfig.CACertsPath,
+			CAPath: consulTLSConfig.CACertsPath,
+		})
+		if err != nil {
+			return err
+		}
+		tlsConfig.ServerName = consulTLSConfig.ServerName
+		tlsConfig.InsecureSkipVerify = consulTLSConfig.InsecureSkipVerify
+		grpcCreds = credentials.NewTLS(tlsConfig)
+	}
+	grpcClientConn, err := grpc.DialContext(grpcCtx, gRPCTarget, grpc.WithTransportCredentials(grpcCreds), grpc.WithBlock())
 	if err != nil {
 		cdp.logger.Error("could not connect to consul server over grpc", "error", err, "grpc-target", gRPCTarget)
 		return err

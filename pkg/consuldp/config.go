@@ -11,6 +11,8 @@ type ConsulConfig struct {
 	// Credentials are the credentials used to authenticate requests and streams
 	// to the Consul servers (e.g. static ACL token or auth method credentials).
 	Credentials *CredentialsConfig
+
+	TLS *TLSConfig
 }
 
 // CredentialsConfig contains the credentials used to authenticate requests and
@@ -74,6 +76,14 @@ type EnvoyConfig struct {
 	ReadyBindAddress string
 	// ReadyBindPort is the port on which the Envoy readiness probe will be available.
 	ReadyBindPort int
+}
+
+type TLSConfig struct {
+	CertFile           string
+	KeyFile            string
+	CACertsPath        string
+	ServerName         string
+	InsecureSkipVerify bool
 }
 
 // Config is the configuration used by consul-dataplane, consolidated
