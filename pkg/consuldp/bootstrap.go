@@ -25,9 +25,9 @@ const (
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
 func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error) {
-	cdpFullAddr := strings.Split(cdp.gRPCListener.Addr().String(), ":")
-	cdpAddr := cdpFullAddr[0]
-	cdpPort := cdpFullAddr[1]
+	cdpGRPCFullAddr := strings.Split(cdp.gRPCServer.listener.Addr().String(), ":")
+	cdpGRPCAddr := cdpGRPCFullAddr[0]
+	cdpGRPCPort := cdpGRPCFullAddr[1]
 	svc := cdp.cfg.Service
 	envoy := cdp.cfg.Envoy
 
@@ -54,9 +54,8 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{
-			// For now we just give the server address directly.
-			AgentAddress: cdpAddr,
-			AgentPort:    cdpPort,
+			AgentAddress: cdpGRPCAddr,
+			AgentPort:    cdpGRPCPort,
 			AgentTLS:     false,
 		},
 		ProxyCluster:          rsp.Service,

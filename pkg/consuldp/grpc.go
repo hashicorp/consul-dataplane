@@ -23,36 +23,44 @@ func (cdp *ConsulDataplane) setupGRPCServer() error {
 		cdp.logger.Error("failed to create gRPC/TCP listener: %v", err)
 		return err
 	}
-	cdp.gRPCListener = lis
 
 	// create gRPC server
 	// one main role of this gRPC server in consul-dataplane is to proxy envoy ADS requests
 	// to the connected Consul server.
 	director := func(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error) {
+		if !strings.Contains(fullMethodName, "envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources") {
+			return ctx, nil, status.Errorf(codes.Unimplemented, fmt.Sprintf("Unknown method %s", fullMethodName))
+		}
+
 		md, _ := metadata.FromIncomingContext(ctx)
 		mdCopy := md.Copy()
 		// TODO (NET-148): Inject the ACL token acquired from the server discovery library
 		mdCopy[metadataKeyToken] = []string{cdp.cfg.Consul.Credentials.Static.Token}
 		outCtx := metadata.NewOutgoingContext(ctx, mdCopy)
-		if !strings.Contains(fullMethodName, "envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources") {
-			return outCtx, nil, status.Errorf(codes.Unimplemented, fmt.Sprintf("Unknown method %s", fullMethodName))
-		}
-		// TODO (NET-148): Ensure the server connection here is the one acquired via the server discovery library
 		return outCtx, cdp.consulServer.grpcClientConn, nil
 	}
-	gRPCServer := grpc.NewServer(grpc.UnknownServiceHandler(proxy.TransparentHandler(director)))
-	cdp.gRPCServer = gRPCServer
+	newGRPCServer := grpc.NewServer(grpc.UnknownServiceHandler(proxy.TransparentHandler(director)))
 
-	cdp.logger.Info("created gRPC server", "address", lis.Addr().String())
+	cdp.gRPCServer = &gRPCServer{listener: lis, server: newGRPCServer, exitedCh: make(chan struct{})}
+	cdp.logger.Trace("created gRPC server", "address", lis.Addr().String())
 	return nil
 }
 
 func (cdp *ConsulDataplane) startGRPCServer() {
-	cdp.logger.Trace("starting gRPC server")
+	cdp.logger.Info("starting gRPC server", "address", cdp.gRPCServer.listener.Addr().String())
 
-	if err := cdp.gRPCServer.Serve(cdp.gRPCListener); err != nil {
-		cdp.logger.Error("failed to serve gRPC requests: %v", err)
-		cdp.gRPCListener.Close()
-		// TODO: gracefully exit
+	if err := cdp.gRPCServer.server.Serve(cdp.gRPCServer.listener); err != nil {
+		cdp.logger.Error("failed to serve gRPC requests", "error", err)
+		cdp.gRPCServer.listener.Close()
+		close(cdp.gRPCServer.exitedCh)
 	}
 }
+
+func (cdp *ConsulDataplane) stopGRPCServer() {
+	if cdp.gRPCServer != nil {
+		cdp.logger.Debug("stopping gRPC server")
+		cdp.gRPCServer.server.Stop()
+	}
+}
+
+func (cdp *ConsulDataplane) gRPCServerExited() chan struct{} { return cdp.gRPCServer.exitedCh }

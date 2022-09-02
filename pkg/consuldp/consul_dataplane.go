@@ -25,7 +25,14 @@ type consulServer struct {
 	// supportedFeatures is a map of the dataplane features supported by the Consul server
 	supportedFeatures map[pbdataplane.DataplaneFeatures]bool
 
+	// grpcClientConn is the gRPC connection to the Consul server
 	grpcClientConn *grpc.ClientConn
+}
+
+type gRPCServer struct {
+	listener net.Listener
+	server   *grpc.Server
+	exitedCh chan struct{}
 }
 
 // ConsulDataplane represents the consul-dataplane process
@@ -34,9 +41,7 @@ type ConsulDataplane struct {
 	cfg             *Config
 	consulServer    *consulServer
 	dpServiceClient pbdataplane.DataplaneServiceClient
-
-	gRPCListener net.Listener
-	gRPCServer   *grpc.Server
+	gRPCServer      *gRPCServer
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -137,6 +142,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 	defer grpcClientConn.Close()
+	// TODO (NET-148): Ensure the server connection here is the one acquired via the server discovery library
 	cdp.consulServer.grpcClientConn = grpcClientConn
 	cdp.logger.Info("connected to consul server over grpc", "grpc-target", gRPCTarget)
 
@@ -184,9 +190,16 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			if err := proxy.Stop(); err != nil {
 				cdp.logger.Error("failed to stop proxy", "error", err)
 			}
+			cdp.stopGRPCServer()
 			doneCh <- nil
 		case <-proxy.Exited():
+			cdp.stopGRPCServer()
 			doneCh <- errors.New("envoy proxy exited unexpectedly")
+		case <-cdp.gRPCServerExited():
+			if err := proxy.Stop(); err != nil {
+				cdp.logger.Error("failed to stop proxy", "error", err)
+			}
+			doneCh <- errors.New("gRPC server exited unexpectedly")
 		}
 	}()
 	return <-doneCh
