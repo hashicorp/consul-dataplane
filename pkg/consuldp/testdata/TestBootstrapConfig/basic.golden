@@ -158,7 +158,7 @@
         "initial_metadata": [
           {
             "key": "x-consul-token",
-            "value": "some-acl-token"
+            "value": ""
           }
         ],
         "envoy_grpc": {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -29,10 +30,13 @@ type consulServer struct {
 	grpcClientConn *grpc.ClientConn
 }
 
-type gRPCServer struct {
-	listener net.Listener
-	server   *grpc.Server
-	exitedCh chan struct{}
+type localXDSServer struct {
+	enabled         bool
+	listener        net.Listener
+	listenerAddress string
+	listenerNetwork string
+	gRPCServer      *grpc.Server
+	exitedCh        chan struct{}
 }
 
 // ConsulDataplane represents the consul-dataplane process
@@ -41,7 +45,7 @@ type ConsulDataplane struct {
 	cfg             *Config
 	consulServer    *consulServer
 	dpServiceClient pbdataplane.DataplaneServiceClient
-	gRPCServer      *gRPCServer
+	localXDSServer  *localXDSServer
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -61,8 +65,9 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 	})
 
 	return &ConsulDataplane{
-		logger: logger,
-		cfg:    cfg,
+		logger:         logger,
+		cfg:            cfg,
+		localXDSServer: &localXDSServer{enabled: false},
 	}, nil
 }
 
@@ -86,6 +91,10 @@ func validateConfig(cfg *Config) error {
 		return errors.New("envoy admin bind port not specified")
 	case cfg.Logging == nil:
 		return errors.New("logging settings not specified")
+	case cfg.XDSServer.BindAddress == "":
+		return errors.New("envoy xDS bind address not specified")
+	case cfg.XDSServer.BindPort == 0 && !checkLocalXDSServer(cfg.XDSServer.BindAddress):
+		return errors.New("envoy xDS bind port not specified")
 	}
 	return nil
 }
@@ -124,6 +133,28 @@ func (cdp *ConsulDataplane) setConsulServerSupportedFeatures(ctx context.Context
 	return nil
 }
 
+// checkLocalXDSServer checks if the specified xds bind address is local.
+func checkLocalXDSServer(xdsBindAddr string) bool {
+	if strings.HasPrefix(xdsBindAddr, "unix://") || xdsBindAddr == "127.0.0.1" || xdsBindAddr == "localhost" {
+		return true
+	}
+	return false
+}
+
+// checkAndEnableLocalXDSServer checks if the specified xds bind address is local.
+// If local, it enables the flag to configure consul-dataplane (later on in the setup process)
+// with a gRPC server to serve envoy xDS requests.
+// If not local, the flag remains turned off and it is assumed the xDS requests will be served
+// by a remote gRPC server.
+// Potential TODO: Explicitly allow specifying an option (xds.disable?) to disable configuring
+// consul-dataplane as the xDS server in case xDS requests can be served on another port locally
+// (example: consul server process on localhost).
+func (cdp *ConsulDataplane) checkAndEnableLocalXDSServer() {
+	if checkLocalXDSServer(cdp.cfg.XDSServer.BindAddress) {
+		cdp.localXDSServer.enabled = true
+	}
+}
+
 func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.logger.Info("started consul-dataplane process")
 
@@ -156,11 +187,16 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to set supported features: %w", err)
 	}
 
-	err = cdp.setupGRPCServer()
-	if err != nil {
-		return err
+	cdp.checkAndEnableLocalXDSServer()
+
+	if cdp.localXDSServer.enabled {
+		err = cdp.setupXDSServer()
+		if err != nil {
+			return err
+		}
+		go cdp.startXDSServer()
+		defer cdp.stopXDSServer()
 	}
-	go cdp.startGRPCServer()
 
 	cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
@@ -190,16 +226,14 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			if err := proxy.Stop(); err != nil {
 				cdp.logger.Error("failed to stop proxy", "error", err)
 			}
-			cdp.stopGRPCServer()
 			doneCh <- nil
 		case <-proxy.Exited():
-			cdp.stopGRPCServer()
 			doneCh <- errors.New("envoy proxy exited unexpectedly")
-		case <-cdp.gRPCServerExited():
+		case <-cdp.xdsServerExited():
 			if err := proxy.Stop(); err != nil {
 				cdp.logger.Error("failed to stop proxy", "error", err)
 			}
-			doneCh <- errors.New("gRPC server exited unexpectedly")
+			doneCh <- errors.New("xDS server exited unexpectedly")
 		}
 	}()
 	return <-doneCh

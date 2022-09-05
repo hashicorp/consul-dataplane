@@ -25,9 +25,6 @@ const (
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
 func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error) {
-	cdpGRPCFullAddr := strings.Split(cdp.gRPCServer.listener.Addr().String(), ":")
-	cdpGRPCAddr := cdpGRPCFullAddr[0]
-	cdpGRPCPort := cdpGRPCFullAddr[1]
 	svc := cdp.cfg.Service
 	envoy := cdp.cfg.Envoy
 
@@ -54,8 +51,8 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{
-			AgentAddress: cdpGRPCAddr,
-			AgentPort:    cdpGRPCPort,
+			AgentAddress: cdp.cfg.XDSServer.BindAddress,
+			AgentPort:    strconv.Itoa(cdp.cfg.XDSServer.BindPort),
 			AgentTLS:     false,
 		},
 		ProxyCluster:          rsp.Service,
@@ -66,11 +63,19 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		AdminBindAddress:      envoy.AdminBindAddress,
 		AdminBindPort:         strconv.Itoa(envoy.AdminBindPort),
 		LocalAgentClusterName: localClusterName,
-		// TODO(NET-148): Support login via an ACL auth-method.
-		Token:      cdp.cfg.Consul.Credentials.Static.Token,
-		Namespace:  rsp.Namespace,
-		Partition:  rsp.Partition,
-		Datacenter: rsp.Datacenter,
+		Namespace:             rsp.Namespace,
+		Partition:             rsp.Partition,
+		Datacenter:            rsp.Datacenter,
+	}
+
+	if cdp.localXDSServer != nil && cdp.localXDSServer.enabled {
+		if cdp.localXDSServer.listenerNetwork == "unix" {
+			args.GRPC.AgentSocket = cdp.localXDSServer.listenerAddress
+		} else {
+			xdsServerFullAddr := strings.Split(cdp.localXDSServer.listenerAddress, ":")
+			args.GRPC.AgentAddress = xdsServerFullAddr[0]
+			args.GRPC.AgentPort = xdsServerFullAddr[1]
+		}
 	}
 
 	var bootstrapConfig bootstrap.BootstrapConfig

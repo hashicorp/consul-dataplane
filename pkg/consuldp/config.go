@@ -76,6 +76,14 @@ type EnvoyConfig struct {
 	ReadyBindPort int
 }
 
+//
+type XDSServer struct {
+	// BindAddress is the address on which the Envoy xDS server will be available.
+	BindAddress string
+	// BindPort is the address on which the Envoy xDS port will be available.
+	BindPort int
+}
+
 // Config is the configuration used by consul-dataplane, consolidated
 // from various sources - CLI flags, env vars, config file settings.
 type Config struct {
@@ -84,4 +92,5 @@ type Config struct {
 	Logging   *LoggingConfig
 	Telemetry *TelemetryConfig
 	Envoy     *EnvoyConfig
+	XDSServer *XDSServer
 }
