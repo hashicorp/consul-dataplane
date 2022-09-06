@@ -11,11 +11,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
-
-	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
 )
 
 var (
@@ -42,9 +41,6 @@ func TestBootstrapConfig(t *testing.T) {
 	}{
 		"basic": {
 			&Config{
-				Consul: &ConsulConfig{
-					GRPCPort: 1234,
-				},
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
 					NodeName:  nodeName,
@@ -68,9 +64,6 @@ func TestBootstrapConfig(t *testing.T) {
 		},
 		"central-telemetry-config": {
 			&Config{
-				Consul: &ConsulConfig{
-					GRPCPort: 1234,
-				},
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
 					NodeName:  nodeName,
@@ -94,9 +87,6 @@ func TestBootstrapConfig(t *testing.T) {
 		},
 		"ready-listener": {
 			&Config{
-				Consul: &ConsulConfig{
-					GRPCPort: 1234,
-				},
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
 					NodeName:  nodeName,
@@ -119,9 +109,6 @@ func TestBootstrapConfig(t *testing.T) {
 		},
 		"unix-socket-xds-server": {
 			&Config{
-				Consul: &ConsulConfig{
-					GRPCPort: 1234,
-				},
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
 					NodeName:  nodeName,

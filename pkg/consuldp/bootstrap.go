@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
-	"github.com/hashicorp/consul-dataplane/internal/consul-proto/pbdataplane"
 )
 
 const (
