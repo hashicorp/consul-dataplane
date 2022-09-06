@@ -34,7 +34,7 @@ func (cdp *ConsulDataplane) director(ctx context.Context, fullMethodName string)
 		mdCopy = md.Copy()
 	}
 	// TODO (NET-148): Inject the ACL token acquired from the server discovery library
-	mdCopy[metadataKeyToken] = []string{cdp.cfg.Consul.Credentials.Static.Token}
+	mdCopy.Set(metadataKeyToken, cdp.cfg.Consul.Credentials.Static.Token)
 	outCtx := metadata.NewOutgoingContext(ctx, mdCopy)
 	return outCtx, cdp.consulServer.grpcClientConn, nil
 }
