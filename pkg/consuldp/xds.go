@@ -71,30 +71,32 @@ func (cdp *ConsulDataplane) setupXDSServer() error {
 	// TODO: Switch to the main library once the fix is merged to keep upto date.
 	newGRPCServer := grpc.NewServer(grpc.UnknownServiceHandler(proxy.TransparentHandler(cdp.director)))
 
-	cdp.localXDSServer.listener = lis
-	cdp.localXDSServer.listenerAddress = lis.Addr().String()
-	cdp.localXDSServer.listenerNetwork = lis.Addr().Network()
-	cdp.localXDSServer.gRPCServer = newGRPCServer
-	cdp.localXDSServer.exitedCh = make(chan struct{})
+	cdp.xdsServer = &xdsServer{
+		listener:        lis,
+		listenerAddress: lis.Addr().String(),
+		listenerNetwork: lis.Addr().Network(),
+		gRPCServer:      newGRPCServer,
+		exitedCh:        make(chan struct{}),
+	}
 
 	cdp.logger.Trace("created xDS server", "address", lis.Addr().String())
 	return nil
 }
 
 func (cdp *ConsulDataplane) startXDSServer() {
-	cdp.logger.Info("starting envoy xDS server", "address", cdp.localXDSServer.listener.Addr().String())
+	cdp.logger.Info("starting envoy xDS server", "address", cdp.xdsServer.listener.Addr().String())
 
-	if err := cdp.localXDSServer.gRPCServer.Serve(cdp.localXDSServer.listener); err != nil {
+	if err := cdp.xdsServer.gRPCServer.Serve(cdp.xdsServer.listener); err != nil {
 		cdp.logger.Error("failed to serve xDS requests", "error", err)
-		close(cdp.localXDSServer.exitedCh)
+		close(cdp.xdsServer.exitedCh)
 	}
 }
 
 func (cdp *ConsulDataplane) stopXDSServer() {
-	if cdp.localXDSServer.enabled && cdp.localXDSServer.gRPCServer != nil {
+	if cdp.xdsServer.gRPCServer != nil {
 		cdp.logger.Debug("stopping xDS server")
-		cdp.localXDSServer.gRPCServer.Stop()
+		cdp.xdsServer.gRPCServer.Stop()
 	}
 }
 
-func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.localXDSServer.exitedCh }
+func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServer.exitedCh }

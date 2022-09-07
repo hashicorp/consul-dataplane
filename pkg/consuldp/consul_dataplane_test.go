@@ -126,12 +126,11 @@ func TestNewConsulDPError(t *testing.T) {
 			expectErr: "envoy xDS bind address not specified",
 		},
 		{
-			name: "missing xds bind port when address not local",
+			name: "non-local xds bind address",
 			modFn: func(c *Config) {
-				c.XDSServer.BindPort = 0
 				c.XDSServer.BindAddress = "1.2.3.4"
 			},
-			expectErr: "envoy xDS bind port not specified",
+			expectErr: "non-local xDS bind address not allowed",
 		},
 	}
 	for _, tc := range testCases {
@@ -213,48 +212,4 @@ func TestSetConsulServerSupportedFeaturesError(t *testing.T) {
 
 	require.ErrorContains(t, consulDP.setConsulServerSupportedFeatures(context.Background()), "failure getting supported consul-dataplane features")
 	require.Empty(t, consulDP.consulServer.supportedFeatures)
-}
-
-func TestCheckAndEnableLocalXDSServer(t *testing.T) {
-	type testCase struct {
-		name                 string
-		modFn                func(*Config)
-		expectLocalXDSServer bool
-	}
-
-	testCases := []testCase{
-		{
-			name:                 "localhost ip",
-			modFn:                func(c *Config) { c.XDSServer.BindAddress = "127.0.0.1" },
-			expectLocalXDSServer: true,
-		},
-		{
-			name:                 "localhost name",
-			modFn:                func(c *Config) { c.XDSServer.BindAddress = "localhost" },
-			expectLocalXDSServer: true,
-		},
-		{
-			name:                 "unix socket",
-			modFn:                func(c *Config) { c.XDSServer.BindAddress = "unix:///var/run/xds.sock" },
-			expectLocalXDSServer: true,
-		},
-		{
-			name: "remote ip",
-			modFn: func(c *Config) {
-				c.XDSServer.BindAddress = "1.2.3.4"
-				c.XDSServer.BindPort = 1234
-			},
-			expectLocalXDSServer: false,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := validConfig()
-			tc.modFn(cfg)
-			cdp, err := NewConsulDP(cfg)
-			require.NoError(t, err)
-			cdp.checkAndEnableLocalXDSServer()
-			require.Equal(t, tc.expectLocalXDSServer, cdp.localXDSServer.enabled)
-		})
-	}
 }

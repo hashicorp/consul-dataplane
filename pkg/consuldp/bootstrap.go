@@ -68,14 +68,12 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		Datacenter:            rsp.Datacenter,
 	}
 
-	if cdp.localXDSServer != nil && cdp.localXDSServer.enabled {
-		if cdp.localXDSServer.listenerNetwork == "unix" {
-			args.GRPC.AgentSocket = cdp.localXDSServer.listenerAddress
-		} else {
-			xdsServerFullAddr := strings.Split(cdp.localXDSServer.listenerAddress, ":")
-			args.GRPC.AgentAddress = xdsServerFullAddr[0]
-			args.GRPC.AgentPort = xdsServerFullAddr[1]
-		}
+	if cdp.xdsServer.listenerNetwork == "unix" {
+		args.GRPC.AgentSocket = cdp.xdsServer.listenerAddress
+	} else {
+		xdsServerFullAddr := strings.Split(cdp.xdsServer.listenerAddress, ":")
+		args.GRPC.AgentAddress = xdsServerFullAddr[0]
+		args.GRPC.AgentPort = xdsServerFullAddr[1]
 	}
 
 	var bootstrapConfig bootstrap.BootstrapConfig

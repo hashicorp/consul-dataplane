@@ -56,7 +56,7 @@ func TestBootstrapConfig(t *testing.T) {
 				Telemetry: &TelemetryConfig{
 					UseCentralConfig: false,
 				},
-				XDSServer: &XDSServer{BindAddress: "1.2.3.4", BindPort: xdsBindPort},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
@@ -82,7 +82,7 @@ func TestBootstrapConfig(t *testing.T) {
 				Telemetry: &TelemetryConfig{
 					UseCentralConfig: true,
 				},
-				XDSServer: &XDSServer{BindAddress: "1.2.3.4", BindPort: xdsBindPort},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
@@ -110,40 +110,14 @@ func TestBootstrapConfig(t *testing.T) {
 				Telemetry: &TelemetryConfig{
 					UseCentralConfig: false,
 				},
-				XDSServer: &XDSServer{BindAddress: "1.2.3.4", BindPort: xdsBindPort},
-			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
-				Service:  "web",
-				NodeName: nodeName,
-			},
-		},
-		"local-xds-server": {
-			&Config{
-				Consul: &ConsulConfig{
-					GRPCPort: 1234,
-				},
-				Service: &ServiceConfig{
-					ServiceID: "web-proxy",
-					NodeName:  nodeName,
-				},
-				Envoy: &EnvoyConfig{
-					AdminBindAddress: "127.0.0.1",
-					AdminBindPort:    19000,
-				},
-				Telemetry: &TelemetryConfig{
-					UseCentralConfig: false,
-				},
 				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
-				Config: makeStruct(map[string]any{
-					"envoy_dogstatsd_url": "this-should-not-appear-in-generated-config",
-				}),
 			},
 		},
-		"local-unix-socket-xds-server": {
+		"unix-socket-xds-server": {
 			&Config{
 				Consul: &ConsulConfig{
 					GRPCPort: 1234,
@@ -188,12 +162,10 @@ func TestBootstrapConfig(t *testing.T) {
 				dpServiceClient: client,
 			}
 
-			if checkLocalXDSServer(tc.cfg.XDSServer.BindAddress) {
-				if strings.HasPrefix(tc.cfg.XDSServer.BindAddress, "unix://") {
-					dp.localXDSServer = &localXDSServer{enabled: true, listenerAddress: socketPath, listenerNetwork: "unix"}
-				} else {
-					dp.localXDSServer = &localXDSServer{enabled: true, listenerAddress: fmt.Sprintf("127.0.0.1:%d", xdsBindPort)}
-				}
+			if strings.HasPrefix(tc.cfg.XDSServer.BindAddress, "unix://") {
+				dp.xdsServer = &xdsServer{listenerAddress: socketPath, listenerNetwork: "unix"}
+			} else {
+				dp.xdsServer = &xdsServer{listenerAddress: fmt.Sprintf("127.0.0.1:%d", xdsBindPort)}
 			}
 
 			bsCfg, err := dp.bootstrapConfig(ctx)

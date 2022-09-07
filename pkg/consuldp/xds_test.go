@@ -100,21 +100,20 @@ func TestSetupXDSServer(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cdp := &ConsulDataplane{
-				cfg:            &Config{XDSServer: &XDSServer{BindAddress: tc.xdsBindAddress, BindPort: tc.xdsBindPort}},
-				logger:         hclog.NewNullLogger(),
-				localXDSServer: &localXDSServer{enabled: true},
+				cfg:    &Config{XDSServer: &XDSServer{BindAddress: tc.xdsBindAddress, BindPort: tc.xdsBindPort}},
+				logger: hclog.NewNullLogger(),
 			}
 
 			err := cdp.setupXDSServer()
 
 			require.NoError(t, err)
-			require.NotNil(t, cdp.localXDSServer.listener)
-			t.Cleanup(func() { cdp.localXDSServer.listener.Close() })
-			require.NotNil(t, cdp.localXDSServer.gRPCServer)
-			require.Equal(t, tc.expectedListenerNetwork, cdp.localXDSServer.listenerNetwork)
-			require.Contains(t, cdp.localXDSServer.listenerAddress, tc.expectedListenerAddress)
+			require.NotNil(t, cdp.xdsServer.listener)
+			t.Cleanup(func() { cdp.xdsServer.listener.Close() })
+			require.NotNil(t, cdp.xdsServer.gRPCServer)
+			require.Equal(t, tc.expectedListenerNetwork, cdp.xdsServer.listenerNetwork)
+			require.Contains(t, cdp.xdsServer.listenerAddress, tc.expectedListenerAddress)
 			if tc.expectedListenerNetwork == "tcp" && tc.xdsBindPort == 0 {
-				listenerPort := cdp.localXDSServer.listenerAddress[len(tc.xdsBindAddress)+1:]
+				listenerPort := cdp.xdsServer.listenerAddress[len(tc.xdsBindAddress)+1:]
 				_, err = strconv.Atoi(listenerPort)
 				require.NoError(t, err)
 			}
