@@ -91,7 +91,7 @@ func validateConfig(cfg *Config) error {
 		return errors.New("logging settings not specified")
 	case cfg.XDSServer.BindAddress == "":
 		return errors.New("envoy xDS bind address not specified")
-	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && cfg.XDSServer.BindAddress != "127.0.0.1" && cfg.XDSServer.BindAddress != "localhost":
+	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
 	}
 	return nil
