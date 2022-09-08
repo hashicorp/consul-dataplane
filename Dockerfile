@@ -25,4 +25,4 @@ WORKDIR /root/
 RUN apk add gcompat
 COPY --from=consul-dataplane-binary /cdp/consul-dataplane /usr/local/bin/consul-dataplane
 COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/envoy
-ENTRYPOINT [ "./consul-dataplane" ]
+ENTRYPOINT [ "consul-dataplane" ]

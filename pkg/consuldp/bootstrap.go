@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 
@@ -50,12 +51,8 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{
-			// TODO(NET-99): This should be a listener on the consul-dataplane process
-			// that proxies streams to the server, handles load-balancing, SDS etc.
-			//
-			// For now we just give the server address directly.
-			AgentAddress: cdp.consulServer.address.String(),
-			AgentPort:    strconv.Itoa(cdp.cfg.Consul.GRPCPort),
+			AgentAddress: cdp.cfg.XDSServer.BindAddress,
+			AgentPort:    strconv.Itoa(cdp.cfg.XDSServer.BindPort),
 			AgentTLS:     false,
 		},
 		ProxyCluster:          rsp.Service,
@@ -66,11 +63,17 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		AdminBindAddress:      envoy.AdminBindAddress,
 		AdminBindPort:         strconv.Itoa(envoy.AdminBindPort),
 		LocalAgentClusterName: localClusterName,
-		// TODO(NET-148): Support login via an ACL auth-method.
-		Token:      cdp.cfg.Consul.Credentials.Static.Token,
-		Namespace:  rsp.Namespace,
-		Partition:  rsp.Partition,
-		Datacenter: rsp.Datacenter,
+		Namespace:             rsp.Namespace,
+		Partition:             rsp.Partition,
+		Datacenter:            rsp.Datacenter,
+	}
+
+	if cdp.xdsServer.listenerNetwork == "unix" {
+		args.GRPC.AgentSocket = cdp.xdsServer.listenerAddress
+	} else {
+		xdsServerFullAddr := strings.Split(cdp.xdsServer.listenerAddress, ":")
+		args.GRPC.AgentAddress = xdsServerFullAddr[0]
+		args.GRPC.AgentPort = xdsServerFullAddr[1]
 	}
 
 	var bootstrapConfig bootstrap.BootstrapConfig

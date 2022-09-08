@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -24,6 +25,17 @@ type consulServer struct {
 	address net.IPAddr
 	// supportedFeatures is a map of the dataplane features supported by the Consul server
 	supportedFeatures map[pbdataplane.DataplaneFeatures]bool
+
+	// grpcClientConn is the gRPC connection to the Consul server
+	grpcClientConn *grpc.ClientConn
+}
+
+type xdsServer struct {
+	listener        net.Listener
+	listenerAddress string
+	listenerNetwork string
+	gRPCServer      *grpc.Server
+	exitedCh        chan struct{}
 }
 
 // ConsulDataplane represents the consul-dataplane process
@@ -32,6 +44,7 @@ type ConsulDataplane struct {
 	cfg             *Config
 	consulServer    *consulServer
 	dpServiceClient pbdataplane.DataplaneServiceClient
+	xdsServer       *xdsServer
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -76,6 +89,10 @@ func validateConfig(cfg *Config) error {
 		return errors.New("envoy admin bind port not specified")
 	case cfg.Logging == nil:
 		return errors.New("logging settings not specified")
+	case cfg.XDSServer.BindAddress == "":
+		return errors.New("envoy xDS bind address not specified")
+	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
+		return errors.New("non-local xDS bind address not allowed")
 	}
 	return nil
 }
@@ -132,6 +149,8 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 	defer grpcClientConn.Close()
+	// TODO (NET-148): Ensure the server connection here is the one acquired via the server discovery library
+	cdp.consulServer.grpcClientConn = grpcClientConn
 	cdp.logger.Info("connected to consul server over grpc", "grpc-target", gRPCTarget)
 
 	dpservice := pbdataplane.NewDataplaneServiceClient(grpcClientConn)
@@ -143,6 +162,13 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		cdp.logger.Error("failed to set supported features", "error", err)
 		return fmt.Errorf("failed to set supported features: %w", err)
 	}
+
+	err = cdp.setupXDSServer()
+	if err != nil {
+		return err
+	}
+	go cdp.startXDSServer()
+	defer cdp.stopXDSServer()
 
 	cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
@@ -175,6 +201,11 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			doneCh <- nil
 		case <-proxy.Exited():
 			doneCh <- errors.New("envoy proxy exited unexpectedly")
+		case <-cdp.xdsServerExited():
+			if err := proxy.Stop(); err != nil {
+				cdp.logger.Error("failed to stop proxy", "error", err)
+			}
+			doneCh <- errors.New("xDS server exited unexpectedly")
 		}
 	}()
 	return <-doneCh

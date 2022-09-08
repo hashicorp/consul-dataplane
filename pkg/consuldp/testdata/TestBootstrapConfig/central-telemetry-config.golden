@@ -44,7 +44,7 @@
                   "endpoint": {
                     "address": {
                       "socket_address": {
-                        "address": "1.2.3.4",
+                        "address": "127.0.0.1",
                         "port_value": 1234
                       }
                     }
@@ -172,7 +172,7 @@
         "initial_metadata": [
           {
             "key": "x-consul-token",
-            "value": "some-acl-token"
+            "value": ""
           }
         ],
         "envoy_grpc": {

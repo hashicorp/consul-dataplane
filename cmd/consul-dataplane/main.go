@@ -32,6 +32,9 @@ var (
 	adminBindPort int
 	readyBindAddr string
 	readyBindPort int
+
+	xdsBindAddr string
+	xdsBindPort int
 )
 
 func init() {
@@ -63,6 +66,9 @@ func init() {
 	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server will be available.")
 	flag.StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "The address on which Envoy's readiness probe will be available.")
 	flag.IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "The port on which Envoy's readiness probe will be available.")
+
+	flag.StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "The address on which the Envoy xDS server will be available.")
+	flag.IntVar(&xdsBindPort, "xds-bind-port", 0, "The port on which the Envoy xDS server will be available.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -110,6 +116,10 @@ func main() {
 			AdminBindPort:    adminBindPort,
 			ReadyBindAddress: readyBindAddr,
 			ReadyBindPort:    readyBindPort,
+		},
+		XDSServer: &consuldp.XDSServer{
+			BindAddress: xdsBindAddr,
+			BindPort:    xdsBindPort,
 		},
 	}
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)

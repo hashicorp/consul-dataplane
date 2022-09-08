@@ -34,6 +34,9 @@ func validConfig() *Config {
 			AdminBindAddress: "127.0.0.1",
 			AdminBindPort:    19000,
 		},
+		XDSServer: &XDSServer{
+			BindAddress: "127.0.0.1",
+		},
 	}
 }
 
@@ -116,6 +119,18 @@ func TestNewConsulDPError(t *testing.T) {
 			name:      "missing logging config",
 			modFn:     func(c *Config) { c.Logging = nil },
 			expectErr: "logging settings not specified",
+		},
+		{
+			name:      "missing xds bind address",
+			modFn:     func(c *Config) { c.XDSServer.BindAddress = "" },
+			expectErr: "envoy xDS bind address not specified",
+		},
+		{
+			name: "non-local xds bind address",
+			modFn: func(c *Config) {
+				c.XDSServer.BindAddress = "1.2.3.4"
+			},
+			expectErr: "non-local xDS bind address not allowed",
 		},
 	}
 	for _, tc := range testCases {

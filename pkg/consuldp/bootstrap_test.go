@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"net"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -24,8 +25,9 @@ var (
 
 func TestBootstrapConfig(t *testing.T) {
 	const (
-		serverAddr = "1.2.3.4"
-		nodeName   = "agentless-node"
+		nodeName    = "agentless-node"
+		xdsBindPort = 1234
+		socketPath  = "/var/run/xds.sock"
 	)
 
 	makeStruct := func(kv map[string]any) *structpb.Struct {
@@ -42,11 +44,6 @@ func TestBootstrapConfig(t *testing.T) {
 			&Config{
 				Consul: &ConsulConfig{
 					GRPCPort: 1234,
-					Credentials: &CredentialsConfig{
-						Static: &StaticCredentialsConfig{
-							Token: "some-acl-token",
-						},
-					},
 				},
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
@@ -59,6 +56,7 @@ func TestBootstrapConfig(t *testing.T) {
 				Telemetry: &TelemetryConfig{
 					UseCentralConfig: false,
 				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
@@ -72,11 +70,6 @@ func TestBootstrapConfig(t *testing.T) {
 			&Config{
 				Consul: &ConsulConfig{
 					GRPCPort: 1234,
-					Credentials: &CredentialsConfig{
-						Static: &StaticCredentialsConfig{
-							Token: "some-acl-token",
-						},
-					},
 				},
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
@@ -89,6 +82,7 @@ func TestBootstrapConfig(t *testing.T) {
 				Telemetry: &TelemetryConfig{
 					UseCentralConfig: true,
 				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
@@ -102,11 +96,6 @@ func TestBootstrapConfig(t *testing.T) {
 			&Config{
 				Consul: &ConsulConfig{
 					GRPCPort: 1234,
-					Credentials: &CredentialsConfig{
-						Static: &StaticCredentialsConfig{
-							Token: "some-acl-token",
-						},
-					},
 				},
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
@@ -121,10 +110,37 @@ func TestBootstrapConfig(t *testing.T) {
 				Telemetry: &TelemetryConfig{
 					UseCentralConfig: false,
 				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
+			},
+		},
+		"unix-socket-xds-server": {
+			&Config{
+				Consul: &ConsulConfig{
+					GRPCPort: 1234,
+				},
+				Service: &ServiceConfig{
+					ServiceID: "web-proxy",
+					NodeName:  nodeName,
+				},
+				Envoy: &EnvoyConfig{
+					AdminBindAddress: "127.0.0.1",
+					AdminBindPort:    19000,
+				},
+				Telemetry: &TelemetryConfig{
+					UseCentralConfig: false,
+				},
+				XDSServer: &XDSServer{BindAddress: fmt.Sprintf("unix://%s", socketPath)},
+			},
+			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Service:  "web",
+				NodeName: nodeName,
+				Config: makeStruct(map[string]any{
+					"envoy_dogstatsd_url": "this-should-not-appear-in-generated-config",
+				}),
 			},
 		},
 	}
@@ -144,7 +160,12 @@ func TestBootstrapConfig(t *testing.T) {
 			dp := &ConsulDataplane{
 				cfg:             tc.cfg,
 				dpServiceClient: client,
-				consulServer:    &consulServer{address: net.IPAddr{IP: net.ParseIP(serverAddr)}},
+			}
+
+			if strings.HasPrefix(tc.cfg.XDSServer.BindAddress, "unix://") {
+				dp.xdsServer = &xdsServer{listenerAddress: socketPath, listenerNetwork: "unix"}
+			} else {
+				dp.xdsServer = &xdsServer{listenerAddress: fmt.Sprintf("127.0.0.1:%d", xdsBindPort)}
 			}
 
 			bsCfg, err := dp.bootstrapConfig(ctx)
