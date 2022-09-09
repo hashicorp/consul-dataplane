@@ -83,7 +83,7 @@ func init() {
 	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
 	flag.StringVar(&credentialType, "credential-type", "", "The type of credentials that will be used to authenticate with Consul servers (static or login).")
-	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -login-method is set to static).")
+	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -credential-type is set to static).")
 	flag.StringVar(&loginMethod, "login-method", "", "The auth method that will be used to log in.")
 	flag.StringVar(&loginNamespace, "login-namespace", "", "The Consul Enterprise namespace containing the auth method.")
 	flag.StringVar(&loginPartition, "login-partition", "", "The Consul Enterprise partition containing the auth method.")
