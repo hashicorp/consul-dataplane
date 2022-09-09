@@ -2,7 +2,7 @@
 # The Docker image has:
 #  - consul-dataplane CLI
 #  - envoy binary
-#  - [to-be-included] go-discover CLI
+#  - go-discover CLI
 
 FROM envoyproxy/envoy:v1.23-latest as envoy-binary
 
@@ -16,13 +16,14 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 RUN go build ./cmd/consul-dataplane
-# TODO (NET-722): Add go-discover to the docker image once PR
-# to fix depencencies is merged. (https://github.com/hashicorp/go-discover/pull/202)
-# RUN go get -u github.com/hashicorp/go-discover/cmd/discover
+
+FROM golang:1.18-alpine as go-discover-binary
+RUN go install github.com/hashicorp/go-discover/cmd/discover@latest
 
 FROM alpine:3.16 as consul-dataplane-container
 WORKDIR /root/
 RUN apk add gcompat
 COPY --from=consul-dataplane-binary /cdp/consul-dataplane /usr/local/bin/consul-dataplane
 COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/envoy
+COPY --from=go-discover-binary /go/bin/discover /usr/local/bin/discover
 ENTRYPOINT [ "consul-dataplane" ]
