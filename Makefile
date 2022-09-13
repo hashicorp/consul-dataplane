@@ -1,3 +1,8 @@
+VERSION = $(shell ./build-scripts/version.sh pkg/version/version.go)
+
+.PHONY: version
+version:
+	@echo $(VERSION)
 BOOTSTRAP_PACKAGE_DIR=internal/bootstrap
 
 .PHONY: copy-bootstrap-config
