@@ -74,6 +74,8 @@ type EnvoyConfig struct {
 	ReadyBindAddress string
 	// ReadyBindPort is the port on which the Envoy readiness probe will be available.
 	ReadyBindPort int
+	// ExtraArgs are the extra arguments passed to envoy at startup of the proxy
+	ExtraArgs []string
 }
 
 // XDSServer contains the configuration of the xDS server.

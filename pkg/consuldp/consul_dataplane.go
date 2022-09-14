@@ -181,6 +181,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		Logger:          cdp.logger,
 		LogJSON:         cdp.cfg.Logging.LogJSON,
 		BootstrapConfig: cfg,
+		ExtraArgs:       cdp.cfg.Envoy.ExtraArgs,
 	})
 	if err != nil {
 		cdp.logger.Error("failed to create new proxy", "error", err)

@@ -86,6 +86,8 @@ func main() {
 
 	validateFlags()
 
+	extraEnvoyArgs := flag.Args()
+
 	consuldpCfg := &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
 			Addresses: addresses,
@@ -116,6 +118,7 @@ func main() {
 			AdminBindPort:    adminBindPort,
 			ReadyBindAddress: readyBindAddr,
 			ReadyBindPort:    readyBindPort,
+			ExtraArgs:        extraEnvoyArgs,
 		},
 		XDSServer: &consuldp.XDSServer{
 			BindAddress: xdsBindAddr,
