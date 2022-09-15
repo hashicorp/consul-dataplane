@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -28,10 +29,11 @@ var (
 
 	useCentralTelemetryConfig bool
 
-	adminBindAddr string
-	adminBindPort int
-	readyBindAddr string
-	readyBindPort int
+	adminBindAddr    string
+	adminBindPort    int
+	readyBindAddr    string
+	readyBindPort    int
+	envoyConcurrency int
 
 	xdsBindAddr string
 	xdsBindPort int
@@ -66,6 +68,7 @@ func init() {
 	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server will be available.")
 	flag.StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "The address on which Envoy's readiness probe will be available.")
 	flag.IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "The port on which Envoy's readiness probe will be available.")
+	flag.IntVar(&envoyConcurrency, "envoy-concurrency", 2, "The envoy concurrency denotes the number of threads that envoy will use https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency.")
 
 	flag.StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "The address on which the Envoy xDS server will be available.")
 	flag.IntVar(&xdsBindPort, "xds-bind-port", 0, "The port on which the Envoy xDS server will be available.")
@@ -80,13 +83,22 @@ func validateFlags() {
 	}
 }
 
+func extraEnvoyArguments() []string {
+	extraEnvoyArgs := flag.Args()
+	if extraEnvoyArgs == nil {
+		extraEnvoyArgs = []string{}
+	}
+	concurrency := fmt.Sprintf("--concurrency %v", envoyConcurrency)
+	// to ensure precedence of arguements we prepend before extraArgs so that subsequent params override the
+	// last set value
+	return append([]string{concurrency}, extraEnvoyArgs...)
+}
+
 func main() {
 
 	flag.Parse()
 
 	validateFlags()
-
-	extraEnvoyArgs := flag.Args()
 
 	consuldpCfg := &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
@@ -118,7 +130,7 @@ func main() {
 			AdminBindPort:    adminBindPort,
 			ReadyBindAddress: readyBindAddr,
 			ReadyBindPort:    readyBindPort,
-			ExtraArgs:        extraEnvoyArgs,
+			ExtraArgs:        extraEnvoyArguments(),
 		},
 		XDSServer: &consuldp.XDSServer{
 			BindAddress: xdsBindAddr,
