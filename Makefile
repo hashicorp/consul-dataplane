@@ -14,6 +14,10 @@ BIN      = $(DIST)/$(BIN_NAME)
 
 VERSION = $(shell ./build-scripts/version.sh pkg/version/version.go)
 
+GIT_COMMIT?=$(shell git rev-parse --short HEAD)
+GIT_DIRTY?=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
+GOLDFLAGS=-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
+
 # Get latest revision (no dirty check for now).
 REVISION = $(shell git rev-parse HEAD)
 
@@ -27,7 +31,7 @@ dist:
 
 .PHONY: bin
 bin: dist
-	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 go build -trimpath -buildvcs=false -o $(BIN) ./cmd/$(BIN_NAME)
+	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o $(BIN) ./cmd/$(BIN_NAME)
 
 # Docker Stuff.
 export DOCKER_BUILDKIT=1

@@ -90,7 +90,8 @@ func main() {
 	flag.Parse()
 
 	if printVersion {
-		fmt.Println(version.GetHumanVersion())
+		fmt.Printf("Consul Dataplane v%s\n", version.GetHumanVersion())
+		fmt.Printf("Revision %s\n", version.GitCommit)
 		return
 	}
 

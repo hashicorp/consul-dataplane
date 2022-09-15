@@ -87,7 +87,7 @@ jobs:
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
           reproducible: assert
-          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -o $BIN_PATH ./cmd/$BIN_NAME
+          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
@@ -150,7 +150,7 @@ jobs:
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
           reproducible: assert
-          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -o $BIN_PATH ./cmd/$BIN_NAME
+          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
   build-docker-default:
     name: Docker ${{ matrix.arch }} default release build
@@ -181,7 +181,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v1
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" -version)"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED"
               exit 1
