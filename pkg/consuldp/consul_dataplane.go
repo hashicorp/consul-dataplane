@@ -121,6 +121,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 	go watcher.Run()
+	defer watcher.Stop()
 
 	state, err := watcher.State()
 	if err != nil {
