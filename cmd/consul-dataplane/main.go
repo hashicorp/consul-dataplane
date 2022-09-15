@@ -36,15 +36,15 @@ var (
 	namespace string
 	partition string
 
-	credentialType  string
-	token           string
-	loginMethod     string
-	loginNamespace  string
-	loginPartition  string
-	loginDatacenter string
-	loginBearer     string
-	loginBearerPath string
-	loginMeta       map[string]string
+	credentialType       string
+	token                string
+	loginAuthMethod      string
+	loginNamespace       string
+	loginPartition       string
+	loginDatacenter      string
+	loginBearerToken     string
+	loginBearerTokenPath string
+	loginMeta            map[string]string
 
 	useCentralTelemetryConfig bool
 
@@ -84,12 +84,12 @@ func init() {
 
 	flag.StringVar(&credentialType, "credential-type", "", "The type of credentials that will be used to authenticate with Consul servers (static or login).")
 	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -credential-type is set to static).")
-	flag.StringVar(&loginMethod, "login-method", "", "The auth method that will be used to log in.")
+	flag.StringVar(&loginAuthMethod, "login-auth-method", "", "The auth method that will be used to log in.")
 	flag.StringVar(&loginNamespace, "login-namespace", "", "The Consul Enterprise namespace containing the auth method.")
 	flag.StringVar(&loginPartition, "login-partition", "", "The Consul Enterprise partition containing the auth method.")
 	flag.StringVar(&loginDatacenter, "login-datacenter", "", "The datacenter containing the auth method.")
-	flag.StringVar(&loginBearer, "login-bearer", "", "The bearer token that will be presented to the auth method.")
-	flag.StringVar(&loginBearerPath, "login-bearer-path", "", "The path to a file containing the bearer token that will be presented to the auth method.")
+	flag.StringVar(&loginBearerToken, "login-bearer-token", "", "The bearer token that will be presented to the auth method.")
+	flag.StringVar(&loginBearerTokenPath, "login-bearer-token-path", "", "The path to a file containing the bearer token that will be presented to the auth method.")
 	flag.Var((*FlagMapValue)(&loginMeta), "login-meta", "An arbitrary set of key/value pairs that will be attached to the ACL token (formatted as key=value, may be given multiple times).")
 
 	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy will apply the central telemetry configuration.")
@@ -140,13 +140,13 @@ func main() {
 					Token: token,
 				},
 				Login: consuldp.LoginCredentialsConfig{
-					Method:     loginMethod,
-					Namespace:  loginNamespace,
-					Partition:  loginPartition,
-					Datacenter: loginDatacenter,
-					Bearer:     loginBearer,
-					BearerPath: loginBearerPath,
-					Meta:       loginMeta,
+					AuthMethod:      loginAuthMethod,
+					Namespace:       loginNamespace,
+					Partition:       loginPartition,
+					Datacenter:      loginDatacenter,
+					BearerToken:     loginBearerToken,
+					BearerTokenPath: loginBearerTokenPath,
+					Meta:            loginMeta,
 				},
 			},
 			ServerWatchDisabled: serverWatchDisabled,

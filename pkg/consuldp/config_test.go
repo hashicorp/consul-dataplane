@@ -105,12 +105,12 @@ func TestConfig_Credentials(t *testing.T) {
 			in: CredentialsConfig{
 				Type: CredentialsTypeLogin,
 				Login: LoginCredentialsConfig{
-					Method:     "jwt",
-					Namespace:  "namespace-1",
-					Partition:  "partition-a",
-					Datacenter: "primary-dc",
-					Bearer:     "bearer-token",
-					Meta:       map[string]string{"foo": "bar"},
+					AuthMethod:  "jwt",
+					Namespace:   "namespace-1",
+					Partition:   "partition-a",
+					Datacenter:  "primary-dc",
+					BearerToken: "bearer-token",
+					Meta:        map[string]string{"foo": "bar"},
 				},
 			},
 			out: discovery.Credentials{
@@ -129,12 +129,12 @@ func TestConfig_Credentials(t *testing.T) {
 			in: CredentialsConfig{
 				Type: CredentialsTypeLogin,
 				Login: LoginCredentialsConfig{
-					Method:     "jwt",
-					Namespace:  "namespace-1",
-					Partition:  "partition-a",
-					Datacenter: "primary-dc",
-					BearerPath: tokFile.Name(),
-					Meta:       map[string]string{"foo": "bar"},
+					AuthMethod:      "jwt",
+					Namespace:       "namespace-1",
+					Partition:       "partition-a",
+					Datacenter:      "primary-dc",
+					BearerTokenPath: tokFile.Name(),
+					Meta:            map[string]string{"foo": "bar"},
 				},
 			},
 			out: discovery.Credentials{

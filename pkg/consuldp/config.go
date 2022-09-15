@@ -132,18 +132,18 @@ type StaticCredentialsConfig struct {
 
 // LoginCredentialsConfig contains credentials for logging in with an auth method.
 type LoginCredentialsConfig struct {
-	// Method is the name of the Consul auth method.
-	Method string
+	// AuthMethod is the name of the Consul auth method.
+	AuthMethod string
 	// Namespace is the namespace containing the auth method.
 	Namespace string
 	// Partition is the partition containing the auth method.
 	Partition string
 	// Datacenter is the datacenter containing the auth method.
 	Datacenter string
-	// Bearer is the bearer token presented to the auth method.
-	Bearer string
-	// BearerPath is the path to a file containing a bearer token.
-	BearerPath string
+	// BearerToken is the bearer token presented to the auth method.
+	BearerToken string
+	// BearerTokenPath is the path to a file containing a bearer token.
+	BearerTokenPath string
 	// Meta is the arbitrary set of key-value pairs to attach to the
 	// token. These are included in the Description field of the token.
 	Meta map[string]string
@@ -165,16 +165,16 @@ func (cc *CredentialsConfig) ToDiscoveryCredentials() (discovery.Credentials, er
 	case CredentialsTypeLogin:
 		creds.Type = discovery.CredentialsTypeLogin
 		creds.Login = discovery.LoginCredential{
-			AuthMethod:  cc.Login.Method,
+			AuthMethod:  cc.Login.AuthMethod,
 			Namespace:   cc.Login.Namespace,
 			Partition:   cc.Login.Partition,
 			Datacenter:  cc.Login.Datacenter,
-			BearerToken: cc.Login.Bearer,
+			BearerToken: cc.Login.BearerToken,
 			Meta:        cc.Login.Meta,
 		}
 
-		if creds.Login.BearerToken == "" && cc.Login.BearerPath != "" {
-			bearer, err := os.ReadFile(cc.Login.BearerPath)
+		if creds.Login.BearerToken == "" && cc.Login.BearerTokenPath != "" {
+			bearer, err := os.ReadFile(cc.Login.BearerTokenPath)
 			if err != nil {
 				return creds, fmt.Errorf("failed to read bearer token from file: %w", err)
 			}

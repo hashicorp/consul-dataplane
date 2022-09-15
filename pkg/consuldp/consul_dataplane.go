@@ -82,7 +82,7 @@ func validateConfig(cfg *Config) error {
 	}
 
 	creds := cfg.Consul.Credentials
-	if creds.Type == CredentialsTypeLogin && creds.Login.Bearer == "" && creds.Login.BearerPath == "" {
+	if creds.Type == CredentialsTypeLogin && creds.Login.BearerToken == "" && creds.Login.BearerTokenPath == "" {
 		return errors.New("bearer token (or path to a file containing a bearer token) is required for login")
 	}
 
