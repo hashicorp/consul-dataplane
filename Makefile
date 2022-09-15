@@ -3,6 +3,8 @@ SHELL := /usr/bin/env bash -euo pipefail -c
 REPO_NAME    ?= $(shell basename "$(CURDIR)")
 PRODUCT_NAME ?= $(REPO_NAME)
 BIN_NAME     ?= $(PRODUCT_NAME)
+GOPATH       ?= $(go env GOPATH)
+GOBIN        ?= $(GOPATH)/bin
 
 # Get local ARCH; on Intel Mac, 'uname -m' returns x86_64 which we turn into amd64.
 # Not using 'go env GOOS/GOARCH' here so 'make docker' will work without local Go install.
@@ -32,6 +34,10 @@ dist:
 .PHONY: bin
 bin: dist
 	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o $(BIN) ./cmd/$(BIN_NAME)
+
+.PHONY: dev
+dev: bin
+	cp $(BIN) $(GOBIN)/$(BIN_NAME)
 
 # Docker Stuff.
 export DOCKER_BUILDKIT=1
