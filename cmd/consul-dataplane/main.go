@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -83,17 +82,6 @@ func validateFlags() {
 	}
 }
 
-func extraEnvoyArguments() []string {
-	extraEnvoyArgs := flag.Args()
-	if extraEnvoyArgs == nil {
-		extraEnvoyArgs = []string{}
-	}
-	concurrency := fmt.Sprintf("--concurrency %v", envoyConcurrency)
-	// to ensure precedence of arguements we prepend before extraArgs so that subsequent params override the
-	// last set value
-	return append([]string{concurrency}, extraEnvoyArgs...)
-}
-
 func main() {
 
 	flag.Parse()
@@ -130,7 +118,8 @@ func main() {
 			AdminBindPort:    adminBindPort,
 			ReadyBindAddress: readyBindAddr,
 			ReadyBindPort:    readyBindPort,
-			ExtraArgs:        extraEnvoyArguments(),
+			EnvoyConcurrency: envoyConcurrency,
+			ExtraArgs:        flag.Args(),
 		},
 		XDSServer: &consuldp.XDSServer{
 			BindAddress: xdsBindAddr,

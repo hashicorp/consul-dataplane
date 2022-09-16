@@ -177,12 +177,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
-	proxy, err := envoy.NewProxy(envoy.ProxyConfig{
-		Logger:          cdp.logger,
-		LogJSON:         cdp.cfg.Logging.LogJSON,
-		BootstrapConfig: cfg,
-		ExtraArgs:       cdp.cfg.Envoy.ExtraArgs,
-	})
+	proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
 	if err != nil {
 		cdp.logger.Error("failed to create new proxy", "error", err)
 		return fmt.Errorf("failed to create new proxy: %w", err)
@@ -210,4 +205,19 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		}
 	}()
 	return <-doneCh
+}
+
+func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
+	// Translate the concurrency parameter to the envoy parameter.
+	concurrency := fmt.Sprintf("--concurrency %v", cdp.cfg.Envoy.EnvoyConcurrency)
+	// Prepend so that if the consumer also specifies a concurrency level their specification should take
+	// precedence.
+	extraArgs := append([]string{concurrency}, cdp.cfg.Envoy.ExtraArgs...)
+
+	return envoy.ProxyConfig{
+		Logger:          cdp.logger,
+		LogJSON:         cdp.cfg.Logging.LogJSON,
+		BootstrapConfig: cfg,
+		ExtraArgs:       extraArgs,
+	}
 }
