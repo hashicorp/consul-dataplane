@@ -3,15 +3,19 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
+	"github.com/hashicorp/consul-dataplane/pkg/version"
 )
 
 var (
+	printVersion bool
+
 	addresses string
 	grpcPort  int
 
@@ -38,6 +42,8 @@ var (
 )
 
 func init() {
+	flag.BoolVar(&printVersion, "version", false, "Prints the current version of consul-dataplane.")
+
 	flag.StringVar(&addresses, "addresses", "", "Consul server addresses. Value can be:\n"+
 		"1. DNS name (that resolves to servers or DNS name of a load-balancer front of Consul servers); OR\n"+
 		"2.'exec=<executable with optional args>'. The executable\n"+
@@ -81,8 +87,13 @@ func validateFlags() {
 }
 
 func main() {
-
 	flag.Parse()
+
+	if printVersion {
+		fmt.Printf("Consul Dataplane v%s\n", version.GetHumanVersion())
+		fmt.Printf("Revision %s\n", version.GitCommit)
+		return
+	}
 
 	validateFlags()
 
