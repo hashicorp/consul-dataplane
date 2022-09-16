@@ -37,8 +37,8 @@ LABEL name=${BIN_NAME}\
       version=${PRODUCT_VERSION} \
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
-      summary="Consul dataplane connects an application to a Consul service mesh." \
-      description="Consul dataplane connects an application to a Consul service mesh."
+      summary="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
+      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
 
 # Create a non-root user to run the software.
 RUN addgroup $PRODUCT_NAME && \
