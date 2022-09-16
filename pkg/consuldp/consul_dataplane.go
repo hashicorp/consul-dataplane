@@ -208,11 +208,18 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 }
 
 func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
-	// Translate the concurrency parameter to the envoy parameter.
-	concurrency := fmt.Sprintf("--concurrency %v", cdp.cfg.Envoy.EnvoyConcurrency)
-	// Prepend so that if the consumer also specifies a concurrency level their specification should take
-	// precedence.
-	extraArgs := append([]string{concurrency}, cdp.cfg.Envoy.ExtraArgs...)
+	setConcurrency := true
+	extraArgs := cdp.cfg.Envoy.ExtraArgs
+	// Users could set the concurrency as an extra args. Take that as priority for best ux
+	// experience.
+	for _, v := range extraArgs {
+		if v == "--concurrency" {
+			setConcurrency = false
+		}
+	}
+	if setConcurrency {
+		extraArgs = append(extraArgs, fmt.Sprintf("--concurrency %v", cdp.cfg.Envoy.EnvoyConcurrency))
+	}
 
 	return envoy.ProxyConfig{
 		Logger:          cdp.logger,
