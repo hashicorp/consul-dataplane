@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
+	github.com/hashicorp/consul-server-connection-manager v0.0.0-20220920152341-d96d0f93c5d9
 	github.com/hashicorp/consul/proto-public v0.1.0
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-rootcerts v1.0.2
@@ -19,8 +20,6 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
-	github.com/google/uuid v1.1.2 // indirect
-	github.com/hashicorp/consul-server-connection-manager v0.0.0-20220908112242-b9f43f15d156 // indirect
 	github.com/hashicorp/go-netaddrs v0.0.0-20220509001840-90ed9d26ec46 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
