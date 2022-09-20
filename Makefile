@@ -96,3 +96,16 @@ copy-bootstrap-config:
 .PHONY: unit-tests
 unit-tests:
 	go test ./...
+
+.PHONY: changelog
+changelog:
+ifdef LAST_RELEASE_GIT_TAG
+	changelog-build \
+		-last-release $(LAST_RELEASE_GIT_TAG) \
+		-entries-dir .changelog/ \
+		-changelog-template .changelog/changelog.tmpl \
+		-note-template .changelog/note.tmpl \
+		-this-release $(REVISION)
+else
+	$(error Cannot generate changelog without LAST_RELEASE_GIT_TAG)
+endif
