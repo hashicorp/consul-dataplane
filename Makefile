@@ -3,7 +3,7 @@ SHELL := /usr/bin/env bash -euo pipefail -c
 REPO_NAME    ?= $(shell basename "$(CURDIR)")
 PRODUCT_NAME ?= $(REPO_NAME)
 BIN_NAME     ?= $(PRODUCT_NAME)
-GOPATH       ?= $(go env GOPATH)
+GOPATH       ?= $(shell go env GOPATH)
 GOBIN        ?= $(GOPATH)/bin
 
 # Get local ARCH; on Intel Mac, 'uname -m' returns x86_64 which we turn into amd64.

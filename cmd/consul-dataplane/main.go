@@ -61,24 +61,24 @@ var (
 func init() {
 	flag.BoolVar(&printVersion, "version", false, "Prints the current version of consul-dataplane.")
 
-	flag.StringVar(&addresses, "addresses", "", "Consul server addresses. Value can be:\n"+
-		"1. DNS name (that resolves to servers or DNS name of a load-balancer front of Consul servers); OR\n"+
-		"2.'exec=<executable with optional args>'. The executable\n"+
+	flag.StringVar(&addresses, "addresses", "", "Consul server gRPC addresses. Value can be:\n"+
+		"1. A DNS name that resolves to server addresses or the DNS name of a load balancer in front of the Consul servers); OR\n"+
+		"2. An executable command in the format, 'exec=<executable with optional args>'. The executable\n"+
 		"	a) on success - should exit 0 and print to stdout whitespace delimited IP (v4/v6) addresses\n"+
-		"	b) on failure - exit with a non-zero code and optionally print an error message of upto 1024 bytes to stderr.\n"+
+		"	b) on failure - exit with a non-zero code and optionally print an error message of up to 1024 bytes to stderr.\n"+
 		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.")
 
-	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on Consul servers.")
+	flag.IntVar(&grpcPort, "grpc-port", 8502, "The Consul server gRPC port to which consul-dataplane connects.")
 
 	flag.BoolVar(&serverWatchDisabled, "server-watch-disabled", false, "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
 
 	flag.StringVar(&logLevel, "log-level", "info", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
-	flag.BoolVar(&logJSON, "log-json", false, "Controls consul-dataplane logging in JSON format. By default this is false.")
+	flag.BoolVar(&logJSON, "log-json", false, "If this flag is passed, consul-dataplane will log in JSON format.")
 
-	flag.StringVar(&nodeName, "service-node-name", "", "The name of the node to which the proxy service instance is registered.")
-	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the node to which the proxy service instance is registered.")
+	flag.StringVar(&nodeName, "service-node-name", "", "The name of the Consul node to which the proxy service instance is registered.")
+	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the Consul node to which the proxy service instance is registered.")
 	flag.StringVar(&serviceID, "proxy-service-id", "", "The proxy service instance's ID.")
 	flag.StringVar(&namespace, "service-namespace", "", "The Consul Enterprise namespace in which the proxy service instance is registered.")
 	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
@@ -99,7 +99,7 @@ func init() {
 	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server will be available.")
 	flag.StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "The address on which Envoy's readiness probe will be available.")
 	flag.IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "The port on which Envoy's readiness probe will be available.")
-	flag.IntVar(&envoyConcurrency, "envoy-concurrency", 2, "The envoy concurrency denotes the number of threads that envoy will use https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency.")
+	flag.IntVar(&envoyConcurrency, "envoy-concurrency", 2, "The number of worker threads that Envoy will use.")
 
 	flag.StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "The address on which the Envoy xDS server will be available.")
 	flag.IntVar(&xdsBindPort, "xds-bind-port", 0, "The port on which the Envoy xDS server will be available.")
