@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -55,16 +54,13 @@ func TestDirector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cdp := &ConsulDataplane{
-				cfg:          &Config{Consul: &ConsulConfig{Credentials: &CredentialsConfig{Static: &StaticCredentialsConfig{Token: testToken}}}},
-				consulServer: &consulServer{grpcClientConn: &grpc.ClientConn{}},
-			}
+			cdp := &ConsulDataplane{aclToken: testToken}
 			outctx, targetConn, err := cdp.director(tc.incomingContext, tc.methodName)
 			if tc.expectedErr != nil {
 				require.ErrorIs(t, err, tc.expectedErr)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, cdp.consulServer.grpcClientConn, targetConn)
+				require.Equal(t, cdp.serverConn, targetConn)
 				outMD, ok := metadata.FromOutgoingContext(outctx)
 				require.True(t, ok)
 				require.Equal(t, []string{testToken}, outMD.Get(metadataKeyToken))

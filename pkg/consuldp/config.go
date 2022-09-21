@@ -1,5 +1,14 @@
 package consuldp
 
+import (
+	"crypto/tls"
+	"fmt"
+	"os"
+
+	"github.com/hashicorp/consul-server-connection-manager/discovery"
+	"github.com/hashicorp/go-rootcerts"
+)
+
 // ConsulConfig are the settings required to connect with Consul servers
 type ConsulConfig struct {
 	// Addresses are Consul server addresses. Value can be:
@@ -11,20 +20,171 @@ type ConsulConfig struct {
 	// Credentials are the credentials used to authenticate requests and streams
 	// to the Consul servers (e.g. static ACL token or auth method credentials).
 	Credentials *CredentialsConfig
+	// ServerWatchDisabled opts-out of consuming the server update stream, for
+	// cases where its addresses are incorrect (e.g. servers are behind a load
+	// balancer).
+	ServerWatchDisabled bool
+	// TLS contains the TLS settings for communicating with Consul servers.
+	TLS *TLSConfig
+}
+
+// TLSConfig contains the TLS settings for communicating with Consul servers.
+type TLSConfig struct {
+	// Disabled causes consul-dataplane to communicate with Consul servers over
+	// an insecure plaintext connection. This is useful for testing, but should
+	// not be used in production.
+	Disabled bool
+	// CACertsPath is a path to a file or directory containing CA certificates to
+	// use to verify the server's certificate. This is only necessary if the server
+	// presents a certificate that isn't signed by a trusted public CA.
+	CACertsPath string
+	// ServerName is used to verify the server certificate's subject when it cannot
+	// be inferred from Consul.Addresses (i.e. it is not a DNS name).
+	ServerName string
+	// CertFile is a path to the client certificate that will be presented to
+	// Consul servers.
+	//
+	// Note: this is only required if servers have tls.grpc.verify_incoming enabled.
+	// Generally, issuing consul-dataplane instances with client certificates isn't
+	// necessary and creates significant operational burden.
+	CertFile string
+	// KeyFile is a path to the client private key that will be used to communicate
+	// with Consul servers (when CertFile is provided).
+	//
+	// Note: this is only required if servers have tls.grpc.verify_incoming enabled.
+	// Generally, issuing consul-dataplane instances with client certificates isn't
+	// necessary and creates significant operational burden.
+	KeyFile string
+	// InsecureSkipVerify causes consul-dataplane not to verify the certificate
+	// presented by the server. This is useful for testing, but should not be used
+	// in production.
+	InsecureSkipVerify bool
+}
+
+// Load creates a *tls.Config, including loading the CA and client certificates.
+func (t *TLSConfig) Load() (*tls.Config, error) {
+	if t.Disabled {
+		return nil, nil
+	}
+
+	tlsCfg := &tls.Config{
+		ServerName:         t.ServerName,
+		InsecureSkipVerify: t.InsecureSkipVerify,
+	}
+
+	var rootCfg rootcerts.Config
+	if path := t.CACertsPath; path != "" {
+		fi, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read CA certs: %w", err)
+		}
+		if fi.IsDir() {
+			rootCfg.CAPath = path
+		} else {
+			rootCfg.CAFile = path
+		}
+	}
+	if err := rootcerts.ConfigureTLS(tlsCfg, &rootCfg); err != nil {
+		return nil, fmt.Errorf("failed to configure CA certs: %w", err)
+	}
+
+	if t.CertFile != "" && t.KeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(t.CertFile, t.KeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure TLS cert: %w", err)
+		}
+		tlsCfg.Certificates = []tls.Certificate{cert}
+	}
+
+	return tlsCfg, nil
 }
 
 // CredentialsConfig contains the credentials used to authenticate requests and
 // streams to the Consul servers.
 type CredentialsConfig struct {
+	// Type identifies the type of credentials provided.
+	Type CredentialsType
 	// Static contains the static ACL token.
-	Static *StaticCredentialsConfig
+	Static StaticCredentialsConfig
+	// Login contains the credentials for logging in with an auth method.
+	Login LoginCredentialsConfig
 }
+
+// CredentialsType identifies the type of credentials provided.
+type CredentialsType string
+
+const (
+	// CredentialsTypeNone indicates that no credentials were given.
+	CredentialsTypeNone CredentialsType = ""
+	// CredentialsTypeStatic indicates that a static ACL token was provided.
+	CredentialsTypeStatic CredentialsType = "static"
+	// CredentialsTypeLogin indicates that credentials were provided to log in with
+	// an auth method.
+	CredentialsTypeLogin CredentialsType = "login"
+)
 
 // StaticCredentialsConfig contains the static ACL token that will be used to
 // authenticate requests and streams to the Consul servers.
 type StaticCredentialsConfig struct {
 	// Token is the static ACL token.
 	Token string
+}
+
+// LoginCredentialsConfig contains credentials for logging in with an auth method.
+type LoginCredentialsConfig struct {
+	// AuthMethod is the name of the Consul auth method.
+	AuthMethod string
+	// Namespace is the namespace containing the auth method.
+	Namespace string
+	// Partition is the partition containing the auth method.
+	Partition string
+	// Datacenter is the datacenter containing the auth method.
+	Datacenter string
+	// BearerToken is the bearer token presented to the auth method.
+	BearerToken string
+	// BearerTokenPath is the path to a file containing a bearer token.
+	BearerTokenPath string
+	// Meta is the arbitrary set of key-value pairs to attach to the
+	// token. These are included in the Description field of the token.
+	Meta map[string]string
+}
+
+// ToDiscoveryCredentials creates a discovery.Credentials, including loading a
+// bearer token from a file if BearerPath is given.
+func (cc *CredentialsConfig) ToDiscoveryCredentials() (discovery.Credentials, error) {
+	var creds discovery.Credentials
+
+	switch cc.Type {
+	case CredentialsTypeNone:
+		return creds, nil
+	case CredentialsTypeStatic:
+		creds.Type = discovery.CredentialsTypeStatic
+		creds.Static = discovery.StaticTokenCredential{
+			Token: cc.Static.Token,
+		}
+	case CredentialsTypeLogin:
+		creds.Type = discovery.CredentialsTypeLogin
+		creds.Login = discovery.LoginCredential{
+			AuthMethod:  cc.Login.AuthMethod,
+			Namespace:   cc.Login.Namespace,
+			Partition:   cc.Login.Partition,
+			Datacenter:  cc.Login.Datacenter,
+			BearerToken: cc.Login.BearerToken,
+			Meta:        cc.Login.Meta,
+		}
+
+		if creds.Login.BearerToken == "" && cc.Login.BearerTokenPath != "" {
+			bearer, err := os.ReadFile(cc.Login.BearerTokenPath)
+			if err != nil {
+				return creds, fmt.Errorf("failed to read bearer token from file: %w", err)
+			}
+			creds.Login.BearerToken = string(bearer)
+		}
+	default:
+		return creds, fmt.Errorf("unknown credential type: %s", cc.Type)
+	}
+
+	return creds, nil
 }
 
 // LoggingConfig can be used to specify logger configuration settings.

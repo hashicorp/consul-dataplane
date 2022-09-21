@@ -16,8 +16,16 @@ import (
 var (
 	printVersion bool
 
-	addresses string
-	grpcPort  int
+	addresses           string
+	grpcPort            int
+	serverWatchDisabled bool
+
+	tlsDisabled           bool
+	tlsCACertsPath        string
+	tlsServerName         string
+	tlsCertFile           string
+	tlsKeyFile            string
+	tlsInsecureSkipVerify bool
 
 	logLevel string
 	logJSON  bool
@@ -28,7 +36,15 @@ var (
 	namespace string
 	partition string
 
-	token string
+	credentialType       string
+	token                string
+	loginAuthMethod      string
+	loginNamespace       string
+	loginPartition       string
+	loginDatacenter      string
+	loginBearerToken     string
+	loginBearerTokenPath string
+	loginMeta            map[string]string
 
 	useCentralTelemetryConfig bool
 
@@ -54,6 +70,8 @@ func init() {
 
 	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on Consul servers.")
 
+	flag.BoolVar(&serverWatchDisabled, "server-watch-disabled", false, "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
+
 	flag.StringVar(&logLevel, "log-level", "info", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
@@ -65,7 +83,15 @@ func init() {
 	flag.StringVar(&namespace, "service-namespace", "", "The Consul Enterprise namespace in which the proxy service instance is registered.")
 	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
-	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -login-method is set to static).")
+	flag.StringVar(&credentialType, "credential-type", "", "The type of credentials that will be used to authenticate with Consul servers (static or login).")
+	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -credential-type is set to static).")
+	flag.StringVar(&loginAuthMethod, "login-auth-method", "", "The auth method that will be used to log in.")
+	flag.StringVar(&loginNamespace, "login-namespace", "", "The Consul Enterprise namespace containing the auth method.")
+	flag.StringVar(&loginPartition, "login-partition", "", "The Consul Enterprise partition containing the auth method.")
+	flag.StringVar(&loginDatacenter, "login-datacenter", "", "The datacenter containing the auth method.")
+	flag.StringVar(&loginBearerToken, "login-bearer-token", "", "The bearer token that will be presented to the auth method.")
+	flag.StringVar(&loginBearerTokenPath, "login-bearer-token-path", "", "The path to a file containing the bearer token that will be presented to the auth method.")
+	flag.Var((*FlagMapValue)(&loginMeta), "login-meta", "An arbitrary set of key/value pairs that will be attached to the ACL token (formatted as key=value, may be given multiple times).")
 
 	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy will apply the central telemetry configuration.")
 
@@ -77,6 +103,13 @@ func init() {
 
 	flag.StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "The address on which the Envoy xDS server will be available.")
 	flag.IntVar(&xdsBindPort, "xds-bind-port", 0, "The port on which the Envoy xDS server will be available.")
+
+	flag.BoolVar(&tlsDisabled, "tls-disabled", false, "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
+	flag.StringVar(&tlsCACertsPath, "ca-certs", "", "The path to a file or directory containing CA certificates that will be used to verify the server's certificate.")
+	flag.StringVar(&tlsCertFile, "tls-cert", "", "The path to a client certificate file (only required if tls.grpc.verify_incoming is enabled on the server).")
+	flag.StringVar(&tlsKeyFile, "tls-key", "", "The path to a client private key file (only required if tls.grpc.verify_incoming is enabled on the server).")
+	flag.StringVar(&tlsServerName, "tls-server-name", "", "The hostname to expect in the server certificate's subject (required if -addresses isn't a DNS name).")
+	flag.BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -104,9 +137,28 @@ func main() {
 			Addresses: addresses,
 			GRPCPort:  grpcPort,
 			Credentials: &consuldp.CredentialsConfig{
-				Static: &consuldp.StaticCredentialsConfig{
+				Type: consuldp.CredentialsType(credentialType),
+				Static: consuldp.StaticCredentialsConfig{
 					Token: token,
 				},
+				Login: consuldp.LoginCredentialsConfig{
+					AuthMethod:      loginAuthMethod,
+					Namespace:       loginNamespace,
+					Partition:       loginPartition,
+					Datacenter:      loginDatacenter,
+					BearerToken:     loginBearerToken,
+					BearerTokenPath: loginBearerTokenPath,
+					Meta:            loginMeta,
+				},
+			},
+			ServerWatchDisabled: serverWatchDisabled,
+			TLS: &consuldp.TLSConfig{
+				Disabled:           tlsDisabled,
+				CACertsPath:        tlsCACertsPath,
+				ServerName:         tlsServerName,
+				CertFile:           tlsCertFile,
+				KeyFile:            tlsKeyFile,
+				InsecureSkipVerify: tlsInsecureSkipVerify,
 			},
 		},
 		Service: &consuldp.ServiceConfig{
