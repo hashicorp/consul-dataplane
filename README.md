@@ -22,7 +22,7 @@ Consul client agents results in the following benefits:
 
 Refer to the [Documentation](#documentation) section for more information on Consul Dataplane.
 
-Please note: We take Consul's security and our users' trust very seriously. If you believe you have
+**Note**: We take Consul's security and our users' trust seriously. If you believe you have
 found a security issue in Consul, please responsibly disclose by contacting us at
 security@hashicorp.com.
 
