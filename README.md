@@ -5,22 +5,22 @@
 
 Consul Dataplane is a lightweight process that manages Envoy for Consul service mesh workloads.
 
-Consul Dataplane was designed to remove the need to run Consul client agents workloads. Removing
+Consul Dataplane's design removes the need to run Consul client agent workloads. Removing
 Consul client agents results in the following benefits:
 
-* **Fewer network requirements**: Consul client agents use multiple network protocols and required
+- **Fewer network requirements**: Consul client agents use multiple network protocols and require
   bi-directional communication between Consul client and server agents for the gossip protocol.
-  Consul Dataplane does not use gossip and uses a single gRPC connection out to the Consul servers.
-* **Simplified set up**: Consul Dataplane does not need to be configured with a gossip encryption key
+  Consul Dataplane does not use gossip and instead uses a single gRPC connection out to the Consul servers.
+- **Simplified set up**: Consul Dataplane does not need to be configured with a gossip encryption key
   and operators do not need to distribute separate ACL tokens for Consul client agents.
-* **Additional runtime support**: Consul Dataplane runs as a sidecar alongside your workload making
-  it easier to support various runtimes, such as serverless platforms where we do not have access to
-  host machine where the Consul client agent can be run.
-* **Easier upgrades**: Deploying new Consul versions no longer requires the step of upgrading Consul
-  client agents. Consul Dataplane has better compatibility across Consul server versions so that
+- **Additional runtime support**: Consul Dataplane runs as a sidecar alongside your workload, making
+  it easier to support various runtimes. For example, it runs on serverless platforms when you do not have access 
+  to host machine where the Consul client agent can be run.
+- **Easier upgrades**: Deploying new Consul versions no longer requires  upgrading Consul
+  client agents. Consul Dataplane has better compatibility across Consul server versions, so 
   you only need to upgrade the Consul servers to take advantage of new Consul features.
 
-See the [Documentation](#documentation) section for more information on Consul Dataplane.
+Refer to the [Documentation](#documentation) section for more information on Consul Dataplane.
 
 Please note: We take Consul's security and our users' trust very seriously. If you believe you have
 found a security issue in Consul, please responsibly disclose by contacting us at
@@ -40,37 +40,37 @@ security@hashicorp.com.
 
 ## Documentation
 
-Consul Dataplane is currently in beta. It currently supports the following:
+Consul Dataplane is currently in beta. It currently supports the following features:
 
-* **Consul Server Discovery**: Consul Dataplane discovers Consul server addresses using DNS or by
+- **Consul Server Discovery**: Consul Dataplane discovers Consul server addresses using DNS or by
   running a script, and is quickly notified of new Consul servers using a ServerWatch gRPC stream.
-* **Consul Server Connnection**: Consul Dataplane maintains a gRPC connection to a Consul server and
-  automatically switches to another Consul server as-needed.
+- **Consul Server Connection**: Consul Dataplane maintains a gRPC connection to a Consul server and
+  automatically switches to another Consul server as needed.
 * **Feature Discovery**: Consul Dataplane checks Consul server feature support to facilitate version
   compatibility.
-* **Envoy Management**: Consul Dataplane configures, starts, and manages an Envoy sub-process.
-* **Envoy xDS Proxy**: Consul Dataplane proxies Envoy's Aggregated Discovery Service (SDS) to a Consul
+- **Envoy Management**: Consul Dataplane configures, starts, and manages an Envoy sub-process.
+- **Envoy xDS Proxy**: Consul Dataplane proxies Envoy's Aggregated Discovery Service (SDS) to a Consul
   server.
 
-The following features will be added in the near future:
+We plan to add the following features in a subsequent release:
 
-* Envoy SDS Proxying: Consul Dataplane will proxy Envoy's Aggregated Discovery Service (SDS) to a
+- Envoy SDS Proxying: Consul Dataplane will proxy Envoy's Aggregated Discovery Service (SDS) to a
   Consul server.
-* Consul DNS Proxy: Consul Dataplane will run a local DNS server and proxies DNS requests over a
+- Consul DNS Proxy: Consul Dataplane will run a local DNS server and proxies DNS requests over a
   gRPC connection to a Consul server.
-* Merged Metrics: Consul Dataplane will expose metrics for both Consul Dataplane and Envoy through a
+- Merged Metrics: Consul Dataplane will expose metrics for both Consul Dataplane and Envoy through a
   single endpoint.
 
 ### Requirements
 
-* Consul server version 1.14+
-* A [compatible version](https://www.consul.io/docs/connect/proxies/envoy#supported-versions) of
+- Consul server version 1.14+
+- A [compatible version](https://www.consul.io/docs/connect/proxies/envoy#supported-versions) of
   Envoy. The `envoy` binary must be found on the PATH.
 
 ### Usage
 
-The `consul-dataplane` binary should be run as a sidecar alongside your service mesh workloads in
-place of Envoy. You should not run Envoy directly. Instead, `consul-dataplane` will configure and
+You should run the `consul-dataplane` binary as a sidecar alongside your service mesh workloads in
+place of Envoy. You should not run Envoy directly. Instead, use `consul-dataplane` to configure and
 start Envoy for you.
 
 In containerized environments, use the `hashicorp/consul-dataplane` image in place of an Envoy
@@ -86,8 +86,8 @@ consul-dataplane \
     ...
 ```
 
-Consul Dataplane will connect to Consul servers specified in `-addresses`. It will start an Envoy
-sub-process configured to run as a sidecar proxy for service specified by `-proxy-service-id` on the
+Consul Dataplane connects to Consul servers specified in `-addresses`. Then it starts an Envoy
+sub-process configured to run as a sidecar proxy for the service specified by `-proxy-service-id` on the
 node specified by `-service-node-name` in the Consul service catalog.
 
 ### Server Discovery
@@ -95,13 +95,13 @@ node specified by `-service-node-name` in the Consul service catalog.
 Consul Dataplane connects directly to your Consul servers. It supports two forms of address
 discovery in the `-addresses` field:
 
-* **DNS**: Consul Dataplane will resolve a domain name to discover Consul server IP addresses.
+- **DNS**: Consul Dataplane resolves a domain name to discover Consul server IP addresses.
 
   ```
   consul-dataplane -addresses my.consul.example.com
   ```
 
-* **Executable Command**: Consul Dataplane will run a script that, on success, should return one
+- **Executable Command**: Consul Dataplane runs a script that, on success, returns one
   or more IP addresses separate by whitespace:
 
   ```
@@ -113,8 +113,8 @@ discovery in the `-addresses` field:
   ```
 
   The `go-discover` binary is included in the `hashicorp/consul-dataplane` image for use with this
-  mode of server discovery (similar to [Cloud
-  Auto-join](https://www.consul.io/docs/install/cloud-auto-join). The following shows how to use the
+  mode of server discovery, which functions in a way similar to [Cloud
+  Auto-join](https://www.consul.io/docs/install/cloud-auto-join). The following example demonstrates how to use the
   `go-discover` binary with Consul Dataplane.
 
   ```
@@ -126,14 +126,14 @@ discovery in the `-addresses` field:
 Consul Dataplane requires an ACL token when ACLs are enabled on the Consul servers. An ACL token
 can be specified one of two ways.
 
-* **Static Token**: A static ACL token is passed to Consul Dataplane
+- **Static token**: A static ACL token is passed to Consul Dataplane.
 
   ```
   consul-dataplane -credential-type "static"` -static-token "12345678-90ab-cdef-0000-12345678abcd"
   ```
 
-* **Auth Method Login**: Consul Dataplane logs in to one of Consul support [auth
-  methods](https://www.consul.io/docs/security/acl/auth-methods)
+- **Auth method login**: Consul Dataplane logs in to one of Consul's supportted [auth
+  methods](https://www.consul.io/docs/security/acl/auth-methods).
 
   ```
   consul-dataplane -credential-type "login"
@@ -169,13 +169,13 @@ The `consul-dataplane` binary supports the following flags.
 | Flag                            | Type   | Default       | Description                                                                                                                                                                                                                                |
 |---------------------------------|--------|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `-addresses`                    | string |               | Consul server gRPC addresses. This can be a DNS name or an executable command in the format, `exec=<executable with optional args>`.<br>Refer to [go-netaddrs](https://github.com/hashicorp/go-netaddrs#summary) for details and examples. |
-| `-ca-certs`                     | string |               | The path to a file or directory containing CA certificates that will be used to verify the server's certificate.                                                                                                                           |
-| `-credential-type`              | string |               | The type of credentials that will be used to authenticate with Consul servers (static or login).                                                                                                                                           |
-| `-envoy-admin-bind-address`     | string | `"127.0.0.1"` | The address on which the Envoy admin server will be available.                                                                                                                                                                             |
-| `-envoy-admin-bind-port`        | int    | `19000`       | The port on which the Envoy admin server will be available.                                                                                                                                                                                |
-| `-envoy-concurrency`            | int    | `2`           | The number of worker threads that Envoy will use.                                                                                                                                                                                          |
-| `-envoy-ready-bind-address`     | string |               | The address on which Envoy's readiness probe will be available.                                                                                                                                                                            |
-| `-envoy-ready-bind-port`        | int    |               | The port on which Envoy's readiness probe will be available.                                                                                                                                                                               |
+| `-ca-certs`                     | string |               | The path to a file or directory containing CA certificates used to verify the server's certificate.                                                                                                                           |
+| `-credential-type`              | string |               | The type of credentials, either static or login, used to authenticate with Consul servers.                                                                                                                                           |
+| `-envoy-admin-bind-address`     | string | `"127.0.0.1"` | The address on which the Envoy admin server is available.                                                                                                                                                                             |
+| `-envoy-admin-bind-port`        | int    | `19000`       | The port on which the Envoy admin server is available.                                                                                                                                                                                |
+| `-envoy-concurrency`            | int    | `2`           | The number of worker threads that Envoy uses.                                                                                                                                                                                          |
+| `-envoy-ready-bind-address`     | string |               | The address on which Envoy's readiness probe is available.                                                                                                                                                                            |
+| `-envoy-ready-bind-port`        | int    |               | The port on which Envoy's readiness probe is available.                                                                                                                                                                               |
 | `-grpc-port`                    | int    | `8502`        | The Consul server gRPC port to which consul-dataplane connects.                                                                                                                                                                            |
 | `-log-json`                     | bool   | `false`       | If this flag is passed, consul-dataplane will log in JSON format.                                                                                                                                                                          |
 | `-log-level`                    | string | `"info"`      | Log level of the messages to print. Available log levels are "trace", "debug", "info", "warn", and "error".                                                                                                                                |
