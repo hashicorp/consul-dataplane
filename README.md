@@ -5,8 +5,8 @@
 
 Consul Dataplane is a lightweight process that manages Envoy for Consul service mesh workloads.
 
-Consul Dataplane's design removes the need to run Consul client agent workloads. Removing
-Consul client agents results in the following benefits:
+Consul Dataplane's design removes the need to run Consul client agents. Removing Consul client
+agents results in the following benefits:
 
 - **Fewer network requirements**: Consul client agents use multiple network protocols and require
   bi-directional communication between Consul client and server agents for the gossip protocol.
@@ -54,14 +54,14 @@ make unit-tests
 
 Consul Dataplane is currently in beta. It currently supports the following features:
 
-- **Consul Server Discovery**: Consul Dataplane discovers Consul server addresses using DNS or by
+- **Consul server discovery**: Consul Dataplane discovers Consul server addresses using DNS or by
   running a script, and is quickly notified of new Consul servers using a ServerWatch gRPC stream.
-- **Consul Server Connection**: Consul Dataplane maintains a gRPC connection to a Consul server and
+- **Consul server connection**: Consul Dataplane maintains a gRPC connection to a Consul server and
   automatically switches to another Consul server as needed.
-* **Feature Discovery**: Consul Dataplane checks Consul server feature support to facilitate version
+- **Feature discovery**: Consul Dataplane checks Consul server feature support to facilitate version
   compatibility.
-- **Envoy Management**: Consul Dataplane configures, starts, and manages an Envoy sub-process.
-- **Envoy ADS Proxy**: Consul Dataplane proxies Envoy's Aggregated Discovery Service (ADS) to a Consul
+- **Envoy management**: Consul Dataplane configures, starts, and manages an Envoy sub-process.
+- **Envoy ADS proxy**: Consul Dataplane proxies Envoy's Aggregated Discovery Service (ADS) to a Consul
   server.
 
 We plan to add the following features in a subsequent release:
@@ -71,8 +71,10 @@ We plan to add the following features in a subsequent release:
   Consul servers.
 - Consul DNS Proxy: Consul Dataplane will run a local DNS server and proxy DNS requests over a
   gRPC connection to a Consul server.
-- Merged Metrics: Consul Dataplane will expose metrics for both Consul Dataplane and Envoy through a
+- Merged metrics: Consul Dataplane will expose metrics for both Consul Dataplane and Envoy through a
   single endpoint.
+- Config files and environment variables: Consul Dataplane currently supports CLI flags
+  and will support configuration using both files and environment variables for configuration.
 
 ### Requirements
 
@@ -106,7 +108,8 @@ node specified by `-service-node-name` in the Consul service catalog.
 ### Server Discovery
 
 Consul Dataplane connects directly to your Consul servers. It supports two forms of address
-discovery in the `-addresses` field:
+discovery in the `-addresses` field which uses the syntax supported by
+[go-netaddrs](https://github.com/hashicorp/go-netaddrs).
 
 - **DNS**: Consul Dataplane resolves a domain name to discover Consul server IP addresses.
 
@@ -125,10 +128,10 @@ discovery in the `-addresses` field:
   $ consul-dataplane -addresses "exec=./my-script.sh"
   ```
 
-  The `go-discover` binary is included in the `hashicorp/consul-dataplane` image for use with this
-  mode of server discovery, which functions in a way similar to [Cloud
-  Auto-join](https://www.consul.io/docs/install/cloud-auto-join). The following example demonstrates how to use the
-  `go-discover` binary with Consul Dataplane.
+  The [`go-discover`](https://github.com/hashicorp/go-discover) binary is included in the
+  `hashicorp/consul-dataplane` image for use with this mode of server discovery, which functions in
+  a way similar to [Cloud Auto-join](https://www.consul.io/docs/install/cloud-auto-join). The
+  following example demonstrates how to use the `go-discover` binary with Consul Dataplane.
 
   ```
   consul-dataplane -addresses "exec=discover -q addrs provider=aws region=us-west-2 tag_key=consul-server tag_value=true"
@@ -145,7 +148,7 @@ can be specified one of two ways.
   consul-dataplane -credential-type "static"` -static-token "12345678-90ab-cdef-0000-12345678abcd"
   ```
 
-- **Auth method login**: Consul Dataplane logs in to one of Consul's supportted [auth
+- **Auth method login**: Consul Dataplane logs in to one of Consul's supported [auth
   methods](https://www.consul.io/docs/security/acl/auth-methods).
 
   ```
