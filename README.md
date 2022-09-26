@@ -15,7 +15,7 @@ agents results in the following benefits:
   and operators do not need to distribute separate ACL tokens for Consul client agents.
 - **Additional runtime support**: Consul Dataplane runs as a sidecar alongside your workload, making
   it easier to support various runtimes. For example, it runs on serverless platforms when you do not have access
-  to host machine where the Consul client agent can be run.
+  to the host machine where the Consul client agent can be run.
 - **Easier upgrades**: Deploying new Consul versions no longer requires  upgrading Consul
   client agents. Consul Dataplane has better compatibility across Consul server versions, so
   you only need to upgrade the Consul servers to take advantage of new Consul features.
