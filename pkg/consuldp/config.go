@@ -244,6 +244,8 @@ type PrometheusTelemetryConfig struct {
 	// The metrics at this URL are scraped and merged into Consul Dataplane's
 	// main Prometheus metrics.
 	ServiceMetricsURL string
+	// ScrapePath is the URL path where Envoy serves Prometheus metrics.
+	ScrapePath string
 }
 
 // EnvoyConfig contains configuration for the Envoy process.

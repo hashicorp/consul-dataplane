@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMetricsServer(t *testing.T) {
+func TestMetricsServerEnabled(t *testing.T) {
 	cases := map[string]struct {
 		telemetry  *TelemetryConfig
 		expMetrics []string
@@ -39,6 +39,21 @@ func TestMetricsServer(t *testing.T) {
 				makeFakeMetric("fake-service-metrics-url"),
 			},
 		},
+		"custom scrape path": {
+			telemetry: &TelemetryConfig{
+				UseCentralConfig: true,
+				Prometheus: PrometheusTelemetryConfig{
+					ServiceMetricsURL: "fake-service-metrics-url",
+					// ScrapePath does not affect Consul Dataplane's metrics server.
+					// It only affects where Envoy serves metrics.
+					ScrapePath: "/test/scrape/path",
+				},
+			},
+			expMetrics: []string{
+				makeFakeMetric(envoyMetricsUrl),
+				makeFakeMetric("fake-service-metrics-url"),
+			},
+		},
 	}
 	for name, c := range cases {
 		c := c
@@ -54,7 +69,7 @@ func TestMetricsServer(t *testing.T) {
 			require.NotNil(t, m.httpServer)
 			require.NotNil(t, m.client)
 			require.NotNil(t, m.exitedCh)
-			require.Equal(t, metricsBindAddr, m.httpServer.Addr)
+			require.Equal(t, metricsBackendBindAddr, m.httpServer.Addr)
 			require.IsType(t, &http.Client{}, m.client)
 			require.Greater(t, m.client.(*http.Client).Timeout, time.Duration(0))
 
@@ -98,7 +113,6 @@ func TestMetricsServer(t *testing.T) {
 
 		})
 	}
-
 }
 
 type mockClient struct{}

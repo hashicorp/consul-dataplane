@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	envoyMetricsUrl = "http://127.0.0.1:19000/stats/prometheus"
-	metricsBindAddr = "127.0.0.1:20100"
+	envoyMetricsUrl        = "http://127.0.0.1:19000/stats/prometheus"
+	metricsBackendBindPort = "20100"
+	metricsBackendBindAddr = "127.0.0.1:" + metricsBackendBindPort
 )
 
 func (cdp *ConsulDataplane) setupMetricsServer() {
@@ -17,7 +18,7 @@ func (cdp *ConsulDataplane) setupMetricsServer() {
 	mux.HandleFunc("/stats/prometheus", cdp.mergedMetricsHandler)
 	cdp.metricsServer = &metricsServer{
 		httpServer: &http.Server{
-			Addr:    metricsBindAddr,
+			Addr:    metricsBackendBindAddr,
 			Handler: mux,
 		},
 		client: &http.Client{

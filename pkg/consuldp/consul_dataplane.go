@@ -91,7 +91,6 @@ func validateConfig(cfg *Config) error {
 		return errors.New("envoy xDS bind address not specified")
 	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
-
 	}
 
 	creds := cfg.Consul.Credentials

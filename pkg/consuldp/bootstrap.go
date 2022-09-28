@@ -69,6 +69,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		Datacenter:            rsp.Datacenter,
 		PrometheusCertFile:    prom.CertFile,
 		PrometheusKeyFile:     prom.KeyFile,
+		PrometheusScrapePath:  prom.ScrapePath,
 	}
 
 	if cdp.xdsServer.listenerNetwork == "unix" {
@@ -106,8 +107,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		// config is enabled, we set the PrometheusBackendPort to instead have
 		// Envoy proxy metrics from Consul Dataplane which serves merged
 		// metrics (Envoy + Dataplane + service metrics).
-		args.PrometheusBackendPort = "20100"
-		// args.PrometheusScrapePath = ...
+		args.PrometheusBackendPort = metricsBackendBindPort
 	}
 
 	// Note: we pass true for omitDeprecatedTags here - consul-dataplane is clean
