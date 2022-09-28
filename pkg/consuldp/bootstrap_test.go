@@ -155,7 +155,7 @@ func TestBootstrapConfig(t *testing.T) {
 				dp.xdsServer = &xdsServer{listenerAddress: fmt.Sprintf("127.0.0.1:%d", xdsBindPort)}
 			}
 
-			bsCfg, err := dp.bootstrapConfig(ctx)
+			_, bsCfg, err := dp.bootstrapConfig(ctx)
 			require.NoError(t, err)
 
 			golden(t, bsCfg)

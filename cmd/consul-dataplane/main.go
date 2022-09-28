@@ -48,6 +48,12 @@ var (
 
 	useCentralTelemetryConfig bool
 
+	promRetentionTime     string
+	promCACertsPath       string
+	promKeyFile           string
+	promCertFile          string
+	promServiceMetricsURL string
+
 	adminBindAddr    string
 	adminBindPort    int
 	readyBindAddr    string
@@ -94,6 +100,12 @@ func init() {
 	flag.Var((*FlagMapValue)(&loginMeta), "login-meta", `A set of key/value pairs to attach to the ACL token. Each pair is formatted as "<key>=<value>". This flag may be passed multiple times.`)
 
 	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy applies the central telemetry configuration.")
+
+	flag.StringVar(&promRetentionTime, "telemetry-prom-retention-time", "", "The duration for Prometheus metrics aggregation.")
+	flag.StringVar(&promCACertsPath, "telemetry-prom-ca-certs-path", "", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
+	flag.StringVar(&promKeyFile, "telemetry-prom-key-file", "", "The path to the client private key used to serve Prometheus metrics.")
+	flag.StringVar(&promCertFile, "telemetry-prom-cert-file", "", "The path to the client certificate used to serve Prometheus metrics.")
+	flag.StringVar(&promServiceMetricsURL, "telemetry-prom-service-metrics-url", "", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
 
 	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address on which the Envoy admin server is available.")
 	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server is available.")
@@ -175,6 +187,13 @@ func main() {
 		},
 		Telemetry: &consuldp.TelemetryConfig{
 			UseCentralConfig: useCentralTelemetryConfig,
+			Prometheus: consuldp.PrometheusTelemetryConfig{
+				RetentionTime:     promRetentionTime,
+				CACertsPath:       promCACertsPath,
+				KeyFile:           promKeyFile,
+				CertFile:          promCertFile,
+				ServiceMetricsURL: promServiceMetricsURL,
+			},
 		},
 		Envoy: &consuldp.EnvoyConfig{
 			AdminBindAddress: adminBindAddr,

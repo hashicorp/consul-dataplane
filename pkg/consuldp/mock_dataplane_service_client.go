@@ -61,9 +61,9 @@ type MockDataplaneServiceClient_GetEnvoyBootstrapParams_Call struct {
 }
 
 // GetEnvoyBootstrapParams is a helper method to define mock.On call
-//  - ctx context.Context
-//  - in *pbdataplane.GetEnvoyBootstrapParamsRequest
-//  - opts ...grpc.CallOption
+//   - ctx context.Context
+//   - in *pbdataplane.GetEnvoyBootstrapParamsRequest
+//   - opts ...grpc.CallOption
 func (_e *MockDataplaneServiceClient_Expecter) GetEnvoyBootstrapParams(ctx interface{}, in interface{}, opts ...interface{}) *MockDataplaneServiceClient_GetEnvoyBootstrapParams_Call {
 	return &MockDataplaneServiceClient_GetEnvoyBootstrapParams_Call{Call: _e.mock.On("GetEnvoyBootstrapParams",
 		append([]interface{}{ctx, in}, opts...)...)}
@@ -123,9 +123,9 @@ type MockDataplaneServiceClient_GetSupportedDataplaneFeatures_Call struct {
 }
 
 // GetSupportedDataplaneFeatures is a helper method to define mock.On call
-//  - ctx context.Context
-//  - in *pbdataplane.GetSupportedDataplaneFeaturesRequest
-//  - opts ...grpc.CallOption
+//   - ctx context.Context
+//   - in *pbdataplane.GetSupportedDataplaneFeaturesRequest
+//   - opts ...grpc.CallOption
 func (_e *MockDataplaneServiceClient_Expecter) GetSupportedDataplaneFeatures(ctx interface{}, in interface{}, opts ...interface{}) *MockDataplaneServiceClient_GetSupportedDataplaneFeatures_Call {
 	return &MockDataplaneServiceClient_GetSupportedDataplaneFeatures_Call{Call: _e.mock.On("GetSupportedDataplaneFeatures",
 		append([]interface{}{ctx, in}, opts...)...)}

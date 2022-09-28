@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
@@ -23,6 +24,16 @@ type xdsServer struct {
 	exitedCh        chan struct{}
 }
 
+type httpGetter interface {
+	Get(string) (*http.Response, error)
+}
+
+type metricsServer struct {
+	httpServer *http.Server
+	client     httpGetter
+	exitedCh   chan struct{}
+}
+
 // ConsulDataplane represents the consul-dataplane process
 type ConsulDataplane struct {
 	logger          hclog.Logger
@@ -31,6 +42,7 @@ type ConsulDataplane struct {
 	dpServiceClient pbdataplane.DataplaneServiceClient
 	xdsServer       *xdsServer
 	aclToken        string
+	metricsServer   *metricsServer
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -79,11 +91,23 @@ func validateConfig(cfg *Config) error {
 		return errors.New("envoy xDS bind address not specified")
 	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
+
 	}
 
 	creds := cfg.Consul.Credentials
 	if creds.Type == CredentialsTypeLogin && creds.Login.BearerToken == "" && creds.Login.BearerTokenPath == "" {
 		return errors.New("bearer token (or path to a file containing a bearer token) is required for login")
+	}
+
+	if cfg.Telemetry != nil {
+		prom := cfg.Telemetry.Prometheus
+		// If any of CA/Cert/Key are specified, make sure they are all present.
+		if prom.KeyFile != "" || prom.CertFile != "" || prom.CACertsPath != "" {
+			if prom.KeyFile == "" || prom.CertFile == "" || prom.CACertsPath == "" {
+				return errors.New("Must provide -telemetry-prom-ca-certs-path, -telemetry-prom-cert-file, " +
+					"and -telemetry-prom-key-file to enable TLS for prometheus metrics")
+			}
+		}
 	}
 
 	return nil
@@ -135,7 +159,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	go cdp.startXDSServer()
 	defer cdp.stopXDSServer()
 
-	cfg, err := cdp.bootstrapConfig(ctx)
+	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
 		cdp.logger.Error("failed to get bootstrap config", "error", err)
 		return fmt.Errorf("failed to get bootstrap config: %w", err)
@@ -150,6 +174,19 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	if err := proxy.Run(); err != nil {
 		cdp.logger.Error("failed to run proxy", "error", err)
 		return fmt.Errorf("failed to run proxy: %w", err)
+	}
+
+	cdp.setupMetricsServer()
+	if cdp.cfg.Telemetry.UseCentralConfig {
+		switch {
+		case bootstrapCfg.PrometheusBindAddr != "":
+			go cdp.startMetricsServer()
+			defer cdp.stopMetricsServer()
+		case bootstrapCfg.StatsdURL != "":
+			// TODO: send merged metrics
+		case bootstrapCfg.DogstatsdURL != "":
+			// TODO: send merged metrics
+		}
 	}
 
 	doneCh := make(chan error)
@@ -167,6 +204,8 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 				cdp.logger.Error("failed to stop proxy", "error", err)
 			}
 			doneCh <- errors.New("xDS server exited unexpectedly")
+		case <-cdp.metricsServerExited():
+			doneCh <- errors.New("metrics server exited unexpectedly")
 		}
 	}()
 	return <-doneCh
