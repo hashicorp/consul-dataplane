@@ -124,7 +124,11 @@ func (d *DNSServer) proxyUDP() {
 		default:
 		}
 		buf := make([]byte, 512)
-		d.connUDP.SetReadDeadline(time.Now().Add(time.Second * 10))
+		err := d.connUDP.SetReadDeadline(time.Now().Add(time.Second * 10))
+		if err != nil {
+			logger.Error("failure to set read deadline on connection", "error", err)
+			return
+		}
 		bytesRead, addr, err := d.connUDP.ReadFrom(buf)
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {

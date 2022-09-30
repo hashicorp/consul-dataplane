@@ -39,7 +39,7 @@ func TestDNS_suite(t *testing.T) {
 
 func genRandomBytes(size int) (blk []byte) {
 	blk = make([]byte, size)
-	rand.Read(blk)
+	_, _ = rand.Read(blk)
 	return blk
 }
 
@@ -91,7 +91,7 @@ func (s *DNSTestSuite) Test_ServerStop() {
 		port := server.TcpPort()
 		addr := fmt.Sprintf("127.0.0.1:%v", port)
 		c, _ := net.Dial("udp", addr)
-		c.Write([]byte("here"))
+		_, _ = c.Write([]byte("here"))
 		p := make([]byte, 512)
 		_, err = c.Read(p)
 		s.T().Logf("read udp error: %v", err)
@@ -168,7 +168,7 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 			}
 			s.T().Logf("written %v", n)
 			p := make([]byte, 9216)
-			conn.SetReadDeadline(time.Now().Add(time.Second * 1))
+			_ = conn.SetReadDeadline(time.Now().Add(time.Second * 1))
 			lengthRead, err := conn.Read(p)
 			s.T().Logf("read %v", lengthRead)
 			if tc.expectedGRPC != nil {
@@ -251,8 +251,8 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 			s.Require().NoError(err)
 
 			defer conn.Close()
-			binary.Write(conn, binary.BigEndian, uint16(len(req)))
-			conn.Write(req)
+			_ = binary.Write(conn, binary.BigEndian, uint16(len(req)))
+			_, _ = conn.Write(req)
 
 			var length uint16
 			err = binary.Read(conn, binary.BigEndian, &length)
