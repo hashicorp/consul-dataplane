@@ -28,6 +28,14 @@ type ConsulConfig struct {
 	TLS *TLSConfig
 }
 
+// DNSServerConfig is the configuration for the transparent DNS proxy that will forward requests to consul
+type DNSServerConfig struct {
+	// BindAddr is the address the DNS server will bind to. Default will be 127.0.0.1
+	BindAddr string
+	// Port is the port which the DNS server will bind to.
+	Port int
+}
+
 // TLSConfig contains the TLS settings for communicating with Consul servers.
 type TLSConfig struct {
 	// Disabled causes consul-dataplane to communicate with Consul servers over
@@ -251,6 +259,7 @@ type XDSServer struct {
 // Config is the configuration used by consul-dataplane, consolidated
 // from various sources - CLI flags, env vars, config file settings.
 type Config struct {
+	DNSServer *DNSServerConfig
 	Consul    *ConsulConfig
 	Service   *ServiceConfig
 	Logging   *LoggingConfig
