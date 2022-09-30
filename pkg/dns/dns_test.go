@@ -42,6 +42,26 @@ func genRandomBytes(size int) (blk []byte) {
 	rand.Read(blk)
 	return blk
 }
+
+func (s *DNSTestSuite) Test_DisabledServer() {
+	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
+	server, err := NewDNSServer(DNSServerParams{
+		BindAddr: "127.0.0.1",
+		Port:     -1, // disabled server
+		Logger:   hclog.Default(),
+		Client:   mockedDNSConsulClient,
+	})
+	if err != nil {
+		s.T().FailNow()
+	}
+	err = server.Run()
+	s.Require().Equal(ErrServerDisabled, err)
+	s.Require().Equal(server.TcpPort(), -1)
+	s.Require().Equal(server.UdpPort(), -1)
+	server.Stop()
+
+}
+
 func (s *DNSTestSuite) Test_ServerStop() {
 	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
 	server, err := NewDNSServer(DNSServerParams{

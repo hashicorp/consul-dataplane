@@ -14,6 +14,10 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
+// ErrServerDisabled is returned when the server is disabled
+var ErrServerDisabled error = errors.New("server is disabled")
+
+// DNSServerParams is the configuration for creating a new DNS server
 type DNSServerParams struct {
 	BindAddr string
 	Port     int
@@ -21,6 +25,7 @@ type DNSServerParams struct {
 	Client   pbdns.DNSServiceClient
 }
 
+// DNSServerInterface is the interface for athe DNSServer
 type DNSServerInterface interface {
 	Run() error
 	Stop()
@@ -28,6 +33,7 @@ type DNSServerInterface interface {
 	UdpPort() int
 }
 
+// DNSServer is the implementation of the DNSServerInterface
 type DNSServer struct {
 	bindAddr net.IP
 	port     int
@@ -39,6 +45,7 @@ type DNSServer struct {
 	stopCh      chan (struct{})
 }
 
+// NewDNSServer creates a new DNS proxy server
 func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
 	s := &DNSServer{}
 	s.bindAddr = net.ParseIP(p.BindAddr)
@@ -51,15 +58,29 @@ func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
 	return s, nil
 }
 
+// TcpPort is a helper func for the purpose of returning the port
+// that the OS chose if the user specified 0
 func (d *DNSServer) TcpPort() int {
+	if d.listenerTCP == nil {
+		return -1
+	}
 	return int(d.listenerTCP.Addr().(*net.TCPAddr).Port)
 }
 
+// UdpPort is a helper func for the purpose of returning the port
+// that the OS chose if the user specified 0 in the server config
 func (d *DNSServer) UdpPort() int {
+	if d.connUDP == nil {
+		return -1
+	}
 	return int(d.connUDP.LocalAddr().(*net.UDPAddr).Port)
 }
 
+// Run starts the tcp and udp listeners and forwards requests to consul
 func (d *DNSServer) Run() error {
+	if d.port == -1 {
+		return ErrServerDisabled
+	}
 	// 1. Setup udp listener
 	udpAddr := &net.UDPAddr{
 		Port: d.port,
@@ -237,6 +258,9 @@ func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceC
 	}
 }
 
+// Stop will shut down the server
 func (d *DNSServer) Stop() {
-	close(d.stopCh)
+	if d.stopCh != nil {
+		close(d.stopCh)
+	}
 }

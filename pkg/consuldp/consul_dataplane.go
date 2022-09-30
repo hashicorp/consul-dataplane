@@ -172,9 +172,11 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to create dns server: %w", err)
 	}
 	if err = dnsServer.Run(); err != nil {
-		cdp.logger.Error("failed to run the dns proxy", "error", err)
-		return fmt.Errorf("failed to run the dns proxy: %w", err)
-
+		if err != dns.ErrServerDisabled {
+			cdp.logger.Error("failed to run the dns proxy", "error", err)
+			return fmt.Errorf("failed to run the dns proxy: %w", err)
+		}
+		cdp.logger.Error("dns proxy disabled: set consulDNSPort to enable")
 	}
 
 	doneCh := make(chan error)
