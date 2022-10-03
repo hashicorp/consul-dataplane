@@ -42,7 +42,7 @@ type DNSServer struct {
 	client      pbdns.DNSServiceClient
 	connUDP     net.PacketConn
 	listenerTCP net.Listener
-	stopCh      chan (struct{})
+	stopCh      chan struct{}
 }
 
 // NewDNSServer creates a new DNS proxy server
@@ -133,15 +133,13 @@ func (d *DNSServer) proxyUDP() {
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {
 				logger.Info("connection closed")
-				break
+				return
+			} else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				logger.Debug("timeout waiting for read", "error", err)
 			} else {
-				if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-					logger.Debug("timeout waiting for read", "error", err)
-				} else {
-					logger.Warn("error reading from conn", "error", err)
-				}
-				continue
+				logger.Warn("error reading from conn", "error", err)
 			}
+			continue
 		}
 		// Parallelize responses
 		go d.queryConsulAndRespondUDP(buf[0:bytesRead], addr)
@@ -155,7 +153,10 @@ func (d *DNSServer) queryConsulAndRespondUDP(buf []byte, addr net.Addr) {
 		Protocol: pbdns.Protocol_PROTOCOL_UDP,
 	}
 
-	resp, err := d.client.Query(context.Background(), req)
+	ctx, done := context.WithTimeout(context.Background(), time.Minute*1)
+	defer done()
+
+	resp, err := d.client.Query(ctx, req)
 	if err != nil {
 		logger.Error("error resolving consul request", "error", err)
 		return
@@ -232,7 +233,11 @@ func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceC
 			Msg:      data,
 			Protocol: pbdns.Protocol_PROTOCOL_TCP,
 		}
-		resp, err := client.Query(context.Background(), req)
+
+		ctx, done := context.WithTimeout(context.Background(), time.Minute*1)
+		defer done()
+
+		resp, err := client.Query(ctx, req)
 		if err != nil {
 			logger.Error("error resolving consul request", "error", err)
 			return
@@ -247,7 +252,7 @@ func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceC
 			return
 		}
 
-		// TCP DNS requests allcate a two byte length field prefixed to the message.
+		// TCP DNS requests allocate a two byte length field prefixed to the message.
 		// Source: RFC1035 4.2.2.
 		err = binary.Write(conn, binary.BigEndian, uint16(len(resp.Msg)))
 		if err != nil {

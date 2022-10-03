@@ -85,7 +85,7 @@ func (s *DNSTestSuite) Test_ServerStop() {
 		_, err := net.Dial("tcp", addr)
 		s.T().Logf("dial error: %v", err)
 		return err != nil
-	}, time.Second*20, time.Second, "Failure to shut down tcp")
+	}, time.Second*5, time.Second, "Failure to shut down tcp")
 
 	s.Require().Eventually(func() bool {
 		port := server.TcpPort()
@@ -96,7 +96,7 @@ func (s *DNSTestSuite) Test_ServerStop() {
 		_, err = c.Read(p)
 		s.T().Logf("read udp error: %v", err)
 		return err != nil
-	}, time.Second*20, time.Second, "Failure to shut down udp")
+	}, time.Second*5, time.Second, "Failure to shut down udp")
 }
 
 func (s *DNSTestSuite) Test_UDPProxy() {
