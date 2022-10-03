@@ -57,8 +57,8 @@ github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/hashicorp/consul-server-connection-manager v0.0.0-20220920152341-d96d0f93c5d9 h1:1e2vy4aPfxun9DG808QjXtShksPoaQsHvyxhVOyjeRI=
 github.com/hashicorp/consul-server-connection-manager v0.0.0-20220920152341-d96d0f93c5d9/go.mod h1:I56VZ1V7WN8/oPHswKDywfepvD7rB1RrTE4fRrNz3Wc=
-github.com/hashicorp/consul/proto-public v0.1.1-0.20220930052510-f22c79f5c226 h1:mzV4riR2dhOou4w2B7rIOB1UgHNuq1vQFrQnl0+x534=
-github.com/hashicorp/consul/proto-public v0.1.1-0.20220930052510-f22c79f5c226/go.mod h1:vs2KkuWwtjkIgA5ezp4YKPzQp4GitV+q/+PvksrA92k=
+github.com/hashicorp/consul/proto-public v0.1.1-0.20221003150248-ad7295e5d9d4 h1:2muDcPNNFdob75hR7OPb+nL3Ixxk8OItg9giUZvyRiY=
+github.com/hashicorp/consul/proto-public v0.1.1-0.20221003150248-ad7295e5d9d4/go.mod h1:vs2KkuWwtjkIgA5ezp4YKPzQp4GitV+q/+PvksrA92k=
 github.com/hashicorp/consul/sdk v0.11.0 h1:HRzj8YSCln2yGgCumN5CL8lYlD3gBurnervJRJAZyC4=
 github.com/hashicorp/go-cleanhttp v0.5.1 h1:dH3aiDG9Jvb5r5+bYHsikaOUIpcM0xvgMXVoDkXMzJM=
 github.com/hashicorp/go-hclog v1.2.2 h1:ihRI7YFwcZdiSD7SIenIhHfQH3OuDvWerAUBZbeQS3M=

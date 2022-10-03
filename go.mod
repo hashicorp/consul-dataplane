@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/hashicorp/consul-server-connection-manager v0.0.0-20220920152341-d96d0f93c5d9
-	github.com/hashicorp/consul/proto-public v0.1.1-0.20220930052510-f22c79f5c226
+	github.com/hashicorp/consul/proto-public v0.1.1-0.20221003150248-ad7295e5d9d4
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/mitchellh/mapstructure v1.5.0
