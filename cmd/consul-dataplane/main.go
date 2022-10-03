@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
@@ -64,54 +65,54 @@ var (
 func init() {
 	flag.BoolVar(&printVersion, "version", false, "Prints the current version of consul-dataplane.")
 
-	flag.StringVar(&addresses, "addresses", "", "Consul server addresses. Value can be:\n"+
-		"1. DNS name (that resolves to servers or DNS name of a load-balancer front of Consul servers); OR\n"+
-		"2.'exec=<executable with optional args>'. The executable\n"+
+	flag.StringVar(&addresses, "addresses", "", "Consul server gRPC addresses. Value can be:\n"+
+		"1. A DNS name that resolves to server addresses or the DNS name of a load balancer in front of the Consul servers; OR\n"+
+		"2. An executable command in the format, 'exec=<executable with optional args>'. The executable\n"+
 		"	a) on success - should exit 0 and print to stdout whitespace delimited IP (v4/v6) addresses\n"+
-		"	b) on failure - exit with a non-zero code and optionally print an error message of upto 1024 bytes to stderr.\n"+
+		"	b) on failure - exit with a non-zero code and optionally print an error message of up to 1024 bytes to stderr.\n"+
 		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.")
 
-	flag.IntVar(&grpcPort, "grpc-port", 8502, "gRPC port on Consul servers.")
+	flag.IntVar(&grpcPort, "grpc-port", 8502, "The Consul server gRPC port to which consul-dataplane connects.")
 
 	flag.BoolVar(&serverWatchDisabled, "server-watch-disabled", false, "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
 
 	flag.StringVar(&logLevel, "log-level", "info", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
-	flag.BoolVar(&logJSON, "log-json", false, "Controls consul-dataplane logging in JSON format. By default this is false.")
+	flag.BoolVar(&logJSON, "log-json", false, "Enables log messages in JSON format.")
 
-	flag.StringVar(&nodeName, "service-node-name", "", "The name of the node to which the proxy service instance is registered.")
-	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the node to which the proxy service instance is registered.")
+	flag.StringVar(&nodeName, "service-node-name", "", "The name of the Consul node to which the proxy service instance is registered.")
+	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the Consul node to which the proxy service instance is registered.")
 	flag.StringVar(&serviceID, "proxy-service-id", "", "The proxy service instance's ID.")
 	flag.StringVar(&namespace, "service-namespace", "", "The Consul Enterprise namespace in which the proxy service instance is registered.")
 	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
-	flag.StringVar(&credentialType, "credential-type", "", "The type of credentials that will be used to authenticate with Consul servers (static or login).")
-	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers (when -credential-type is set to static).")
-	flag.StringVar(&loginAuthMethod, "login-auth-method", "", "The auth method that will be used to log in.")
+	flag.StringVar(&credentialType, "credential-type", "", "The type of credentials, either static or login, used to authenticate with Consul servers.")
+	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
+	flag.StringVar(&loginAuthMethod, "login-auth-method", "", "The auth method used to log in.")
 	flag.StringVar(&loginNamespace, "login-namespace", "", "The Consul Enterprise namespace containing the auth method.")
 	flag.StringVar(&loginPartition, "login-partition", "", "The Consul Enterprise partition containing the auth method.")
 	flag.StringVar(&loginDatacenter, "login-datacenter", "", "The datacenter containing the auth method.")
-	flag.StringVar(&loginBearerToken, "login-bearer-token", "", "The bearer token that will be presented to the auth method.")
-	flag.StringVar(&loginBearerTokenPath, "login-bearer-token-path", "", "The path to a file containing the bearer token that will be presented to the auth method.")
-	flag.Var((*FlagMapValue)(&loginMeta), "login-meta", "An arbitrary set of key/value pairs that will be attached to the ACL token (formatted as key=value, may be given multiple times).")
+	flag.StringVar(&loginBearerToken, "login-bearer-token", "", "The bearer token presented to the auth method.")
+	flag.StringVar(&loginBearerTokenPath, "login-bearer-token-path", "", "The path to a file containing the bearer token presented to the auth method.")
+	flag.Var((*FlagMapValue)(&loginMeta), "login-meta", `A set of key/value pairs to attach to the ACL token. Each pair is formatted as "<key>=<value>". This flag may be passed multiple times.`)
 
-	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy will apply the central telemetry configuration.")
+	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy applies the central telemetry configuration.")
 
-	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address on which the Envoy admin server will be available.")
-	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server will be available.")
-	flag.StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "The address on which Envoy's readiness probe will be available.")
-	flag.IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "The port on which Envoy's readiness probe will be available.")
-	flag.IntVar(&envoyConcurrency, "envoy-concurrency", 2, "The envoy concurrency denotes the number of threads that envoy will use https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency.")
+	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address on which the Envoy admin server is available.")
+	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server is available.")
+	flag.StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "The address on which Envoy's readiness probe is available.")
+	flag.IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "The port on which Envoy's readiness probe is available.")
+	flag.IntVar(&envoyConcurrency, "envoy-concurrency", 2, "The number of worker threads that Envoy uses.")
 
-	flag.StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "The address on which the Envoy xDS server will be available.")
-	flag.IntVar(&xdsBindPort, "xds-bind-port", 0, "The port on which the Envoy xDS server will be available.")
+	flag.StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "The address on which the Envoy xDS server is available.")
+	flag.IntVar(&xdsBindPort, "xds-bind-port", 0, "The port on which the Envoy xDS server is available.")
 
 	flag.BoolVar(&tlsDisabled, "tls-disabled", false, "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
-	flag.StringVar(&tlsCACertsPath, "ca-certs", "", "The path to a file or directory containing CA certificates that will be used to verify the server's certificate.")
-	flag.StringVar(&tlsCertFile, "tls-cert", "", "The path to a client certificate file (only required if tls.grpc.verify_incoming is enabled on the server).")
-	flag.StringVar(&tlsKeyFile, "tls-key", "", "The path to a client private key file (only required if tls.grpc.verify_incoming is enabled on the server).")
-	flag.StringVar(&tlsServerName, "tls-server-name", "", "The hostname to expect in the server certificate's subject (required if -addresses isn't a DNS name).")
+	flag.StringVar(&tlsCACertsPath, "ca-certs", "", "The path to a file or directory containing CA certificates used to verify the server's certificate.")
+	flag.StringVar(&tlsCertFile, "tls-cert", "", "The path to a client certificate file. This is required if tls.grpc.verify_incoming is enabled on the server.")
+	flag.StringVar(&tlsKeyFile, "tls-key", "", "The path to a client private key file. This is required if tls.grpc.verify_incoming is enabled on the server.")
+	flag.StringVar(&tlsServerName, "tls-server-name", "", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
 	flag.BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
 
 	flag.StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "The address that will be bound to the consul dns proxy.")
@@ -208,7 +209,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigCh

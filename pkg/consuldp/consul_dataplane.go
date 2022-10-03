@@ -110,14 +110,9 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		ServerWatchDisabled: cdp.cfg.Consul.ServerWatchDisabled,
 		Credentials:         creds,
 		TLS:                 tls,
-		ServerEvalFn: func(state discovery.State) bool {
-			// We require support for generating Envoy bootstrap configuration at least.
-			//
-			// TODO: now that we consume Consul's protobufs as a Go module, should we
-			// have the discovery package expose the protobuf enum type rather than the
-			// string representation?
-			return state.DataplaneFeatures[pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String()]
-		},
+		ServerEvalFn: discovery.SupportsDataplaneFeatures(
+			pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String(),
+		),
 	}, cdp.logger.Named("server-connection-manager"))
 	if err != nil {
 		return err
