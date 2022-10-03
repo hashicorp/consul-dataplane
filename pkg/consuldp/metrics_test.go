@@ -83,9 +83,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 			portCh := make(chan int, 1)
 			m.httpServer.Addr = "127.0.0.1:0"
 			m.httpServer.BaseContext = func(l net.Listener) context.Context {
-				port := l.Addr().(*net.TCPAddr).Port
-				defer close(portCh)
-				portCh <- port
+				portCh <- l.Addr().(*net.TCPAddr).Port
 				return context.Background()
 			}
 

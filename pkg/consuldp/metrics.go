@@ -79,11 +79,19 @@ func (cdp *ConsulDataplane) scrapeMetrics(rw http.ResponseWriter, url string) er
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			cdp.logger.Warn("failed to close metrics request", "error", err)
+		}
+	}()
+
+	if non2xxCode(resp.StatusCode) {
 		return fmt.Errorf("status code %d", resp.StatusCode)
 	}
-	// metrics are are in a text format with one per line.
-	// so, when merging metrics we simply write all lines
+
+	// Prometheus metrics are joined by newlines, so when merging metrics
+	// metrics we simply write all lines from each source to the response.
 	_, err = io.Copy(rw, resp.Body)
 	return err
 }
@@ -93,4 +101,9 @@ func (cdp *ConsulDataplane) scrapeError(rw http.ResponseWriter, url string, err 
 	cdp.logger.Error("failed to scrape metrics", "url", url, "error", err)
 	msg := fmt.Sprintf("failed to scrape metrics at url %q", url)
 	http.Error(rw, msg, http.StatusInternalServerError)
+}
+
+// non2xxCode returns true if code is not in the range of 200-299 inclusive.
+func non2xxCode(code int) bool {
+	return code < 200 || code >= 300
 }
