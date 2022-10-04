@@ -44,14 +44,37 @@ func (s *DNSTestSuite) Test_DisabledServer() {
 		Logger:   hclog.Default(),
 		Client:   mockedDNSConsulClient,
 	})
+	s.Require().Equal(ErrServerDisabled, err)
+	s.Require().Nil(server)
+
+	// Not really necessary but covers the case where we somehow have a server without
+	// a tcp conn or udp conn initialized.
+	sv := &DNSServer{
+		client: mockedDNSConsulClient,
+		logger: hclog.Default(),
+	}
+	s.Require().Equal(sv.TcpPort(), -1)
+	s.Require().Equal(sv.UdpPort(), -1)
+
+}
+
+func (s *DNSTestSuite) Test_AlreadyRunning() {
+	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
+	server, err := NewDNSServer(DNSServerParams{
+		BindAddr: "127.0.0.1",
+		Port:     0, // disabled server
+		Logger:   hclog.Default(),
+		Client:   mockedDNSConsulClient,
+	})
 	if err != nil {
 		s.T().FailNow()
 	}
 	err = server.Start(context.Background())
-	s.Require().Equal(ErrServerDisabled, err)
-	s.Require().Equal(server.TcpPort(), -1)
-	s.Require().Equal(server.UdpPort(), -1)
-
+	defer server.Stop()
+	s.Require().NoError(err)
+	err = server.Start(context.Background())
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, ErrServerRunning)
 }
 
 func (s *DNSTestSuite) Test_ServerStop() {
