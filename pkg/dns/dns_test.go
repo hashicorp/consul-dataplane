@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -25,14 +26,6 @@ type DNSTestSuite struct {
 	suite.Suite
 }
 
-// func (s *DNSTestSuite) SetupTest() {
-
-// }
-
-// func (s *DNSTestSuite) AfterTest() {
-
-// }
-
 func TestDNS_suite(t *testing.T) {
 	suite.Run(t, new(DNSTestSuite))
 }
@@ -54,11 +47,10 @@ func (s *DNSTestSuite) Test_DisabledServer() {
 	if err != nil {
 		s.T().FailNow()
 	}
-	err = server.Run()
+	err = server.Start(context.Background())
 	s.Require().Equal(ErrServerDisabled, err)
 	s.Require().Equal(server.TcpPort(), -1)
 	s.Require().Equal(server.UdpPort(), -1)
-	server.Stop()
 
 }
 
@@ -73,23 +65,25 @@ func (s *DNSTestSuite) Test_ServerStop() {
 	if err != nil {
 		s.T().FailNow()
 	}
-	err = server.Run()
+
+	err = server.Start(context.Background())
 	if err != nil {
 		s.T().FailNow()
 	}
+	tcpport := server.TcpPort()
+	udpport := server.UdpPort()
 	server.Stop()
 
 	s.Require().Eventually(func() bool {
-		port := server.TcpPort()
-		addr := fmt.Sprintf("127.0.0.1:%v", port)
+
+		addr := fmt.Sprintf("127.0.0.1:%v", tcpport)
 		_, err := net.Dial("tcp", addr)
 		s.T().Logf("dial error: %v", err)
 		return err != nil
 	}, time.Second*5, time.Second, "Failure to shut down tcp")
 
 	s.Require().Eventually(func() bool {
-		port := server.TcpPort()
-		addr := fmt.Sprintf("127.0.0.1:%v", port)
+		addr := fmt.Sprintf("127.0.0.1:%v", udpport)
 		c, _ := net.Dial("udp", addr)
 		_, _ = c.Write([]byte("here"))
 		p := make([]byte, 512)
@@ -104,23 +98,21 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	connUdp, err := net.ListenUDP("udp", addr)
 	s.Require().NoError(err)
-	stopChan := make(chan struct{})
-	defer func() { stopChan <- struct{}{} }()
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	server := DNSServer{
 		client:  mockedDNSConsulClient,
 		connUDP: connUdp,
 		logger:  hclog.Default(),
-		stopCh:  stopChan,
 	}
 
-	go server.proxyUDP()
+	go server.proxyUDP(runCtx)
 
 	testCases := map[string]struct {
 		dnsRequest   []byte
 		dnsResp      []byte
 		expected     error
-		largeResp    error
 		expectedGRPC error
 	}{
 
@@ -195,22 +187,22 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 	listenerTCP, err := net.ListenTCP("tcp", addr)
 	s.Require().NoError(err)
 
-	stopChan := make(chan struct{})
-	defer close(stopChan)
+	runCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	server := DNSServer{
 		client:      mockedDNSConsulClient,
 		listenerTCP: listenerTCP,
 		logger:      hclog.Default(),
-		stopCh:      stopChan,
 	}
 
-	go server.proxyTCP()
+	go server.proxyTCP(runCtx)
 
 	testCases := map[string]struct {
 		dnsRequest   []byte
 		dnsResp      []byte
 		expected     error
-		largeResp    error
+		largeResp    bool
 		expectedGRPC error
 	}{
 		"happy path": {
@@ -224,7 +216,7 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 		"happy path large dns": {
 			dnsRequest: genRandomBytes(50),
 			dnsResp:    genRandomBytes(65536),
-			largeResp:  errors.New("EOF"),
+			largeResp:  true,
 		},
 		"no consul server response": {
 			dnsRequest:   genRandomBytes(50),
@@ -256,7 +248,7 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 
 			var length uint16
 			err = binary.Read(conn, binary.BigEndian, &length)
-			if tc.largeResp != nil || tc.expectedGRPC != nil {
+			if tc.largeResp || tc.expectedGRPC != nil {
 				s.Require().Error(err)
 				s.Require().ErrorContains(err, "EOF")
 				return

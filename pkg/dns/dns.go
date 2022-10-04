@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/consul/proto-public/pbdns"
@@ -16,6 +17,9 @@ import (
 
 // ErrServerDisabled is returned when the server is disabled
 var ErrServerDisabled error = errors.New("server is disabled")
+
+// ErrServerRunning is returned when the server is already running
+var ErrServerRunning error = errors.New("server is already running")
 
 // DNSServerParams is the configuration for creating a new DNS server
 type DNSServerParams struct {
@@ -27,7 +31,7 @@ type DNSServerParams struct {
 
 // DNSServerInterface is the interface for athe DNSServer
 type DNSServerInterface interface {
-	Run() error
+	Start(context.Context) error
 	Stop()
 	TcpPort() int
 	UdpPort() int
@@ -38,15 +42,21 @@ type DNSServer struct {
 	bindAddr net.IP
 	port     int
 
+	lock    sync.Mutex
+	running bool
+	cancel  context.CancelFunc
+
 	logger      hclog.Logger
 	client      pbdns.DNSServiceClient
 	connUDP     net.PacketConn
 	listenerTCP net.Listener
-	stopCh      chan struct{}
 }
 
 // NewDNSServer creates a new DNS proxy server
 func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
+	if p.Port == -1 {
+		return nil, ErrServerDisabled
+	}
 	s := &DNSServer{}
 	s.bindAddr = net.ParseIP(p.BindAddr)
 	if s.bindAddr == nil {
@@ -77,7 +87,14 @@ func (d *DNSServer) UdpPort() int {
 }
 
 // Run starts the tcp and udp listeners and forwards requests to consul
-func (d *DNSServer) Run() error {
+func (d *DNSServer) Start(ctx context.Context) error {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+
+	if d.running {
+		return ErrServerRunning
+	}
+
 	if d.port == -1 {
 		return ErrServerDisabled
 	}
@@ -103,22 +120,43 @@ func (d *DNSServer) Run() error {
 	}
 	d.listenerTCP = listenerTCP
 
-	// 3. Start go routines to handle dns proxying
-	go d.proxyUDP()
-	go d.proxyTCP()
+	runCtx, cancel := context.WithCancel(ctx)
+	go d.run(runCtx)
 
-	// 4. Create stop channel for stopping server
-	d.stopCh = make(chan struct{})
+	d.running = true
+	d.cancel = cancel
 
-	d.logger.Info("running dns proxy", " udp port", d.UdpPort(), "tcp port", d.TcpPort())
 	return nil
+
 }
 
-func (d *DNSServer) proxyUDP() {
+func (d *DNSServer) run(ctx context.Context) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		d.proxyUDP(ctx)
+	}()
+
+	go func() {
+		defer wg.Done()
+		d.proxyTCP(ctx)
+	}()
+	d.logger.Info("running dns proxy", " udp port", d.UdpPort(), "tcp port", d.TcpPort())
+
+	wg.Wait()
+
+	d.lock.Lock()
+	d.running = false
+	d.lock.Unlock()
+
+}
+
+func (d *DNSServer) proxyUDP(ctx context.Context) {
 	logger := d.logger.Named("udp")
 	for {
 		select {
-		case <-d.stopCh:
+		case <-ctx.Done():
 			d.connUDP.Close()
 			return
 		default:
@@ -169,11 +207,11 @@ func (d *DNSServer) queryConsulAndRespondUDP(buf []byte, addr net.Addr) {
 	}
 }
 
-func (d *DNSServer) proxyTCP() {
+func (d *DNSServer) proxyTCP(ctx context.Context) {
 	defer d.listenerTCP.Close()
 	for {
 		select {
-		case <-d.stopCh:
+		case <-ctx.Done():
 			return
 		default:
 		}
@@ -181,16 +219,16 @@ func (d *DNSServer) proxyTCP() {
 		if err != nil {
 			d.logger.Warn("failure to accept tcp connection", "error", err)
 		}
-		go d.proxyTCPAcceptedConn(c, d.client)
+		go d.proxyTCPAcceptedConn(ctx, c, d.client)
 	}
 }
 
-func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceClient) {
+func (d *DNSServer) proxyTCPAcceptedConn(ctx context.Context, conn net.Conn, client pbdns.DNSServiceClient) {
 	defer conn.Close()
 	logger := d.logger.Named("tcp")
 	for {
 		select {
-		case <-d.stopCh:
+		case <-ctx.Done():
 			return
 		default:
 		}
@@ -201,8 +239,8 @@ func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceC
 		}
 
 		// Read in the size of the incoming packet to allocate enough mem to handle it
-		var prefixSize uint16
-		err = binary.Read(conn, binary.BigEndian, &prefixSize)
+		var size uint16
+		err = binary.Read(conn, binary.BigEndian, &size)
 		if err != nil {
 			if err == io.EOF {
 				logger.Debug("ending connection after EOF", "error", err)
@@ -215,7 +253,6 @@ func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceC
 		logger.Debug("request from remote addr received", "remote_addr",
 			conn.RemoteAddr().String(), "local_addr", conn.LocalAddr().String())
 
-		size := prefixSize
 		logger.Debug("total data length of tcp dns request", "size", size)
 		// Now that we know how much space we need, allocate a byte array to read the
 		// remaining data in.
@@ -246,13 +283,12 @@ func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceC
 
 		// This is a guard and shouldn't happen but if the response is > 65535
 		// then we will just close the connection.
-		// Source: RFC1035 4.2.2.
 		if len(resp.Msg) > math.MaxUint16 {
 			logger.Error("consul response too large for DNS spec", "error", err)
 			return
 		}
 
-		// TCP DNS requests allocate a two byte length field prefixed to the message.
+		// TCP DNS requests add a two byte length field prefixed to the message.
 		// Source: RFC1035 4.2.2.
 		err = binary.Write(conn, binary.BigEndian, uint16(len(resp.Msg)))
 		if err != nil {
@@ -269,7 +305,10 @@ func (d *DNSServer) proxyTCPAcceptedConn(conn net.Conn, client pbdns.DNSServiceC
 
 // Stop will shut down the server
 func (d *DNSServer) Stop() {
-	if d.stopCh != nil {
-		close(d.stopCh)
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	if !d.running {
+		return
 	}
+	d.cancel()
 }

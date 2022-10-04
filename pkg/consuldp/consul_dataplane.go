@@ -154,24 +154,13 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to run proxy: %w", err)
 	}
 
-	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
-
-	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
-		BindAddr: cdp.cfg.DNSServer.BindAddr,
-		Port:     cdp.cfg.DNSServer.Port,
-		Client:   dnsClientInterface,
-		Logger:   cdp.logger,
-	})
+	dnsServer, err := cdp.startDNSProxy(ctx)
 	if err != nil {
-		cdp.logger.Error("failed to create the dns proxy", "error", err)
-		return fmt.Errorf("failed to create dns server: %w", err)
-	}
-	if err = dnsServer.Run(); err != nil {
 		if err != dns.ErrServerDisabled {
-			cdp.logger.Error("failed to run the dns proxy", "error", err)
-			return fmt.Errorf("failed to run the dns proxy: %w", err)
+			cdp.logger.Error("failed to start the dns proxy", "error", err)
+			return err
 		}
-		cdp.logger.Error("dns proxy disabled: set consulDNSPort to enable")
+		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")
 	}
 
 	doneCh := make(chan error)
@@ -193,6 +182,26 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		}
 	}()
 	return <-doneCh
+}
+
+func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) (dns.DNSServerInterface, error) {
+	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
+
+	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
+		BindAddr: cdp.cfg.DNSServer.BindAddr,
+		Port:     cdp.cfg.DNSServer.Port,
+		Client:   dnsClientInterface,
+		Logger:   cdp.logger,
+	})
+	if err == dns.ErrServerDisabled {
+		return nil, err
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to create dns server: %w", err)
+	}
+	if err = dnsServer.Start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to run the dns proxy: %w", err)
+	}
+	return dnsServer, nil
 }
 
 func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
