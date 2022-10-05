@@ -32,6 +32,9 @@ func validConfig() *Config {
 		XDSServer: &XDSServer{
 			BindAddress: "127.0.0.1",
 		},
+		DNSServer: &DNSServerConfig{
+			BindAddr: "127.0.0.1",
+		},
 	}
 }
 
