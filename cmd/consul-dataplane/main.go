@@ -116,7 +116,7 @@ func init() {
 	flag.BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
 
 	flag.StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "The address that will be bound to the consul dns proxy.")
-	flag.IntVar(&consulDNSPort, "consul-dns-port", -1, "The port the consul dns proxy will listen on. By default 0 disables the dns proxy")
+	flag.IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
 
 }
 
@@ -218,6 +218,7 @@ func main() {
 
 	err = consuldpInstance.Run(ctx)
 	if err != nil {
+		cancel()
 		log.Fatal(err)
 	}
 }

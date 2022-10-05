@@ -81,6 +81,8 @@ func validateConfig(cfg *Config) error {
 		return errors.New("envoy xDS bind address not specified")
 	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
+	case !strings.HasPrefix(cfg.DNSServer.BindAddr, "unix://") && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
+		return errors.New("non-local DNS proxy bind address not allowed")
 	}
 
 	creds := cfg.Consul.Credentials
@@ -154,13 +156,9 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to run proxy: %w", err)
 	}
 
-	dnsServer, err := cdp.startDNSProxy(ctx)
-	if err != nil {
-		if err != dns.ErrServerDisabled {
-			cdp.logger.Error("failed to start the dns proxy", "error", err)
-			return err
-		}
-		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")
+	if err = cdp.startDNSProxy(ctx); err != nil {
+		cdp.logger.Error("failed to start the dns proxy", "error", err)
+		return err
 	}
 
 	doneCh := make(chan error)
@@ -169,9 +167,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			if err := proxy.Stop(); err != nil {
 				cdp.logger.Error("failed to stop proxy", "error", err)
-			}
-			if dnsServer != nil {
-				dnsServer.Stop()
 			}
 			doneCh <- nil
 		case <-proxy.Exited():
@@ -186,7 +181,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	return <-doneCh
 }
 
-func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) (dns.DNSServerInterface, error) {
+func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
 
 	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
@@ -196,14 +191,15 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) (dns.DNSServerInt
 		Logger:   cdp.logger,
 	})
 	if err == dns.ErrServerDisabled {
-		return nil, err
+		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")
+		return nil
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to create dns server: %w", err)
+		return fmt.Errorf("failed to create dns server: %w", err)
 	}
 	if err = dnsServer.Start(ctx); err != nil {
-		return nil, fmt.Errorf("failed to run the dns proxy: %w", err)
+		return fmt.Errorf("failed to run the dns proxy: %w", err)
 	}
-	return dnsServer, nil
+	return nil
 }
 
 func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
