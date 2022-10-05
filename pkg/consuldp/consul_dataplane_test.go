@@ -131,6 +131,14 @@ func TestNewConsulDPError(t *testing.T) {
 			expectErr: "non-local xDS bind address not allowed",
 		},
 		{
+			name: "non-local xds bind address",
+			modFn: func(c *Config) {
+				c.DNSServer.BindAddr = "1.2.3.4"
+				c.DNSServer.Port = 1
+			},
+			expectErr: "non-local DNS proxy bind address not allowed",
+		},
+		{
 			name: "no bearer token or path given",
 			modFn: func(c *Config) {
 				c.Consul.Credentials.Type = CredentialsTypeLogin

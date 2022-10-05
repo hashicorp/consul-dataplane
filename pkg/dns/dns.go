@@ -116,7 +116,7 @@ func (d *DNSServer) Start(ctx context.Context) error {
 	}
 	listenerTCP, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		return fmt.Errorf("error listening to udp: %w", err)
+		return fmt.Errorf("error listening to tcp: %w", err)
 	}
 	d.listenerTCP = listenerTCP
 
@@ -165,7 +165,7 @@ func (d *DNSServer) proxyUDP(ctx context.Context) {
 		err := d.connUDP.SetReadDeadline(time.Now().Add(time.Second * 10))
 		if err != nil {
 			logger.Error("failure to set read deadline on connection", "error", err)
-			return
+			continue
 		}
 		bytesRead, addr, err := d.connUDP.ReadFrom(buf)
 		if err != nil {
