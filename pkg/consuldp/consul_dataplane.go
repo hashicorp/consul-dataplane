@@ -161,11 +161,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to run proxy: %w", err)
 	}
 
-	if err = cdp.startDNSProxy(ctx); err != nil {
-		cdp.logger.Error("failed to start the dns proxy", "error", err)
-		return err
-	}
-
 	doneCh := make(chan error)
 	go func() {
 		select {
