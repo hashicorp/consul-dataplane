@@ -1,0 +1,3 @@
+```release-note:feature
+dns: support for dns proxying to consul for both tcp and udp
+```
