@@ -80,7 +80,7 @@ func TestContextXDSServerShutdown(t *testing.T) {
 		cfg:    &Config{XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: 0}},
 		logger: hclog.Default(),
 	}
-	cdp.setupXDSServer()
+	_ = cdp.setupXDSServer()
 	ctx, cancel := context.WithCancel(context.Background())
 	go cdp.startXDSServer(ctx)
 	port := cdp.xdsServer.listener.Addr().(*net.TCPAddr).Port
