@@ -3,6 +3,7 @@ package consuldp
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -73,6 +74,29 @@ func TestDirector(t *testing.T) {
 	}
 }
 
+func TestContextXDSServerShutdown(t *testing.T) {
+	localhost := "127.0.0.1"
+	cdp := &ConsulDataplane{
+		cfg:    &Config{XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: 0}},
+		logger: hclog.Default(),
+	}
+	cdp.setupXDSServer()
+	ctx, cancel := context.WithCancel(context.Background())
+	go cdp.startXDSServer(ctx)
+	port := cdp.xdsServer.listener.Addr().(*net.TCPAddr).Port
+	addr := fmt.Sprintf("%v:%v", localhost, port)
+	_, err := net.Dial("tcp", addr)
+	require.NoError(t, err)
+	cancel()
+	require.Eventually(t, func() bool {
+		port := cdp.xdsServer.listener.Addr().(*net.TCPAddr).Port
+		addr := fmt.Sprintf("%v:%v", localhost, port)
+		_, err := net.Dial("tcp", addr)
+		t.Logf("dial error: %v", err)
+		return err != nil
+	}, time.Second*5, time.Second, "Failure to shut down tcp")
+}
+
 func TestSetupXDSServer(t *testing.T) {
 	type testCase struct {
 		name                    string
@@ -115,5 +139,4 @@ func TestSetupXDSServer(t *testing.T) {
 			}
 		})
 	}
-
 }

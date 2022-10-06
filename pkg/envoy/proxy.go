@@ -1,6 +1,7 @@
 package envoy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -99,7 +100,7 @@ func NewProxy(cfg ProxyConfig) (*Proxy, error) {
 // crashes the caller can be notified by receiving on the Exited channel.
 //
 // Run may only be called once. It is not possible to restart a stopped proxy.
-func (p *Proxy) Run() error {
+func (p *Proxy) Run(ctx context.Context) error {
 	if !p.transitionState(stateInitial, stateRunning) {
 		return errors.New("proxy may only be run once")
 	}
@@ -111,7 +112,7 @@ func (p *Proxy) Run() error {
 	}
 
 	// Run the Envoy process.
-	p.cmd = p.buildCommand(configPath)
+	p.cmd = p.buildCommand(ctx, configPath)
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
 		// Clean up the pipe if we weren't able to run Envoy.
@@ -216,7 +217,7 @@ func writeBootstrapConfig(cfg []byte) (string, func() error, error) {
 
 // buildCommand builds the exec.Cmd to run Envoy with the relevant arguments
 // (e.g. config path) and its logs redirected to the logger.
-func (p *Proxy) buildCommand(cfgPath string) *exec.Cmd {
+func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 	var logFormat string
 	if p.cfg.LogJSON {
 		logFormat = logFormatJSON
@@ -257,7 +258,7 @@ func (p *Proxy) buildCommand(cfgPath string) *exec.Cmd {
 		p.cfg.ExtraArgs...,
 	)
 
-	cmd := exec.Command(p.cfg.ExecutablePath, args...)
+	cmd := exec.CommandContext(ctx, p.cfg.ExecutablePath, args...)
 	cmd.Stdout = p.cfg.EnvoyLogOutput
 	cmd.Stderr = p.cfg.EnvoyLogOutput
 
