@@ -32,6 +32,9 @@ func validConfig() *Config {
 		XDSServer: &XDSServer{
 			BindAddress: "127.0.0.1",
 		},
+		DNSServer: &DNSServerConfig{
+			BindAddr: "127.0.0.1",
+		},
 	}
 }
 
@@ -126,6 +129,14 @@ func TestNewConsulDPError(t *testing.T) {
 				c.XDSServer.BindAddress = "1.2.3.4"
 			},
 			expectErr: "non-local xDS bind address not allowed",
+		},
+		{
+			name: "non-local xds bind address",
+			modFn: func(c *Config) {
+				c.DNSServer.BindAddr = "1.2.3.4"
+				c.DNSServer.Port = 1
+			},
+			expectErr: "non-local DNS proxy bind address not allowed",
 		},
 		{
 			name: "no bearer token or path given",

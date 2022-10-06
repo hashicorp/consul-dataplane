@@ -57,6 +57,9 @@ var (
 
 	xdsBindAddr string
 	xdsBindPort int
+
+	consulDNSBindAddr string
+	consulDNSPort     int
 )
 
 func init() {
@@ -111,6 +114,10 @@ func init() {
 	flag.StringVar(&tlsKeyFile, "tls-key", "", "The path to a client private key file. This is required if tls.grpc.verify_incoming is enabled on the server.")
 	flag.StringVar(&tlsServerName, "tls-server-name", "", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
 	flag.BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
+
+	flag.StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "The address that will be bound to the consul dns proxy.")
+	flag.IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
+
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -189,6 +196,10 @@ func main() {
 			BindAddress: xdsBindAddr,
 			BindPort:    xdsBindPort,
 		},
+		DNSServer: &consuldp.DNSServerConfig{
+			BindAddr: consulDNSBindAddr,
+			Port:     consulDNSPort,
+		},
 	}
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {
@@ -207,6 +218,7 @@ func main() {
 
 	err = consuldpInstance.Run(ctx)
 	if err != nil {
+		cancel()
 		log.Fatal(err)
 	}
 }
