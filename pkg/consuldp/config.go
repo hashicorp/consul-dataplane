@@ -228,8 +228,32 @@ type TelemetryConfig struct {
 	// UseCentralConfig controls whether the proxy will apply the central telemetry
 	// configuration.
 	UseCentralConfig bool
+	// Prometheus contains Prometheus-specific configuration that cannot be
+	// determined from central telemetry configuration.
+	Prometheus PrometheusTelemetryConfig
+}
 
-	// TODO(NET-100): Local telemetry configuration.
+// PrometheusTelemetryConfig contains Prometheus-specific telemetry config.
+type PrometheusTelemetryConfig struct {
+	// RetentionTime controls the duration that metrics are aggregated for.
+	RetentionTime string
+	// CACertsPath is a path to a file or directory containing CA certificates
+	// to use to verify the Prometheus server's certificate. This is only
+	// necessary if the server presents a certificate that isn't signed by a
+	// trusted public CA.
+	CACertsPath string
+	// KeyFile is a path to the client private key used for serving Prometheus
+	// metrics.
+	KeyFile string
+	// CertFile is a path to the client certificate used for serving Prometheus
+	// metrics.
+	CertFile string
+	// ServiceMetricsURL is an optional URL that must serve Prometheus metrics.
+	// The metrics at this URL are scraped and merged into Consul Dataplane's
+	// main Prometheus metrics.
+	ServiceMetricsURL string
+	// ScrapePath is the URL path where Envoy serves Prometheus metrics.
+	ScrapePath string
 }
 
 // EnvoyConfig contains configuration for the Envoy process.
