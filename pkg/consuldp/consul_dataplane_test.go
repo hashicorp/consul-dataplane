@@ -32,6 +32,16 @@ func validConfig() *Config {
 		XDSServer: &XDSServer{
 			BindAddress: "127.0.0.1",
 		},
+		Telemetry: &TelemetryConfig{
+			UseCentralConfig: true,
+			Prometheus: PrometheusTelemetryConfig{
+				RetentionTime:     "30s",
+				CACertsPath:       "/tmp/my-certs/",
+				KeyFile:           "/tmp/my-key.pem",
+				CertFile:          "/tmp/my-cert.pem",
+				ServiceMetricsURL: "http://127.0.0.1:12345/metrics",
+			},
+		},
 		DNSServer: &DNSServerConfig{
 			BindAddr: "127.0.0.1",
 		},
@@ -117,6 +127,21 @@ func TestNewConsulDPError(t *testing.T) {
 			name:      "missing logging config",
 			modFn:     func(c *Config) { c.Logging = nil },
 			expectErr: "logging settings not specified",
+		},
+		{
+			name:      "missing prometheus ca certs path",
+			modFn:     func(c *Config) { c.Telemetry.Prometheus.CACertsPath = "" },
+			expectErr: "Must provide -telemetry-prom-ca-certs-path, -telemetry-prom-cert-file, and -telemetry-prom-key-file to enable TLS for prometheus metrics",
+		},
+		{
+			name:      "missing prometheus key file",
+			modFn:     func(c *Config) { c.Telemetry.Prometheus.KeyFile = "" },
+			expectErr: "Must provide -telemetry-prom-ca-certs-path, -telemetry-prom-cert-file, and -telemetry-prom-key-file to enable TLS for prometheus metrics",
+		},
+		{
+			name:      "missing prometheus cert file",
+			modFn:     func(c *Config) { c.Telemetry.Prometheus.CertFile = "" },
+			expectErr: "Must provide -telemetry-prom-ca-certs-path, -telemetry-prom-cert-file, and -telemetry-prom-key-file to enable TLS for prometheus metrics",
 		},
 		{
 			name:      "missing xds bind address",

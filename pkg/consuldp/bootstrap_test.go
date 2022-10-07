@@ -85,6 +85,32 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 		},
+		"custom-prometheus-scrape-path": {
+			&Config{
+				Service: &ServiceConfig{
+					ServiceID: "web-proxy",
+					NodeName:  nodeName,
+				},
+				Envoy: &EnvoyConfig{
+					AdminBindAddress: "127.0.0.1",
+					AdminBindPort:    19000,
+				},
+				Telemetry: &TelemetryConfig{
+					UseCentralConfig: true,
+					Prometheus: PrometheusTelemetryConfig{
+						ScrapePath: "/custom/scrape/path",
+					},
+				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
+			},
+			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Service:  "web",
+				NodeName: nodeName,
+				Config: makeStruct(map[string]any{
+					"envoy_prometheus_bind_addr": "0.0.0.0:20200",
+				}),
+			},
+		},
 		"ready-listener": {
 			&Config{
 				Service: &ServiceConfig{
@@ -155,7 +181,7 @@ func TestBootstrapConfig(t *testing.T) {
 				dp.xdsServer = &xdsServer{listenerAddress: fmt.Sprintf("127.0.0.1:%d", xdsBindPort)}
 			}
 
-			bsCfg, err := dp.bootstrapConfig(ctx)
+			_, bsCfg, err := dp.bootstrapConfig(ctx)
 			require.NoError(t, err)
 
 			golden(t, bsCfg)

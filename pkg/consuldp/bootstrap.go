@@ -24,7 +24,7 @@ const (
 )
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
-func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error) {
+func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.BootstrapConfig, []byte, error) {
 	svc := cdp.cfg.Service
 	envoy := cdp.cfg.Envoy
 
@@ -46,9 +46,10 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 
 	rsp, err := cdp.dpServiceClient.GetEnvoyBootstrapParams(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get envoy bootstrap params: %w", err)
+		return nil, nil, fmt.Errorf("failed to get envoy bootstrap params: %w", err)
 	}
 
+	prom := cdp.cfg.Telemetry.Prometheus
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{
 			AgentAddress: cdp.cfg.XDSServer.BindAddress,
@@ -66,6 +67,9 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		Namespace:             rsp.Namespace,
 		Partition:             rsp.Partition,
 		Datacenter:            rsp.Datacenter,
+		PrometheusCertFile:    prom.CertFile,
+		PrometheusKeyFile:     prom.KeyFile,
+		PrometheusScrapePath:  prom.ScrapePath,
 	}
 
 	if cdp.xdsServer.listenerNetwork == "unix" {
@@ -76,6 +80,18 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 		args.GRPC.AgentPort = xdsServerFullAddr[1]
 	}
 
+	if path := prom.CACertsPath; path != "" {
+		fi, err := os.Stat(path)
+		if err != nil {
+			return nil, nil, err
+		}
+		if fi.IsDir() {
+			args.PrometheusCAPath = path
+		} else {
+			args.PrometheusCAFile = path
+		}
+	}
+
 	var bootstrapConfig bootstrap.BootstrapConfig
 	if envoy.ReadyBindAddress != "" && envoy.ReadyBindPort != 0 {
 		bootstrapConfig.ReadyBindAddr = net.JoinHostPort(envoy.ReadyBindAddress, strconv.Itoa(envoy.ReadyBindPort))
@@ -83,11 +99,19 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) ([]byte, error)
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
 		if err := mapstructure.WeakDecode(rsp.Config.AsMap(), &bootstrapConfig); err != nil {
-			return nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
+			return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
 		}
+
+		// Envoy is configured with a listener that proxies metrics from its
+		// own admin endpoint (localhost:19000/stats/prometheus). When central
+		// config is enabled, we set the PrometheusBackendPort to instead have
+		// Envoy proxy metrics from Consul Dataplane which serves merged
+		// metrics (Envoy + Dataplane + service metrics).
+		args.PrometheusBackendPort = metricsBackendBindPort
 	}
 
 	// Note: we pass true for omitDeprecatedTags here - consul-dataplane is clean
 	// slate and we don't need to maintain this legacy behavior.
-	return bootstrapConfig.GenerateJSON(args, true)
+	cfg, err := bootstrapConfig.GenerateJSON(args, true)
+	return &bootstrapConfig, cfg, err
 }
