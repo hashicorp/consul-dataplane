@@ -10,9 +10,11 @@ import (
 
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
+	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 
+	"github.com/hashicorp/consul-dataplane/pkg/dns"
 	"github.com/hashicorp/consul-dataplane/pkg/envoy"
 )
 
@@ -91,6 +93,8 @@ func validateConfig(cfg *Config) error {
 		return errors.New("envoy xDS bind address not specified")
 	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
+	case cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
+		return errors.New("non-local DNS proxy bind address not allowed")
 	}
 
 	creds := cfg.Consul.Credentials
@@ -155,8 +159,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	go cdp.startXDSServer()
-	defer cdp.stopXDSServer()
+	go cdp.startXDSServer(ctx)
 
 	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
@@ -165,12 +168,17 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
+	if err = cdp.startDNSProxy(ctx); err != nil {
+		cdp.logger.Error("failed to start the dns proxy", "error", err)
+		return err
+	}
+
 	proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
 	if err != nil {
 		cdp.logger.Error("failed to create new proxy", "error", err)
 		return fmt.Errorf("failed to create new proxy: %w", err)
 	}
-	if err := proxy.Run(); err != nil {
+	if err := proxy.Run(ctx); err != nil {
 		cdp.logger.Error("failed to run proxy", "error", err)
 		return fmt.Errorf("failed to run proxy: %w", err)
 	}
@@ -192,9 +200,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	go func() {
 		select {
 		case <-ctx.Done():
-			if err := proxy.Stop(); err != nil {
-				cdp.logger.Error("failed to stop proxy", "error", err)
-			}
 			doneCh <- nil
 		case <-proxy.Exited():
 			doneCh <- errors.New("envoy proxy exited unexpectedly")
@@ -208,6 +213,27 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		}
 	}()
 	return <-doneCh
+}
+
+func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
+	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
+
+	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
+		BindAddr: cdp.cfg.DNSServer.BindAddr,
+		Port:     cdp.cfg.DNSServer.Port,
+		Client:   dnsClientInterface,
+		Logger:   cdp.logger,
+	})
+	if err == dns.ErrServerDisabled {
+		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to create dns server: %w", err)
+	}
+	if err = dnsServer.Start(ctx); err != nil {
+		return fmt.Errorf("failed to run the dns proxy: %w", err)
+	}
+	return nil
 }
 
 func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
