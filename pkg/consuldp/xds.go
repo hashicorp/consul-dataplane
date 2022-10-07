@@ -82,8 +82,14 @@ func (cdp *ConsulDataplane) setupXDSServer() error {
 	return nil
 }
 
-func (cdp *ConsulDataplane) startXDSServer() {
+func (cdp *ConsulDataplane) startXDSServer(ctx context.Context) {
 	cdp.logger.Info("starting envoy xDS server", "address", cdp.xdsServer.listener.Addr().String())
+
+	go func() {
+		<-ctx.Done()
+		cdp.logger.Info("context done stopping xds server")
+		cdp.stopXDSServer()
+	}()
 
 	if err := cdp.xdsServer.gRPCServer.Serve(cdp.xdsServer.listener); err != nil {
 		cdp.logger.Error("failed to serve xDS requests", "error", err)

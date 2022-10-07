@@ -136,8 +136,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	go cdp.startXDSServer()
-	defer cdp.stopXDSServer()
+	go cdp.startXDSServer(ctx)
 
 	cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
@@ -156,7 +155,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		cdp.logger.Error("failed to create new proxy", "error", err)
 		return fmt.Errorf("failed to create new proxy: %w", err)
 	}
-	if err := proxy.Run(); err != nil {
+	if err := proxy.Run(ctx); err != nil {
 		cdp.logger.Error("failed to run proxy", "error", err)
 		return fmt.Errorf("failed to run proxy: %w", err)
 	}
@@ -165,9 +164,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	go func() {
 		select {
 		case <-ctx.Done():
-			if err := proxy.Stop(); err != nil {
-				cdp.logger.Error("failed to stop proxy", "error", err)
-			}
 			doneCh <- nil
 		case <-proxy.Exited():
 			doneCh <- errors.New("envoy proxy exited unexpectedly")

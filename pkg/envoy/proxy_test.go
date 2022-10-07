@@ -1,6 +1,7 @@
 package envoy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,7 +33,7 @@ func TestProxy(t *testing.T) {
 		BootstrapConfig: bootstrapConfig,
 	})
 	require.NoError(t, err)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(context.Background()))
 	t.Cleanup(func() { _ = p.Stop() })
 
 	// Read the output written by fake-envoy. It might take a while, so poll the
@@ -85,7 +86,7 @@ func TestProxy_Crash(t *testing.T) {
 		EnvoyLogOutput:  io.Discard,
 	})
 	require.NoError(t, err)
-	require.NoError(t, p.Run())
+	require.NoError(t, p.Run(context.Background()))
 	t.Cleanup(func() { _ = p.Stop() })
 
 	// Check the process is running.
@@ -93,6 +94,36 @@ func TestProxy_Crash(t *testing.T) {
 
 	// Kill it!
 	require.NoError(t, p.cmd.Process.Kill())
+
+	select {
+	case <-p.Exited():
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for Exited channel to be closed")
+	}
+
+	require.Equal(t, stateStopped, p.getState())
+}
+
+func TestProxy_ContextDone(t *testing.T) {
+	outputPath := testOutputPath()
+	t.Cleanup(func() { _ = os.Remove(outputPath) })
+
+	p, err := NewProxy(ProxyConfig{
+		ExecutablePath:  "testdata/fake-envoy",
+		ExtraArgs:       []string{"--test-output", outputPath},
+		BootstrapConfig: []byte(`hello world`),
+		EnvoyLogOutput:  io.Discard,
+	})
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	require.NoError(t, p.Run(ctx))
+	t.Cleanup(func() { _ = p.Stop() })
+
+	// Check the process is running.
+	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
+
+	// Finish the context
+	cancel()
 
 	select {
 	case <-p.Exited():
