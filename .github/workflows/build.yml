@@ -252,6 +252,7 @@ jobs:
           arch: ${{ matrix.arch }}
           tags: |
             docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
+            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}-ubi
           dev_tags: |
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
