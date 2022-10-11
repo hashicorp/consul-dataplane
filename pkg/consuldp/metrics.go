@@ -10,6 +10,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 	"github.com/hashicorp/go-hclog"
@@ -140,13 +141,14 @@ func (m *metricsConfig) stopMetricsServers() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.running = false
+	var errs error
 
 	if m.promScrapeServer != nil {
 		m.logger.Info("stopping the merged  server")
 		err := m.promScrapeServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing metrics server", "error", err)
-			close(m.errorExitCh)
+			multierror.Append(err, errs)
 		}
 	}
 	if m.cdpMetricsServer != nil {
@@ -154,8 +156,12 @@ func (m *metricsConfig) stopMetricsServers() {
 		err := m.cdpMetricsServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing metrics server", "error", err)
-			close(m.errorExitCh)
+			multierror.Append(err, errs)
 		}
+	}
+	// Check if there were errors and then close the error channel
+	if errs != nil {
+		close(m.errorExitCh)
 	}
 }
 

@@ -8,6 +8,7 @@ require (
 	github.com/hashicorp/consul-server-connection-manager v0.0.0-20220920152341-d96d0f93c5d9
 	github.com/hashicorp/consul/proto-public v0.1.1
 	github.com/hashicorp/go-hclog v1.2.2
+	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_golang v1.13.0
@@ -23,6 +24,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.0.0 // indirect
 	github.com/hashicorp/go-netaddrs v0.0.0-20220509001840-90ed9d26ec46 // indirect
 	github.com/hashicorp/go-uuid v1.0.2 // indirect
