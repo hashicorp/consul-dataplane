@@ -13,20 +13,31 @@ import (
 )
 
 const (
-	metricsBackendBindPort = "20100"
-	metricsBackendBindAddr = "127.0.0.1:" + metricsBackendBindPort
+	// mergedMetricsBackendBindPort is the port which will serve the merged
+	// metrics. The envoy bootstrap config uses this port to setup the publicly
+	// available scarpe url that prometheus listener which will point to this port
+	mergedMetricsBackendBindPort = "20100"
+	mergedMetricsBackendBindAddr = "127.0.0.1:" + mergedMetricsBackendBindPort
 )
 
+// metricsConfig handles all configuration related to merging
+// the metrics and presenting them on promScrapeServer
 type metricsConfig struct {
-	logger      hclog.Logger
-	cfg         *TelemetryConfig
-	httpServer  *http.Server
-	client      httpGetter
+	logger hclog.Logger
+
+	cfg                *TelemetryConfig
+	envoyAdminAddr     string
+	envoyAdminBindPort int
+
+	// merged metrics config
+	promScrapeServer *http.Server // the server that will will serve all the merged metrics
+	client           httpGetter   // the client that will scrape the urls
+	urls             []string     // the urls that will be scraped
+
+	// lifecycle control
 	errorExitCh chan struct{}
 	running     bool
-
-	mu       sync.Mutex
-	cancelFn context.CancelFunc
+	mu          sync.Mutex
 }
 
 func NewMetricsConfig(cfg *Config) *metricsConfig {
@@ -43,28 +54,40 @@ func NewMetricsConfig(cfg *Config) *metricsConfig {
 	}
 }
 
-func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.BootstrapConfig) {
+func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.BootstrapConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.running {
-		return
+		return nil
 	}
+
 	if m.cfg.UseCentralConfig {
 		m.logger = hclog.FromContext(ctx).Named("metrics")
-		ctx, cancel := context.WithCancel(ctx)
-		m.mu.Lock()
-		m.cancelFn = cancel
 		m.running = true
-		m.mu.Unlock()
+		go func() {
+			<-ctx.Done()
+			m.stopMetricsServers()
+		}()
 
 		switch {
 		case bcfg.PrometheusBindAddr != "":
+			// 1. start consul dataplane metric sinks of type Prometheus
+			// TODO
+
+			// 2. Setup prometheus handler for the merged metrics endpoint that prometheus
+			// will actually scrape
 			mux := http.NewServeMux()
 			mux.HandleFunc("/stats/prometheus", m.mergedMetricsHandler)
-			m.httpServer = &http.Server{
-				Addr:    metricsBackendBindAddr,
+			m.urls = []string{cdpMetricsUrl, fmt.Sprintf("http://%s:%v/stats/prometheus", m.envoyAdminAddr, m.envoyAdminBindPort)}
+			if m.cfg != nil && m.cfg.Prometheus.ServiceMetricsURL != "" {
+				m.urls = append(m.urls, m.cfg.Prometheus.ServiceMetricsURL)
+			}
+			m.promScrapeServer = &http.Server{
+				Addr:    mergedMetricsBackendBindAddr,
 				Handler: mux,
 			}
 			// Start prometheus metrics sink
-			go m.startPrometheusMetricsSink(ctx)
+			go m.startPrometheusMetricsSink()
 
 		case bcfg.StatsdURL != "":
 			// TODO: send merged metrics
@@ -120,20 +143,12 @@ func (m *metricsConfig) metricsServerExited() <-chan struct{} {
 // and service metrics are scraped synchronously during the handling of this
 // request.
 func (m *metricsConfig) mergedMetricsHandler(rw http.ResponseWriter, _ *http.Request) {
-	m.logger.Debug("scraping Envoy metrics", "url", envoyMetricsUrl)
-	if err := m.scrapeMetrics(rw, envoyMetricsUrl); err != nil {
-		m.scrapeError(rw, envoyMetricsUrl, err)
-		return
-	}
-
-	if m.cfg == nil || m.cfg.Prometheus.ServiceMetricsURL == "" {
-		return
-	}
-	url := m.cfg.Prometheus.ServiceMetricsURL
-	m.logger.Debug("scraping service metrics", "url", url)
-	if err := m.scrapeMetrics(rw, url); err != nil {
-		m.scrapeError(rw, url, err)
-		return
+	for _, url := range m.urls {
+		m.logger.Debug("scraping url for merging", "url", url)
+		if err := m.scrapeMetrics(rw, url); err != nil {
+			m.scrapeError(rw, url, err)
+			return
+		}
 	}
 }
 
