@@ -148,7 +148,7 @@ func (m *metricsConfig) stopMetricsServers() {
 		err := m.promScrapeServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing metrics server", "error", err)
-			multierror.Append(err, errs)
+			errs = multierror.Append(err, errs)
 		}
 	}
 	if m.cdpMetricsServer != nil {
@@ -156,7 +156,7 @@ func (m *metricsConfig) stopMetricsServers() {
 		err := m.cdpMetricsServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing metrics server", "error", err)
-			multierror.Append(err, errs)
+			errs = multierror.Append(err, errs)
 		}
 	}
 	// Check if there were errors and then close the error channel
