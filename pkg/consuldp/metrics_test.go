@@ -12,9 +12,29 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMetricsServerClosed(t *testing.T) {
+	telem := &TelemetryConfig{
+		UseCentralConfig: true,
+		Prometheus: PrometheusTelemetryConfig{
+			ServiceMetricsURL: "fake-service-metrics-url",
+		},
+	}
+	m := NewMetricsConfig(telem)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+	require.Equal(t, m.running, true)
+	cancel()
+	require.Eventually(t, func() bool {
+		return !m.running
+	}, time.Second*20, time.Second)
+
+}
 
 func TestMetricsServerEnabled(t *testing.T) {
 	cases := map[string]struct {
@@ -58,24 +78,23 @@ func TestMetricsServerEnabled(t *testing.T) {
 	for name, c := range cases {
 		c := c
 		t.Run(name, func(t *testing.T) {
-			cdp := &ConsulDataplane{
-				cfg:    &Config{Telemetry: c.telemetry},
-				logger: hclog.NewNullLogger(),
-			}
-			cdp.setupMetricsServer()
 
-			m := cdp.metricsServer
+			m := NewMetricsConfig(c.telemetry)
+
 			require.NotNil(t, m)
-			require.NotNil(t, m.httpServer)
 			require.NotNil(t, m.client)
-			require.NotNil(t, m.exitedCh)
-			require.Equal(t, metricsBackendBindAddr, m.httpServer.Addr)
+			require.NotNil(t, m.errorExitCh)
 			require.IsType(t, &http.Client{}, m.client)
 			require.Greater(t, m.client.(*http.Client).Timeout, time.Duration(0))
 
 			// Mock get requests to Envoy and Service instance metrics
 			// so that they return a fake metric string.
 			m.client = &mockClient{}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+			require.Equal(t, metricsBackendBindAddr, m.httpServer.Addr)
 
 			// Have consul-dataplane's metrics server start on an open port.
 			// And figure out what port was used so we can make requests to it.
@@ -86,9 +105,6 @@ func TestMetricsServerEnabled(t *testing.T) {
 				portCh <- l.Addr().(*net.TCPAddr).Port
 				return context.Background()
 			}
-
-			go cdp.startMetricsServer()
-			t.Cleanup(cdp.stopMetricsServer)
 
 			var port int
 			select {

@@ -223,6 +223,7 @@ func main() {
 			Port:     consulDNSPort,
 		},
 	}
+
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {
 		log.Fatal(err)

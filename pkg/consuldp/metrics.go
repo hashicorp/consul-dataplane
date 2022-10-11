@@ -1,10 +1,15 @@
 package consuldp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
+
+	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
+	"github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -13,76 +18,132 @@ const (
 	metricsBackendBindAddr = "127.0.0.1:" + metricsBackendBindPort
 )
 
-func (cdp *ConsulDataplane) setupMetricsServer() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/stats/prometheus", cdp.mergedMetricsHandler)
-	cdp.metricsServer = &metricsServer{
-		httpServer: &http.Server{
-			Addr:    metricsBackendBindAddr,
-			Handler: mux,
-		},
+type metricsConfig struct {
+	logger      hclog.Logger
+	cfg         *TelemetryConfig
+	httpServer  *http.Server
+	client      httpGetter
+	errorExitCh chan struct{}
+	running     bool
+
+	mu       sync.Mutex
+	cancelFn context.CancelFunc
+}
+
+func NewMetricsConfig(cfg *TelemetryConfig) *metricsConfig {
+	return &metricsConfig{
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		exitedCh: make(chan struct{}),
+		cfg:         cfg,
+		errorExitCh: make(chan struct{}),
 	}
 }
 
-func (cdp *ConsulDataplane) startMetricsServer() {
-	cdp.logger.Info("starting metrics server", "address", cdp.metricsServer.httpServer.Addr)
-	defer close(cdp.metricsServer.exitedCh)
-	err := cdp.metricsServer.httpServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		cdp.logger.Error("failed to serve metrics requests", "error", err)
+func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.BootstrapConfig) {
+	if m.running {
+		return
 	}
-}
+	if m.cfg.UseCentralConfig {
+		m.logger = hclog.FromContext(ctx).Named("metrics")
+		ctx, cancel := context.WithCancel(ctx)
+		m.mu.Lock()
+		m.cancelFn = cancel
+		m.running = true
+		m.mu.Unlock()
 
-func (cdp *ConsulDataplane) stopMetricsServer() {
-	if cdp.metricsServer != nil && cdp.metricsServer.httpServer != nil {
-		cdp.logger.Debug("stopping metrics server")
-		err := cdp.metricsServer.httpServer.Close()
-		if err != nil {
-			cdp.logger.Warn("error while closing metrics server", "error", err)
+		switch {
+		case bcfg.PrometheusBindAddr != "":
+			mux := http.NewServeMux()
+			mux.HandleFunc("/stats/prometheus", m.mergedMetricsHandler)
+			m.httpServer = &http.Server{
+				Addr:    metricsBackendBindAddr,
+				Handler: mux,
+			}
+			// Start prometheus metrics sink
+			go m.startPrometheusMetricsSink(ctx)
+
+		case bcfg.StatsdURL != "":
+			// TODO: send merged metrics
+		case bcfg.DogstatsdURL != "":
+			// TODO: send merged metrics
 		}
 	}
 }
 
-func (cdp *ConsulDataplane) metricsServerExited() <-chan struct{} {
-	return cdp.metricsServer.exitedCh
+func (m *metricsConfig) Cancel() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.cancelFn != nil {
+		m.cancelFn()
+	}
+}
+
+func (m *metricsConfig) startPrometheusMetricsSink(ctx context.Context) {
+	go func() {
+		<-ctx.Done()
+		m.stopPrometheusMetricSink()
+	}()
+
+	m.logger.Info("starting metrics server", "address", m.httpServer.Addr)
+	err := m.httpServer.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		m.logger.Error("failed to serve metrics requests", "error", err)
+		close(m.errorExitCh)
+	}
+}
+
+func (m *metricsConfig) stopPrometheusMetricSink() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.running = false
+	if m.httpServer != nil {
+		m.logger.Info("stopping metrics server")
+		err := m.httpServer.Close()
+		if err != nil {
+			m.logger.Warn("error while closing metrics server", "error", err)
+			close(m.errorExitCh)
+		}
+	}
+}
+
+func (m *metricsConfig) metricsServerExited() <-chan struct{} {
+	return m.errorExitCh
 }
 
 // mergedMetricsHandler responds with merged metrics from multiple sources:
 // Consul Dataplane, Envoy and (optionally) the service/application. The Envoy
 // and service metrics are scraped synchronously during the handling of this
 // request.
-func (cdp *ConsulDataplane) mergedMetricsHandler(rw http.ResponseWriter, _ *http.Request) {
-	cdp.logger.Debug("scraping Envoy metrics", "url", envoyMetricsUrl)
-	if err := cdp.scrapeMetrics(rw, envoyMetricsUrl); err != nil {
-		cdp.scrapeError(rw, envoyMetricsUrl, err)
+func (m *metricsConfig) mergedMetricsHandler(rw http.ResponseWriter, _ *http.Request) {
+	m.logger.Debug("scraping Envoy metrics", "url", envoyMetricsUrl)
+	if err := m.scrapeMetrics(rw, envoyMetricsUrl); err != nil {
+		m.scrapeError(rw, envoyMetricsUrl, err)
 		return
 	}
-	telem := cdp.cfg.Telemetry
-	if telem == nil || telem.Prometheus.ServiceMetricsURL == "" {
+
+	if m.cfg == nil || m.cfg.Prometheus.ServiceMetricsURL == "" {
 		return
 	}
-	url := telem.Prometheus.ServiceMetricsURL
-	cdp.logger.Debug("scraping service metrics", "url", url)
-	if err := cdp.scrapeMetrics(rw, url); err != nil {
-		cdp.scrapeError(rw, url, err)
+	url := m.cfg.Prometheus.ServiceMetricsURL
+	m.logger.Debug("scraping service metrics", "url", url)
+	if err := m.scrapeMetrics(rw, url); err != nil {
+		m.scrapeError(rw, url, err)
 		return
 	}
 }
 
 // scrapeMetrics fetches metrics from the given url and copies them to the response.
-func (cdp *ConsulDataplane) scrapeMetrics(rw http.ResponseWriter, url string) error {
-	resp, err := cdp.metricsServer.client.Get(url)
+func (m *metricsConfig) scrapeMetrics(rw http.ResponseWriter, url string) error {
+	resp, err := m.client.Get(url)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			cdp.logger.Warn("failed to close metrics request", "error", err)
+			m.logger.Warn("failed to close metrics request", "error", err)
 		}
 	}()
 
@@ -97,8 +158,8 @@ func (cdp *ConsulDataplane) scrapeMetrics(rw http.ResponseWriter, url string) er
 }
 
 // scrapeError logs an error and responds to the http request with an error.
-func (cdp *ConsulDataplane) scrapeError(rw http.ResponseWriter, url string, err error) {
-	cdp.logger.Error("failed to scrape metrics", "url", url, "error", err)
+func (m *metricsConfig) scrapeError(rw http.ResponseWriter, url string, err error) {
+	m.logger.Error("failed to scrape metrics", "url", url, "error", err)
 	msg := fmt.Sprintf("failed to scrape metrics at url %q", url)
 	http.Error(rw, msg, http.StatusInternalServerError)
 }
