@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	envoyMetricsUrl        = "http://127.0.0.1:19000/stats/prometheus"
 	metricsBackendBindPort = "20100"
 	metricsBackendBindAddr = "127.0.0.1:" + metricsBackendBindPort
 )
@@ -30,13 +29,17 @@ type metricsConfig struct {
 	cancelFn context.CancelFunc
 }
 
-func NewMetricsConfig(cfg *TelemetryConfig) *metricsConfig {
+func NewMetricsConfig(cfg *Config) *metricsConfig {
 	return &metricsConfig{
+		mu:                 sync.Mutex{},
+		cfg:                cfg.Telemetry,
+		errorExitCh:        make(chan struct{}),
+		envoyAdminAddr:     cfg.Envoy.AdminBindAddress,
+		envoyAdminBindPort: cfg.Envoy.AdminBindPort,
+
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		cfg:         cfg,
-		errorExitCh: make(chan struct{}),
 	}
 }
 
