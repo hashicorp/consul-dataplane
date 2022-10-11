@@ -248,7 +248,7 @@ jobs:
             fi
             echo "Test PASSED"
           version: ${{ env.version }}
-          target: ubi
+          target: release-ubi
           arch: ${{ matrix.arch }}
           tags: |
             docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
