@@ -197,21 +197,61 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-${{ github.sha }}
 
-  #build-docker-redhat:
-  #  name: Docker UBI Image Build (for Red Hat Certified Container Registry)
-  #  needs:
-  #    - get-product-version
-  #    - build-linux
-  #  runs-on: ubuntu-latest
-  #  env:
-  #    repo: ${{github.event.repository.name}}
-  #    version: ${{needs.get-product-version.outputs.product-version}}
+  build-docker-redhat:
+    name: Docker UBI Image Build (for Red Hat Certified Container Registry)
+    needs:
+      - get-product-version
+      - build-linux
+    runs-on: ubuntu-latest
+    env:
+      repo: ${{github.event.repository.name}}
+      version: ${{needs.get-product-version.outputs.product-version}}
 
-  #  steps:
-  #    - uses: actions/checkout@v2
-  #    - uses: hashicorp/actions-docker-build@v1
-  #      with:
-  #        version: ${{env.version}}
-  #        target: release-ubi
-  #        arch: amd64
-  #        redhat_tag: scan.connect.redhat.com/ospid-62211e0d8bf2cabc69a39c7d/${{env.repo}}:${{env.version}}-ubi
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/actions-docker-build@v1
+        with:
+          version: ${{env.version}}
+          target: release-ubi
+          arch: amd64
+          redhat_tag: scan.connect.redhat.com/ospid-62211e0d8bf2cabc69a39c7d/${{env.repo}}:${{env.version}}-ubi
+
+  build-docker-ubi-dockerhub:
+    name: Docker ${{ matrix.arch }} UBI build for DockerHub
+    needs:
+      - get-product-version
+      - build-linux
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ["amd64"]
+    env:
+      repo: ${{ github.event.repository.name }}
+      version: ${{ needs.get-product-version.outputs.product-version }}
+    steps:
+      - uses: actions/checkout@v2
+      # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
+      # This naming convention will be used ONLY for per-commit dev images
+      - name: Set docker dev tag
+        run: |
+          version="${{ env.version }}"
+          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@v1
+        with:
+          smoke_test: |
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            if [ "${TEST_VERSION}" != "${version}" ]; then
+              echo "Test FAILED"
+              exit 1
+            fi
+            echo "Test PASSED"
+          version: ${{ env.version }}
+          target: release-ubi
+          arch: ${{ matrix.arch }}
+          tags: |
+            docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
+            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}-ubi
+          dev_tags: |
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
