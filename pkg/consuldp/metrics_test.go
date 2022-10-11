@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,23 +17,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	envoyMetricsPort = 19000
+	envoyMetricsAddr = "127.0.0.1"
+	envoyMetricsUrl  = fmt.Sprintf("http://%s:%v/stats/prometheus", envoyMetricsAddr, envoyMetricsPort)
+)
+
 func TestMetricsServerClosed(t *testing.T) {
 	telem := &TelemetryConfig{
 		UseCentralConfig: true,
-		Prometheus: PrometheusTelemetryConfig{
-			ServiceMetricsURL: "fake-service-metrics-url",
+		Prometheus:       PrometheusTelemetryConfig{},
+	}
+	m := &metricsConfig{
+		mu:                 sync.Mutex{},
+		cfg:                telem,
+		envoyAdminAddr:     envoyMetricsAddr,
+		envoyAdminBindPort: envoyMetricsPort,
+		errorExitCh:        make(chan struct{}),
+
+		client: &http.Client{
+			Timeout: 10 * time.Second,
 		},
 	}
-	m := NewMetricsConfig(telem)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
 	require.Equal(t, m.running, true)
 	cancel()
 	require.Eventually(t, func() bool {
 		return !m.running
-	}, time.Second*20, time.Second)
+	}, time.Second*2, time.Second)
 
 }
 
@@ -44,6 +59,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 		"no service metrics": {
 			telemetry: &TelemetryConfig{UseCentralConfig: true},
 			expMetrics: []string{
+				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
 			},
 		},
@@ -55,6 +71,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 				},
 			},
 			expMetrics: []string{
+				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
 				makeFakeMetric("fake-service-metrics-url"),
 			},
@@ -70,6 +87,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 				},
 			},
 			expMetrics: []string{
+				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
 				makeFakeMetric("fake-service-metrics-url"),
 			},
@@ -79,7 +97,17 @@ func TestMetricsServerEnabled(t *testing.T) {
 		c := c
 		t.Run(name, func(t *testing.T) {
 
-			m := NewMetricsConfig(c.telemetry)
+			m := &metricsConfig{
+				mu:                 sync.Mutex{},
+				cfg:                c.telemetry,
+				envoyAdminAddr:     envoyMetricsAddr,
+				envoyAdminBindPort: envoyMetricsPort,
+				errorExitCh:        make(chan struct{}),
+
+				client: &http.Client{
+					Timeout: 10 * time.Second,
+				},
+			}
 
 			require.NotNil(t, m)
 			require.NotNil(t, m.client)
@@ -93,15 +121,15 @@ func TestMetricsServerEnabled(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
-			require.Equal(t, metricsBackendBindAddr, m.httpServer.Addr)
+			_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+			require.Equal(t, mergedMetricsBackendBindAddr, m.promScrapeServer.Addr)
 
 			// Have consul-dataplane's metrics server start on an open port.
 			// And figure out what port was used so we can make requests to it.
 			// Conveniently, this seems to wait until the server is ready for requests.
 			portCh := make(chan int, 1)
-			m.httpServer.Addr = "127.0.0.1:0"
-			m.httpServer.BaseContext = func(l net.Listener) context.Context {
+			m.promScrapeServer.Addr = "127.0.0.1:0"
+			m.promScrapeServer.BaseContext = func(l net.Listener) context.Context {
 				portCh <- l.Addr().(*net.TCPAddr).Port
 				return context.Background()
 			}
