@@ -8,9 +8,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
+	"github.com/armon/go-metrics/prometheus"
+
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 	"github.com/hashicorp/go-hclog"
+	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+type Stats int
 
 const (
 	// mergedMetricsBackendBindPort is the port which will serve the merged
@@ -18,6 +26,16 @@ const (
 	// available scarpe url that prometheus listener which will point to this port
 	mergedMetricsBackendBindPort = "20100"
 	mergedMetricsBackendBindAddr = "127.0.0.1:" + mergedMetricsBackendBindPort
+
+	// The consul dataplane specific metrics will be exposed on this port on the loopback
+	cdpMetricsBindPort = "20101"
+	cdpMetricsBindAddr = "127.0.0.1:" + cdpMetricsBindPort
+	cdpMetricsUrl      = "http://" + cdpMetricsBindAddr
+
+	// Distinguishing values for the type of sinks that are being used
+	Prometheus Stats = iota
+	Dogstatsd
+	Statsd
 )
 
 // metricsConfig handles all configuration related to merging
@@ -33,6 +51,9 @@ type metricsConfig struct {
 	promScrapeServer *http.Server // the server that will will serve all the merged metrics
 	client           httpGetter   // the client that will scrape the urls
 	urls             []string     // the urls that will be scraped
+
+	// consuldp metrics server
+	cdpMetricsServer *http.Server // cdp metrics prometheus scrape server
 
 	// lifecycle control
 	errorExitCh chan struct{}
@@ -72,7 +93,10 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 		switch {
 		case bcfg.PrometheusBindAddr != "":
 			// 1. start consul dataplane metric sinks of type Prometheus
-			// TODO
+			err := m.configureCDPMetricSinks(Prometheus)
+			if err != nil {
+				return fmt.Errorf("failure enabling consul dataplane metrics for prometheus: %w", err)
+			}
 
 			// 2. Setup prometheus handler for the merged metrics endpoint that prometheus
 			// will actually scrape
@@ -95,38 +119,39 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			// TODO: send merged metrics
 		}
 	}
+
+	return nil
 }
 
-func (m *metricsConfig) Cancel() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.cancelFn != nil {
-		m.cancelFn()
-	}
-}
-
-func (m *metricsConfig) startPrometheusMetricsSink(ctx context.Context) {
-	go func() {
-		<-ctx.Done()
-		m.stopPrometheusMetricSink()
-	}()
-
-	m.logger.Info("starting metrics server", "address", m.httpServer.Addr)
-	err := m.httpServer.ListenAndServe()
+// startPrometheusMetricsSink starts the main merged metrics server that prometheus
+// will actually be scraping.
+func (m *metricsConfig) startPrometheusMetricsSink() {
+	m.logger.Info("starting merged metrics server", "address", m.promScrapeServer.Addr)
+	err := m.promScrapeServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		m.logger.Error("failed to serve metrics requests", "error", err)
 		close(m.errorExitCh)
 	}
 }
 
-func (m *metricsConfig) stopPrometheusMetricSink() {
+// stopMetricsServers stops the main merged metrics server and the consul
+// dataplane metrics server
+func (m *metricsConfig) stopMetricsServers() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.running = false
-	if m.httpServer != nil {
-		m.logger.Info("stopping metrics server")
-		err := m.httpServer.Close()
+
+	if m.promScrapeServer != nil {
+		m.logger.Info("stopping the merged  server")
+		err := m.promScrapeServer.Close()
+		if err != nil {
+			m.logger.Warn("error while closing metrics server", "error", err)
+			close(m.errorExitCh)
+		}
+	}
+	if m.cdpMetricsServer != nil {
+		m.logger.Info("stopping consul dp promtheus server")
+		err := m.cdpMetricsServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing metrics server", "error", err)
 			close(m.errorExitCh)
@@ -134,6 +159,8 @@ func (m *metricsConfig) stopPrometheusMetricSink() {
 	}
 }
 
+// metricsServerExited is used to signal that the metrics server
+// exited unexpectedely.
 func (m *metricsConfig) metricsServerExited() <-chan struct{} {
 	return m.errorExitCh
 }
@@ -185,4 +212,75 @@ func (m *metricsConfig) scrapeError(rw http.ResponseWriter, url string, err erro
 // non2xxCode returns true if code is not in the range of 200-299 inclusive.
 func non2xxCode(code int) bool {
 	return code < 200 || code >= 300
+}
+
+// getPromDefaults creates a new prometheus registry. The registry is wrapped with the consul_dataplane
+// prefix and then returned as a part of a prometheus opts that will be passed to the go-metrics sink.
+// Additionally the registry itself is returned and will be used in an http server to provide the metrics
+// defined in the opts.
+func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.PrometheusOpts, error) {
+	r := prom.NewRegistry()
+	reg := prom.WrapRegistererWithPrefix("consul_dataplane_", r)
+	err := reg.Register(collectors.NewGoCollector())
+	if err != nil {
+		return nil, nil, err
+	}
+	opts := &prometheus.PrometheusOpts{
+		Registerer: reg,
+		// GaugeDefinitions: ,
+		// CounterDefinitions: ,
+		// SummaryDefinitions: ,
+	}
+	return r, opts, nil
+}
+
+// configureCDPMetricSinks setups the sinks configuration for the Stats type that is
+// passed in.
+func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
+
+	switch s {
+	case Prometheus:
+		r, opts, err := m.getPromDefaults()
+		if err != nil {
+			return err
+		}
+		sink, err := prometheus.NewPrometheusSinkFrom(*opts)
+		if err != nil {
+			return err
+		}
+		conf := metrics.DefaultConfig("consul_dataplane")
+		conf.EnableHostname = false
+		_, err = metrics.NewGlobal(conf, sink)
+		if err != nil {
+			return err
+		}
+
+		go m.runCDPMetricsServer(r)
+
+	case Dogstatsd:
+		// TODO
+		// datadog.NewDogStatsdSink()
+	case Statsd:
+		// TODO
+		// metrics.NewStatsdSink()
+	}
+	return nil
+
+}
+
+// runCDPMetricsServer takes a prom.Gatherer that will create a handler
+// for http calls to the metrics endpoint and return prometheus style metrics.
+// Eventually these metrics will be
+func (m *metricsConfig) runCDPMetricsServer(gather prom.Gatherer) {
+	m.cdpMetricsServer = &http.Server{
+		Addr: cdpMetricsBindAddr,
+		Handler: promhttp.HandlerFor(gather, promhttp.HandlerOpts{
+			ErrorHandling: promhttp.ContinueOnError,
+		}),
+	}
+	err := m.cdpMetricsServer.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		m.logger.Error("failed to serve metrics requests", "error", err)
+		close(m.errorExitCh)
+	}
 }
