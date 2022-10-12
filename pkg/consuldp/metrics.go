@@ -49,7 +49,7 @@ type metricsConfig struct {
 	envoyAdminBindPort int
 
 	// merged metrics config
-	promScrapeServer *http.Server // the server that will will serve all the merged metrics
+	promScrapeServer *http.Server // the server that will serve all the merged metrics
 	client           httpGetter   // the client that will scrape the urls
 	urls             []string     // the urls that will be scraped
 

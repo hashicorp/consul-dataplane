@@ -121,7 +121,8 @@ func TestMetricsServerEnabled(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+			err := m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+			require.NoError(t, err)
 			require.Equal(t, mergedMetricsBackendBindAddr, m.promScrapeServer.Addr)
 
 			// Have consul-dataplane's metrics server start on an open port.
