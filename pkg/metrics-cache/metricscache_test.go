@@ -1,6 +1,7 @@
 package metricscache
 
 import (
+	"sync"
 	"testing"
 	"time"
 

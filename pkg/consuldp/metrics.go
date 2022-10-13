@@ -125,10 +125,8 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 		}
 	} else {
 		// send metrics to black hole if we they aren't being configured.
-		err := m.cacheSink.SetSink(&metrics.BlackholeSink{})
-		if err != nil {
-			return err
-		}
+		m.cacheSink.SetSink(&metrics.BlackholeSink{})
+
 	}
 
 	return nil
@@ -265,11 +263,8 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 			return err
 		}
 		// we set the cache sink to be the prometheus sink to
-		// flush out metrics recorded to the cache.
-		err = m.cacheSink.SetSink(sink)
-		if err != nil {
-			return err
-		}
+		// replay out metrics recorded to the cache.
+		m.cacheSink.SetSink(sink)
 
 		go m.runCDPMetricsServer(r)
 

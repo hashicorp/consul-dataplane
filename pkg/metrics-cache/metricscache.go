@@ -1,11 +1,14 @@
 package metricscache
 
 import (
-	"errors"
 	"sync"
 	"sync/atomic"
 
 	"github.com/armon/go-metrics"
+)
+
+var (
+	once sync.Once
 )
 
 type metric struct {
@@ -120,20 +123,18 @@ func (s *Sink) AddSampleWithLabels(key []string, val float32, labels []metrics.L
 // SetSink takes a sink and will ensure that the sink sets the value
 // and then starts forwarding metrics on to the realSink once called.
 // It will also replay all the cached metrics and send the to the realSink
-func (s *Sink) SetSink(newSink metrics.MetricSink) error {
-	if s.realSink != nil {
-		return errors.New("sink can only be set once")
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.checkLock.Store(false)
-	s.realSink = newSink
-	s.Replay()
-	return nil
+func (s *Sink) SetSink(newSink metrics.MetricSink) {
+	once.Do(func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.checkLock.Store(false)
+		s.realSink = newSink
+		s.replay()
+	})
 }
 
-// Replay will send cached metrics to the realsink. Once done it will empty the cached store.
-func (s *Sink) Replay() {
+// replay will send cached metrics to the realsink. Once done it will empty the cached store.
+func (s *Sink) replay() {
 	if s.realSink != nil {
 		for _, sample := range s.samples {
 			s.realSink.AddSampleWithLabels(sample.key, sample.val, sample.labels)
