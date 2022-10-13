@@ -83,7 +83,7 @@ func TestMetricsCache_ParallelTest(t *testing.T) {
 
 	go func() {
 		for i := 0; i < 100; i++ {
-			sink.SetGauge([]string{"mygauge"}, float32(i))
+			sink.SetGauge([]string{"mygauge"}, float32(i+1))
 		}
 	}()
 
@@ -95,7 +95,7 @@ func TestMetricsCache_ParallelTest(t *testing.T) {
 
 	go func() {
 		for i := 0; i < 100; i++ {
-			sink.EmitKey([]string{"mykey"}, 100)
+			sink.EmitKey([]string{"mykey"}, 1)
 		}
 	}()
 
@@ -118,9 +118,9 @@ func TestMetricsCache_ParallelTest(t *testing.T) {
 	mysamples := data[0].Samples["mysample"]
 	mykey := data[0].Points["mykey"]
 	mycounter := data[0].Counters["mycounter"]
-	require.NotEmpty(t, mygauge.Value, 100)
-	require.NotEmpty(t, mysamples.AggregateSample.Count, 100)
-	require.NotEmpty(t, mykey, 1)
-	require.NotEmpty(t, mycounter.AggregateSample.Count, 100)
+	require.EqualValues(t, 100, mygauge.Value)
+	require.EqualValues(t, 100, mysamples.AggregateSample.Count)
+	require.EqualValues(t, 100, len(mykey))
+	require.EqualValues(t, 100, mycounter.AggregateSample.Count)
 
 }

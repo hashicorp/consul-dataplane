@@ -13,7 +13,8 @@ type metric struct {
 	labels []metrics.Label
 }
 
-// Sink is a temporary sink that caches metrics until a real sink is set in SetSink
+// Sink is a temporary sink that caches metrics until a real sink is set in SetSink.
+// it implements the metrics.MetricSink interface
 type Sink struct {
 	gauges   []metric
 	counters []metric
