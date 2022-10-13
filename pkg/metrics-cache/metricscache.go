@@ -41,8 +41,8 @@ func NewSink() *Sink {
 		counters:  []metric{},
 		samples:   []metric{},
 		keys:      []metric{},
-		mu:        sync.Mutex{},
-		checkLock: checkLock, // we only need to check the lock if we haven't yet set the real sink
+		mu:        sync.Mutex{}, // this lock is used to control access around the slices of metrics above
+		checkLock: checkLock,    // we only need to check the lock if we haven't yet set the real sink
 	}
 }
 
