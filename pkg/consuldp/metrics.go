@@ -10,6 +10,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
+	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
@@ -241,7 +242,7 @@ func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.Prometheu
 		Registerer:       reg,
 		GaugeDefinitions: gauges,
 		// CounterDefinitions: ,
-		// SummaryDefinitions: ,
+		SummaryDefinitions: discovery.Summaries,
 	}
 	return r, opts, nil
 }
