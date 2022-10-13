@@ -46,7 +46,8 @@ func TestMetricsCache_BasicPath(t *testing.T) {
 	sink.IncrCounter([]string{"mycounter"}, 16)
 
 	realSink := metrics.NewInmemSink(time.Second, time.Second*1)
-	sink.SetSink(realSink)
+	err := sink.SetSink(realSink)
+	require.NoError(t, err)
 	sink.IncrCounter([]string{"mycounter"}, 32)
 
 	data := realSink.Data()
@@ -106,7 +107,8 @@ func TestMetricsCache_ParallelTest(t *testing.T) {
 		t.Logf("done")
 	}()
 
-	sink.SetSink(realSink)
+	err := sink.SetSink(realSink)
+	require.NoError(t, err)
 	time.Sleep(time.Second)
 
 	data := realSink.Data()
