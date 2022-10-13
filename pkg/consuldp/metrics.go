@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
@@ -237,8 +238,8 @@ func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.Prometheu
 		return nil, nil, err
 	}
 	opts := &prometheus.PrometheusOpts{
-		Registerer: reg,
-		// GaugeDefinitions: ,
+		Registerer:       reg,
+		GaugeDefinitions: gauges,
 		// CounterDefinitions: ,
 		// SummaryDefinitions: ,
 	}
