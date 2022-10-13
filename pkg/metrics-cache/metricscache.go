@@ -3,6 +3,7 @@ package metricscache
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/armon/go-metrics"
 )
@@ -24,18 +25,21 @@ type Sink struct {
 	realSink metrics.MetricSink
 
 	mu        sync.Mutex
-	checkLock bool
+	checkLock atomic.Bool
 }
 
 // NewSink returns a pointer to a sink with empty cache
 func NewSink() *Sink {
+	checkLock := atomic.Bool{}
+	checkLock.Store(true)
+
 	return &Sink{
 		gauges:    []metric{},
 		counters:  []metric{},
 		samples:   []metric{},
 		keys:      []metric{},
 		mu:        sync.Mutex{},
-		checkLock: true, // we only need to check the lock if we haven't yet set the real sink
+		checkLock: checkLock, // we only need to check the lock if we haven't yet set the real sink
 	}
 }
 
@@ -46,7 +50,7 @@ func (s *Sink) SetGauge(key []string, val float32) {
 
 // SetGaugeWithLabels sends metrics to the real sink otherwise caches them
 func (s *Sink) SetGaugeWithLabels(key []string, val float32, labels []metrics.Label) {
-	if s.checkLock {
+	if ok := s.checkLock.Load(); ok {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 	}
@@ -61,7 +65,7 @@ func (s *Sink) SetGaugeWithLabels(key []string, val float32, labels []metrics.La
 
 // EmitKey sends metrics to the real sink otherwise caches them
 func (s *Sink) EmitKey(key []string, val float32) {
-	if s.checkLock {
+	if ok := s.checkLock.Load(); ok {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 	}
@@ -82,7 +86,7 @@ func (s *Sink) IncrCounter(key []string, val float32) {
 
 // IncrCounterWithLabels sends metrics to the real sink otherwise caches them
 func (s *Sink) IncrCounterWithLabels(key []string, val float32, labels []metrics.Label) {
-	if s.checkLock {
+	if ok := s.checkLock.Load(); ok {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 	}
@@ -101,7 +105,7 @@ func (s *Sink) AddSample(key []string, val float32) {
 
 // AddSampleWithLabels sends metrics to the real sink otherwise caches them
 func (s *Sink) AddSampleWithLabels(key []string, val float32, labels []metrics.Label) {
-	if s.checkLock {
+	if ok := s.checkLock.Load(); ok {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 	}
@@ -122,7 +126,7 @@ func (s *Sink) SetSink(newSink metrics.MetricSink) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.checkLock = false
+	s.checkLock.Store(false)
 	s.realSink = newSink
 	s.Replay()
 	return nil
