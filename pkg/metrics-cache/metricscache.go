@@ -28,12 +28,12 @@ type Sink struct {
 	realSink metrics.MetricSink
 
 	mu        sync.Mutex
-	checkLock atomic.Bool
+	checkLock *atomic.Bool
 }
 
 // NewSink returns a pointer to a sink with empty cache
 func NewSink() *Sink {
-	checkLock := atomic.Bool{}
+	checkLock := &atomic.Bool{}
 	checkLock.Store(true)
 
 	return &Sink{
