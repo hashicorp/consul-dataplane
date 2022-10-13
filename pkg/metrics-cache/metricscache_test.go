@@ -9,9 +9,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func validateMetrics(t *testing.T, data []*metrics.IntervalMetrics) {
-	require.NotEmpty(t, data)
-	// Gauge based off being set once at value of 1
+func TestMetricsCache_BasicPath(t *testing.T) {
+	sink := NewSink()
+
+	sink.SetGauge([]string{"mygauge"}, 1)
+	sink.AddSample([]string{"mysample"}, 10)
+	sink.AddSample([]string{"mysample"}, 100)
+	sink.EmitKey([]string{"mykey"}, 3)
+	sink.IncrCounter([]string{"mycounter"}, 4)
+	sink.IncrCounter([]string{"mycounter"}, 8)
+	sink.IncrCounter([]string{"mycounter"}, 16)
+
+	realSink := metrics.NewInmemSink(time.Second, time.Second*1)
+	sink.SetSink(realSink)
+	sink.IncrCounter([]string{"mycounter"}, 32)
+
+	data := realSink.Data()
+
+	// Check before the interval is up if setting values will increase the metrics
+
 	mygauge := data[0].Gauges["mygauge"]
 	require.EqualValues(t, mygauge.Value, 1)
 
@@ -33,88 +49,58 @@ func validateMetrics(t *testing.T, data []*metrics.IntervalMetrics) {
 	require.EqualValues(t, 4, mycounter.AggregateSample.Min)
 	require.EqualValues(t, 32, mycounter.AggregateSample.Max)
 
-}
-
-func TestMetricsCache_BasicPath(t *testing.T) {
-	sink := NewSink()
-
-	sink.SetGauge([]string{"mygauge"}, 1)
-	sink.AddSample([]string{"mysample"}, 10)
-	sink.AddSample([]string{"mysample"}, 100)
-	sink.EmitKey([]string{"mykey"}, 3)
-	sink.IncrCounter([]string{"mycounter"}, 4)
-	sink.IncrCounter([]string{"mycounter"}, 8)
-	sink.IncrCounter([]string{"mycounter"}, 16)
-
-	realSink := metrics.NewInmemSink(time.Second, time.Second*1)
-	err := sink.SetSink(realSink)
-	require.NoError(t, err)
-	sink.IncrCounter([]string{"mycounter"}, 32)
-
-	data := realSink.Data()
-	validateMetrics(t, data)
-
-	// Check before the interval is up if setting values will increase the metrics
 	sink.IncrCounter([]string{"mycounter"}, 2)
 	data = realSink.Data()
-	mycounter := data[0].Counters["mycounter"]
+	mycounter = data[0].Counters["mycounter"]
 	require.EqualValues(t, 5, mycounter.AggregateSample.Count)
 	require.EqualValues(t, 62, mycounter.AggregateSample.Sum)
 	require.EqualValues(t, 2, mycounter.AggregateSample.Min)
 	require.EqualValues(t, 32, mycounter.AggregateSample.Max)
 
-	time.Sleep(time.Second)
-
-	sink.SetGauge([]string{"mygauge"}, 1)
-	sink.AddSample([]string{"mysample"}, 10)
-	sink.AddSample([]string{"mysample"}, 100)
-	sink.EmitKey([]string{"mykey"}, 3)
-	sink.IncrCounter([]string{"mycounter"}, 4)
-	sink.IncrCounter([]string{"mycounter"}, 8)
-	sink.IncrCounter([]string{"mycounter"}, 16)
-	sink.IncrCounter([]string{"mycounter"}, 32)
-
-	data = realSink.Data()
-	validateMetrics(t, data)
 }
 
 func TestMetricsCache_ParallelTest(t *testing.T) {
 	sink := NewSink()
-	realSink := metrics.NewInmemSink(time.Second, time.Second*20)
+	// make interval so big we never get metrics split into multiple intervals
+	realSink := metrics.NewInmemSink(time.Minute, time.Minute*10)
 
+	wg := sync.WaitGroup{}
+	wg.Add(4)
 	go func() {
 		for i := 0; i < 100; i++ {
 			sink.SetGauge([]string{"mygauge"}, float32(i+1))
 		}
+		wg.Done()
 	}()
 
 	go func() {
 		for i := 0; i < 100; i++ {
 			sink.AddSample([]string{"mysample"}, 1)
 		}
+		wg.Done()
 	}()
 
 	go func() {
 		for i := 0; i < 100; i++ {
 			sink.EmitKey([]string{"mykey"}, 1)
 		}
+		wg.Done()
 	}()
 
 	go func() {
-		t.Logf("starting")
 		for i := 0; i < 100; i++ {
 			sink.IncrCounter([]string{"mycounter"}, 1)
 		}
-		t.Logf("done")
+		wg.Done()
 	}()
 
-	err := sink.SetSink(realSink)
-	require.NoError(t, err)
-	time.Sleep(time.Second)
+	sink.SetSink(realSink)
+	wg.Wait()
 
 	data := realSink.Data()
 
 	require.NotEmpty(t, data)
+
 	mygauge := data[0].Gauges["mygauge"]
 	mysamples := data[0].Samples["mysample"]
 	mykey := data[0].Points["mykey"]
