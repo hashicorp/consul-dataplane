@@ -10,13 +10,14 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
-	"github.com/hashicorp/go-multierror"
-
-	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
+	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
 )
 
 type Stats int
@@ -44,6 +45,7 @@ const (
 type metricsConfig struct {
 	logger hclog.Logger
 
+	cacheSink          *metricscache.Sink
 	cfg                *TelemetryConfig
 	envoyAdminAddr     string
 	envoyAdminBindPort int
@@ -62,13 +64,14 @@ type metricsConfig struct {
 	mu          sync.Mutex
 }
 
-func NewMetricsConfig(cfg *Config) *metricsConfig {
+func NewMetricsConfig(cfg *Config, cacheSink *metricscache.Sink) *metricsConfig {
 	return &metricsConfig{
 		mu:                 sync.Mutex{},
 		cfg:                cfg.Telemetry,
 		errorExitCh:        make(chan struct{}),
 		envoyAdminAddr:     cfg.Envoy.AdminBindAddress,
 		envoyAdminBindPort: cfg.Envoy.AdminBindPort,
+		cacheSink:          cacheSink,
 
 		client: &http.Client{
 			Timeout: 10 * time.Second,
@@ -119,6 +122,10 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 		case bcfg.DogstatsdURL != "":
 			// TODO: send merged metrics
 		}
+	} else {
+		// send metrics to black hole if we they aren't being configured.
+		m.cacheSink.SetSink(&metrics.BlackholeSink{})
+
 	}
 
 	return nil
@@ -254,12 +261,9 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		if err != nil {
 			return err
 		}
-		conf := metrics.DefaultConfig("consul_dataplane")
-		conf.EnableHostname = false
-		_, err = metrics.NewGlobal(conf, sink)
-		if err != nil {
-			return err
-		}
+		// we set the cache sink to be the prometheus sink to
+		// replay out metrics recorded to the cache.
+		m.cacheSink.SetSink(sink)
 
 		go m.runCDPMetricsServer(r)
 
@@ -276,7 +280,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 
 // runCDPMetricsServer takes a prom.Gatherer that will create a handler
 // for http calls to the metrics endpoint and return prometheus style metrics.
-// Eventually these metrics will be
+// Eventually these metrics will be scraped and merged.
 func (m *metricsConfig) runCDPMetricsServer(gather prom.Gatherer) {
 	m.cdpMetricsServer = &http.Server{
 		Addr: cdpMetricsBindAddr,
