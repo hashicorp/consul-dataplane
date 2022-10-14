@@ -244,7 +244,7 @@ func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.Prometheu
 	}
 	opts := &prometheus.PrometheusOpts{
 		Registerer:       reg,
-		GaugeDefinitions: gauges,
+		GaugeDefinitions: append(gauges, discovery.Gauges...),
 		// CounterDefinitions: ,
 		SummaryDefinitions: discovery.Summaries,
 	}
