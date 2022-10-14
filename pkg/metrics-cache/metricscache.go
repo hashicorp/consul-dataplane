@@ -7,10 +7,6 @@ import (
 	"github.com/armon/go-metrics"
 )
 
-var (
-	once sync.Once
-)
-
 type metric struct {
 	key    []string
 	val    float32
@@ -29,6 +25,7 @@ type Sink struct {
 
 	mu        sync.Mutex
 	checkLock *atomic.Bool
+	once      sync.Once
 }
 
 // NewSink returns a pointer to a sink with empty cache
@@ -124,7 +121,7 @@ func (s *Sink) AddSampleWithLabels(key []string, val float32, labels []metrics.L
 // and then starts forwarding metrics on to the realSink once called.
 // It will also replay all the cached metrics and send the to the realSink
 func (s *Sink) SetSink(newSink metrics.MetricSink) {
-	once.Do(func() {
+	s.once.Do(func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.checkLock.Store(false)

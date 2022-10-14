@@ -62,7 +62,7 @@ func TestMetricsCache_BasicPath(t *testing.T) {
 func TestMetricsCache_ParallelTest(t *testing.T) {
 	sink := NewSink()
 	// make interval so big we never get metrics split into multiple intervals
-	realSink := metrics.NewInmemSink(time.Minute, time.Minute*10)
+	realSink := metrics.NewInmemSink(time.Second, time.Second)
 
 	wg := sync.WaitGroup{}
 	wg.Add(4)
@@ -105,8 +105,9 @@ func TestMetricsCache_ParallelTest(t *testing.T) {
 	mysamples := data[0].Samples["mysample"]
 	mykey := data[0].Points["mykey"]
 	mycounter := data[0].Counters["mycounter"]
-	require.EqualValues(t, 100, mygauge.Value)
 	require.EqualValues(t, 100, mysamples.AggregateSample.Count)
+	require.EqualValues(t, 100, mygauge.Value)
+
 	require.EqualValues(t, 100, len(mykey))
 	require.EqualValues(t, 100, mycounter.AggregateSample.Count)
 

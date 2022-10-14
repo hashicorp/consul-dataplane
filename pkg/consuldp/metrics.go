@@ -66,6 +66,9 @@ type metricsConfig struct {
 }
 
 func NewMetricsConfig(cfg *Config, cacheSink *metricscache.Sink) *metricsConfig {
+	if cacheSink == nil {
+		cacheSink = metricscache.NewSink()
+	}
 	return &metricsConfig{
 		mu:                 sync.Mutex{},
 		cfg:                cfg.Telemetry,
