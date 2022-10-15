@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 )
 
@@ -122,14 +121,12 @@ func (p *Proxy) Run(ctx context.Context) error {
 		}
 		return err
 	}
-	metrics.SetGauge([]string{"envoy_connected"}, 1)
 
 	// This goroutine is responsible for waiting on the process (which reaps it
 	// preventing a zombie), triggering cleanup, and notifying the caller that the
 	// process has exited.
 	go func() {
 		err := p.cmd.Wait()
-		metrics.SetGauge([]string{"envoy_connected"}, 0)
 		p.cfg.Logger.Info("envoy process exited", "error", err)
 		p.transitionState(stateRunning, stateStopped)
 		if err := cleanup(); err != nil {

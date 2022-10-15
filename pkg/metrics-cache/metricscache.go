@@ -119,7 +119,7 @@ func (s *Sink) AddSampleWithLabels(key []string, val float32, labels []metrics.L
 
 // SetSink takes a sink and will ensure that the sink sets the value
 // and then starts forwarding metrics on to the realSink once called.
-// It will also replay all the cached metrics and send the to the realSink
+// It will also replay all the cached metrics and send them to the realSink
 func (s *Sink) SetSink(newSink metrics.MetricSink) {
 	s.once.Do(func() {
 		s.mu.Lock()
@@ -130,7 +130,7 @@ func (s *Sink) SetSink(newSink metrics.MetricSink) {
 	})
 }
 
-// replay will send cached metrics to the realsink. Once done it will empty the cached store.
+// replay will send cached metrics to the realSink. Once done it will empty the cached store.
 func (s *Sink) replay() {
 	if s.realSink != nil {
 		for _, sample := range s.samples {

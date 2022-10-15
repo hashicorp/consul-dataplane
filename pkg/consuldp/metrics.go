@@ -127,7 +127,7 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			// TODO: send merged metrics
 		}
 	} else {
-		// send metrics to black hole if we they aren't being configured.
+		// send metrics to black hole if they aren't being configured.
 		m.cacheSink.SetSink(&metrics.BlackholeSink{})
 
 	}
