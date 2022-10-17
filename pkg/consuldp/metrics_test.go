@@ -54,6 +54,7 @@ func TestMetricsServerClosed(t *testing.T) {
 }
 
 func TestMetricsServerEnabled(t *testing.T) {
+	mergedMetricsBackendBindAddr := mergedMetricsBackendBindHost + defaultMergedMetricsBackendBindPort
 	cases := map[string]struct {
 		telemetry  *TelemetryConfig
 		expMetrics []string

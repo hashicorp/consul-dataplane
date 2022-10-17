@@ -108,7 +108,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		// Envoy proxy metrics from Consul Dataplane which serves merged
 		// metrics (Envoy + Dataplane + service metrics).
 		// Documentation: https://www.consul.io/commands/connect/envoy#prometheus-backend-port
-		args.PrometheusBackendPort = mergedMetricsBackendBindPort
+		args.PrometheusBackendPort = strconv.Itoa(prom.MergePort)
 	}
 
 	// Note: we pass true for omitDeprecatedTags here - consul-dataplane is clean
