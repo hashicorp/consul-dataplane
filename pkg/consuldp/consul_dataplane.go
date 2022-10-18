@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/hashicorp/consul/proto-public/pbdns"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/hashicorp/consul-dataplane/pkg/dns"
 	"github.com/hashicorp/consul-dataplane/pkg/envoy"
+	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
 )
 
 type xdsServer struct {
@@ -114,6 +116,18 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	ctx = hclog.WithContext(ctx, cdp.logger)
 	cdp.logger.Info("started consul-dataplane process")
 
+	// At startup we need to cache metrics until we have information from the bootstrap envoy config
+	// that the consumer wants metrics enabled. Until then we will set our own light weight metrics
+	// sink. If consumer doesn't enable the metrics the sink will set a blackhole sink. Otherwise
+	// it will swap to the newly configured prometheus/dogstatsD/statsD sink.
+	cacheSink := metricscache.NewSink()
+	conf := metrics.DefaultConfig("")
+	conf.EnableHostname = false
+	_, err := metrics.NewGlobal(conf, cacheSink)
+	if err != nil {
+		return err
+	}
+
 	tls, err := cdp.cfg.Consul.TLS.Load()
 	if err != nil {
 		return err
@@ -178,8 +192,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to run proxy: %w", err)
 	}
 
-	cdp.metricsConfig = NewMetricsConfig(cdp.cfg)
-
+	cdp.metricsConfig = NewMetricsConfig(cdp.cfg, cacheSink)
 	err = cdp.metricsConfig.startMetrics(ctx, bootstrapCfg)
 	if err != nil {
 		return err

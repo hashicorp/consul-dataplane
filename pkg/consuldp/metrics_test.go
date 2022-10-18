@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
+	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,6 +35,7 @@ func TestMetricsServerClosed(t *testing.T) {
 		envoyAdminAddr:     envoyMetricsAddr,
 		envoyAdminBindPort: envoyMetricsPort,
 		errorExitCh:        make(chan struct{}),
+		cacheSink:          metricscache.NewSink(),
 
 		client: &http.Client{
 			Timeout: 10 * time.Second,
@@ -103,6 +105,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 				envoyAdminAddr:     envoyMetricsAddr,
 				envoyAdminBindPort: envoyMetricsPort,
 				errorExitCh:        make(chan struct{}),
+				cacheSink:          metricscache.NewSink(),
 
 				client: &http.Client{
 					Timeout: 10 * time.Second,
