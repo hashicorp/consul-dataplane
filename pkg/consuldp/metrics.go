@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/go-hclog"
@@ -50,6 +51,9 @@ type metricsConfig struct {
 	cfg                *TelemetryConfig
 	envoyAdminAddr     string
 	envoyAdminBindPort int
+
+	statsdUrl    string
+	dogstatsTags []string
 
 	// merged metrics config
 	promScrapeServer *http.Server // the server that will serve all the merged metrics
@@ -122,9 +126,21 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			go m.startPrometheusMetricsSink()
 
 		case bcfg.StatsdURL != "":
-			// TODO: send merged metrics
+			m.statsdUrl = bcfg.StatsdURL
+
+			err := m.configureCDPMetricSinks(Statsd)
+			if err != nil {
+				return fmt.Errorf("failure enabling consul dataplane metrics for statsd: %w", err)
+			}
+
 		case bcfg.DogstatsdURL != "":
-			// TODO: send merged metrics
+			m.statsdUrl = bcfg.DogstatsdURL
+			m.dogstatsTags = bcfg.StatsTags
+
+			err := m.configureCDPMetricSinks(Dogstatsd)
+			if err != nil {
+				return fmt.Errorf("failure enabling consul dataplane metrics for dogstatsD: %w", err)
+			}
 		}
 	} else {
 		// send metrics to black hole if they aren't being configured.
@@ -254,7 +270,8 @@ func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.Prometheu
 // configureCDPMetricSinks setups the sinks configuration for the Stats type that is
 // passed in.
 func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
-
+	cfgs := metrics.DefaultConfig("consul_dataplane")
+	cfgs.EnableHostname = false
 	switch s {
 	case Prometheus:
 		r, opts, err := m.getPromDefaults()
@@ -270,13 +287,20 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		m.cacheSink.SetSink(sink)
 
 		go m.runCDPMetricsServer(r)
-
-	case Dogstatsd:
-		// TODO
-		// datadog.NewDogStatsdSink()
 	case Statsd:
-		// TODO
-		// metrics.NewStatsdSink()
+		sink, err := metrics.NewStatsdSink(m.statsdUrl)
+		if err != nil {
+			return err
+		}
+		m.cacheSink.SetSink(sink)
+	case Dogstatsd:
+
+		sink, err := datadog.NewDogStatsdSink(m.statsdUrl, cfgs.HostName)
+		if err != nil {
+			return err
+		}
+		sink.SetTags(m.dogstatsTags)
+		m.cacheSink.SetSink(sink)
 	}
 	return nil
 

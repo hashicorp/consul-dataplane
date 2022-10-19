@@ -13,16 +13,42 @@ import (
 	"testing"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
 	"github.com/stretchr/testify/require"
 )
 
 var (
+	dogStatsdAddr    = "127.0.0.1"
 	envoyMetricsPort = 19000
 	envoyMetricsAddr = "127.0.0.1"
 	envoyMetricsUrl  = fmt.Sprintf("http://%s:%v/stats/prometheus", envoyMetricsAddr, envoyMetricsPort)
+
+	emptyTags = []metrics.Label{}
 )
+
+func setupTestServerAndBuffer(t *testing.T) (*net.UDPConn, []byte) {
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%v:%v", dogStatsdAddr, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server, make([]byte, 1024)
+}
+
+func assertServerMatchesExpected(t *testing.T, server *net.UDPConn, buf []byte, expected string) {
+	t.Helper()
+	n, _ := server.Read(buf)
+	msg := string(buf[:n])
+
+	if msg != expected {
+		t.Fatalf("Line %s does not match expected: %s", msg, expected)
+	}
+}
 
 func TestMetricsServerClosed(t *testing.T) {
 	telem := &TelemetryConfig{
@@ -173,4 +199,204 @@ func (c *mockClient) Get(url string) (*http.Response, error) {
 
 func makeFakeMetric(url string) string {
 	return fmt.Sprintf(`fake_metric{url="%s"} 1\n`, url)
+}
+
+func TestMetricsStatsD(t *testing.T) {
+	tag := "my_tag"
+	tagValue := "my_value"
+	prefix := "consul_dataplane"
+
+	testMetrics := []struct {
+		Method   string
+		Metric   []string
+		Value    float32
+		Tags     []metrics.Label
+		Expected string
+	}{
+		{"SetGauge", []string{"foo", "bar"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar:42.000000|g\n", prefix)},
+		{"SetGauge", []string{"foo", "bar", "baz"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar.baz:42.000000|g\n", prefix)},
+		{"AddSample", []string{"sample", "thing"}, float32(4), emptyTags, fmt.Sprintf("%v.sample.thing:4.000000|ms\n", prefix)},
+		{"IncrCounter", []string{"count", "me"}, float32(3), emptyTags, fmt.Sprintf("%v.count.me:3.000000|c\n", prefix)},
+
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: ""}}, fmt.Sprintf("%v.foo.baz.:42.000000|g\n", prefix)},
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}}, fmt.Sprintf("%v.foo.baz.my_value:42.000000|g\n", prefix)},
+		{"SetGauge", []string{"foo", "bar"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}, {Name: "other_tag", Value: "other_value"}}, fmt.Sprintf("%v.foo.bar.my_value.other_value:42.000000|g\n", prefix)},
+	}
+
+	server, buf := setupTestServerAndBuffer(t)
+	defer server.Close()
+
+	port := int(server.LocalAddr().(*net.UDPAddr).Port)
+
+	telem := &TelemetryConfig{
+		UseCentralConfig: true,
+	}
+	cacheSink := metricscache.NewSink()
+	cfg := metrics.DefaultConfig(prefix)
+	cfg.EnableHostname = false
+	_, _ = metrics.NewGlobal(cfg, cacheSink)
+
+	m := &metricsConfig{
+		mu:                 sync.Mutex{},
+		cfg:                telem,
+		envoyAdminAddr:     envoyMetricsAddr,
+		envoyAdminBindPort: envoyMetricsPort,
+		errorExitCh:        make(chan struct{}),
+		cacheSink:          cacheSink,
+
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{StatsdURL: fmt.Sprintf("%v:%v", dogStatsdAddr, port)})
+
+	for _, tt := range testMetrics {
+		t.Run(tt.Method, func(t *testing.T) {
+			switch tt.Method {
+			case "SetGauge":
+				metrics.SetGaugeWithLabels(tt.Metric, tt.Value, tt.Tags)
+			case "AddSample":
+				metrics.AddSampleWithLabels(tt.Metric, tt.Value, tt.Tags)
+			case "IncrCounter":
+				metrics.IncrCounterWithLabels(tt.Metric, tt.Value, tt.Tags)
+			}
+			assertServerMatchesExpected(t, server, buf, tt.Expected)
+		})
+	}
+
+}
+
+func TestMetricsDatadogWithoutGlobalTags(t *testing.T) {
+	tag := "my_tag"
+	tagValue := "my_value"
+	prefix := "consul_dataplane"
+
+	testMetrics := []struct {
+		Method   string
+		Metric   []string
+		Value    float32
+		Tags     []metrics.Label
+		Expected string
+	}{
+		{"SetGauge", []string{"foo", "bar"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar:42|g", prefix)},
+		{"SetGauge", []string{"foo", "bar", "baz"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar.baz:42|g", prefix)},
+		{"AddSample", []string{"sample", "thing"}, float32(4), emptyTags, fmt.Sprintf("%v.sample.thing:4.000000|ms", prefix)},
+		{"IncrCounter", []string{"count", "me"}, float32(3), emptyTags, fmt.Sprintf("%v.count.me:3|c", prefix)},
+
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: ""}}, fmt.Sprintf("%v.foo.baz:42|g|#my_tag", prefix)},
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}}, fmt.Sprintf("%v.foo.baz:42|g|#my_tag:my_value", prefix)},
+		{"SetGauge", []string{"foo", "bar"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}, {Name: "other_tag", Value: "other_value"}}, fmt.Sprintf("%v.foo.bar:42|g|#my_tag:my_value,other_tag:other_value", prefix)},
+	}
+
+	server, buf := setupTestServerAndBuffer(t)
+	defer server.Close()
+
+	port := int(server.LocalAddr().(*net.UDPAddr).Port)
+
+	telem := &TelemetryConfig{
+		UseCentralConfig: true,
+	}
+	cacheSink := metricscache.NewSink()
+	_, _ = metrics.NewGlobal(metrics.DefaultConfig(prefix), cacheSink)
+
+	m := &metricsConfig{
+		mu:                 sync.Mutex{},
+		cfg:                telem,
+		envoyAdminAddr:     envoyMetricsAddr,
+		envoyAdminBindPort: envoyMetricsPort,
+		errorExitCh:        make(chan struct{}),
+		cacheSink:          cacheSink,
+
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{DogstatsdURL: fmt.Sprintf("%v:%v", dogStatsdAddr, port)})
+
+	for _, tt := range testMetrics {
+		t.Run(tt.Method, func(t *testing.T) {
+			switch tt.Method {
+			case "SetGauge":
+				metrics.SetGaugeWithLabels(tt.Metric, tt.Value, tt.Tags)
+			case "AddSample":
+				metrics.AddSampleWithLabels(tt.Metric, tt.Value, tt.Tags)
+			case "IncrCounter":
+				metrics.IncrCounterWithLabels(tt.Metric, tt.Value, tt.Tags)
+			}
+			assertServerMatchesExpected(t, server, buf, tt.Expected)
+		})
+	}
+
+}
+
+func TestMetricsDatadogWithGlobalTags(t *testing.T) {
+	tag := "my_tag"
+	tagValue := "my_value"
+	prefix := "consul_dataplane"
+	globalTags := "gtag:gvalue"
+
+	testMetrics := []struct {
+		Method   string
+		Metric   []string
+		Value    float32
+		Tags     []metrics.Label
+		Expected string
+	}{
+		{"SetGauge", []string{"foo", "bar"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar:42|g|#%v", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "bar", "baz"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar.baz:42|g|#%v", prefix, globalTags)},
+		{"AddSample", []string{"sample", "thing"}, float32(4), emptyTags, fmt.Sprintf("%v.sample.thing:4.000000|ms|#%v", prefix, globalTags)},
+		{"IncrCounter", []string{"count", "me"}, float32(3), emptyTags, fmt.Sprintf("%v.count.me:3|c|#%v", prefix, globalTags)},
+
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: ""}}, fmt.Sprintf("%v.foo.baz:42|g|#%v,my_tag", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}}, fmt.Sprintf("%v.foo.baz:42|g|#%v,my_tag:my_value", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "bar"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}, {Name: "other_tag", Value: "other_value"}}, fmt.Sprintf("%v.foo.bar:42|g|#%v,my_tag:my_value,other_tag:other_value", prefix, globalTags)},
+	}
+
+	server, buf := setupTestServerAndBuffer(t)
+	server.LocalAddr().Network()
+	defer server.Close()
+	port := int(server.LocalAddr().(*net.UDPAddr).Port)
+
+	telem := &TelemetryConfig{
+		UseCentralConfig: true,
+	}
+	cacheSink := metricscache.NewSink()
+	_, _ = metrics.NewGlobal(metrics.DefaultConfig(prefix), cacheSink)
+
+	m := &metricsConfig{
+		mu:                 sync.Mutex{},
+		cfg:                telem,
+		envoyAdminAddr:     envoyMetricsAddr,
+		envoyAdminBindPort: envoyMetricsPort,
+		errorExitCh:        make(chan struct{}),
+		cacheSink:          cacheSink,
+
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{DogstatsdURL: fmt.Sprintf("%v:%v", dogStatsdAddr, port), StatsTags: []string{globalTags}})
+
+	for _, tt := range testMetrics {
+		t.Run(tt.Method, func(t *testing.T) {
+			switch tt.Method {
+			case "SetGauge":
+				metrics.SetGaugeWithLabels(tt.Metric, tt.Value, tt.Tags)
+			case "AddSample":
+				metrics.AddSampleWithLabels(tt.Metric, tt.Value, tt.Tags)
+			case "IncrCounter":
+				metrics.IncrCounterWithLabels(tt.Metric, tt.Value, tt.Tags)
+			}
+			assertServerMatchesExpected(t, server, buf, tt.Expected)
+		})
+	}
 }
