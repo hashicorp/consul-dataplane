@@ -214,7 +214,7 @@ jobs:
           version: ${{env.version}}
           target: release-ubi
           arch: amd64
-          redhat_tag: scan.connect.redhat.com/ospid-631f805e0d15f623c5996c2e/${{env.repo}}:${{env.version}}-ubi
+          redhat_tag: quay.io/redhat-isv-containers/631f805e0d15f623c5996c2e/${{env.repo}}:${{env.version}}-ubi
 
   build-docker-ubi-dockerhub:
     name: Docker ${{ matrix.arch }} UBI build for DockerHub
