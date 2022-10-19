@@ -123,7 +123,7 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 				Handler: mux,
 			}
 			// Start prometheus metrics sink
-			go m.startPrometheusMetricsSink()
+			go m.startPrometheusMergedMetricsSink()
 
 		case bcfg.StatsdURL != "":
 			m.statsdUrl = bcfg.StatsdURL
@@ -151,9 +151,9 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 	return nil
 }
 
-// startPrometheusMetricsSink starts the main merged metrics server that prometheus
+// startPrometheusMergedMetricsSink starts the main merged metrics server that prometheus
 // will actually be scraping.
-func (m *metricsConfig) startPrometheusMetricsSink() {
+func (m *metricsConfig) startPrometheusMergedMetricsSink() {
 	m.logger.Info("starting merged metrics server", "address", m.promScrapeServer.Addr)
 	err := m.promScrapeServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
@@ -286,7 +286,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		// replay out metrics recorded to the cache.
 		m.cacheSink.SetSink(sink)
 
-		go m.runCDPMetricsServer(r)
+		go m.runPrometheusCDPServer(r)
 	case Statsd:
 		sink, err := metrics.NewStatsdSink(m.statsdUrl)
 		if err != nil {
@@ -306,10 +306,10 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 
 }
 
-// runCDPMetricsServer takes a prom.Gatherer that will create a handler
+// runPrometheusCDPServer takes a prom.Gatherer that will create a handler
 // for http calls to the metrics endpoint and return prometheus style metrics.
 // Eventually these metrics will be scraped and merged.
-func (m *metricsConfig) runCDPMetricsServer(gather prom.Gatherer) {
+func (m *metricsConfig) runPrometheusCDPServer(gather prom.Gatherer) {
 	m.cdpMetricsServer = &http.Server{
 		Addr: cdpMetricsBindAddr,
 		Handler: promhttp.HandlerFor(gather, promhttp.HandlerOpts{
