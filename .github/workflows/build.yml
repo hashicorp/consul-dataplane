@@ -256,3 +256,48 @@ jobs:
           dev_tags: |
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
+
+  integration-tests:
+    name: Integration Tests (Consul ${{ matrix.server.version }})
+    needs:
+      - build-docker-default
+      - get-product-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        server:
+          # TODO: change this once 1.14 GA ships (beta1 doesn't support central
+          # service configuration, which breaks the integration tests)
+          - version: v1.14-dev
+            image: hashicorppreview/consul:1.14-dev
+    env:
+      repo: ${{ github.event.repository.name }}
+      version: ${{ needs.get-product-version.outputs.product-version }}
+    steps:
+      - name: Set docker dev tag
+        run: |
+          version="${{env.version}}"
+          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
+      - name: Set image tarball
+        run: |
+          echo "image_tarball=${{env.repo}}_release-default_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{env.image_tarball}}
+      - run: docker load --input ${{env.image_tarball}}
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
+      - id: run-tests
+        run: cd integration-tests && go test -v -output-dir=./output -dataplane-image=hashicorppreview/${{env.repo}}:${{env.dev_tag}}-${{github.sha}} -server-image=${{matrix.server.image}}
+        continue-on-error: true
+      - uses: actions/upload-artifact@v3
+        continue-on-error: true
+        with:
+          name: consul-${{matrix.server.version}}-integration-tests-output
+          path: integration-tests/output/
+          if-no-files-found: 'error'
+      - name: Check for failures
+        if: ${{ steps.run-tests.outcome != 'success' }}
+        run: exit 1

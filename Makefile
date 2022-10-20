@@ -109,3 +109,10 @@ ifdef LAST_RELEASE_GIT_TAG
 else
 	$(error Cannot generate changelog without LAST_RELEASE_GIT_TAG)
 endif
+
+INTEGRATION_TESTS_SERVER_IMAGE    ?= hashicorppreview/consul:1.14-dev
+INTEGRATION_TESTS_DATAPLANE_IMAGE ?= $(PRODUCT_NAME)/release-default:$(VERSION)
+
+.PHONY: integration-tests
+integration-tests: docker/release-default
+	cd integration-tests && go test -v ./ -output-dir="$(INTEGRATION_TESTS_OUTPUT_DIR)" -dataplane-image="$(INTEGRATION_TESTS_DATAPLANE_IMAGE)" -server-image="$(INTEGRATION_TESTS_SERVER_IMAGE)"
