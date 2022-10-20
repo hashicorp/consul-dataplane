@@ -57,10 +57,12 @@ func TestMetricsServerEnabled(t *testing.T) {
 	mergedMetricsBackendBindAddr := mergedMetricsBackendBindHost + defaultMergedMetricsBackendBindPort
 	cases := map[string]struct {
 		telemetry  *TelemetryConfig
+		bindAddr   string
 		expMetrics []string
 	}{
 		"no service metrics": {
 			telemetry: &TelemetryConfig{UseCentralConfig: true},
+			bindAddr:  mergedMetricsBackendBindAddr,
 			expMetrics: []string{
 				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
@@ -73,6 +75,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 					ServiceMetricsURL: "fake-service-metrics-url",
 				},
 			},
+			bindAddr: mergedMetricsBackendBindAddr,
 			expMetrics: []string{
 				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
@@ -89,6 +92,25 @@ func TestMetricsServerEnabled(t *testing.T) {
 					ScrapePath: "/test/scrape/path",
 				},
 			},
+			bindAddr: mergedMetricsBackendBindAddr,
+			expMetrics: []string{
+				makeFakeMetric(cdpMetricsUrl),
+				makeFakeMetric(envoyMetricsUrl),
+				makeFakeMetric("fake-service-metrics-url"),
+			},
+		},
+		"custom merge port": {
+			telemetry: &TelemetryConfig{
+				UseCentralConfig: true,
+				Prometheus: PrometheusTelemetryConfig{
+					MergePort:         1234,
+					ServiceMetricsURL: "fake-service-metrics-url",
+					// ScrapePath does not affect Consul Dataplane's metrics server.
+					// It only affects where Envoy serves metrics.
+					ScrapePath: "/test/scrape/path",
+				},
+			},
+			bindAddr: mergedMetricsBackendBindHost + "1234",
 			expMetrics: []string{
 				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
@@ -127,7 +149,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 			defer cancel()
 			err := m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
 			require.NoError(t, err)
-			require.Equal(t, mergedMetricsBackendBindAddr, m.promScrapeServer.Addr)
+			require.Equal(t, c.bindAddr, m.promScrapeServer.Addr)
 
 			// Have consul-dataplane's metrics server start on an open port.
 			// And figure out what port was used so we can make requests to it.
