@@ -6,7 +6,7 @@
 
 # envoy-binary pulls in the latest Envoy binary, as Envoy don't publish
 # prebuilt binaries in any other form.
-FROM envoyproxy/envoy:v1.23.1 as envoy-binary
+FROM envoyproxy/envoy-distroless:v1.23.1 as envoy-binary
 
 # go-discover builds the discover binary (which we don't currently publish
 # either).
