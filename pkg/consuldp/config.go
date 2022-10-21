@@ -254,6 +254,8 @@ type PrometheusTelemetryConfig struct {
 	ServiceMetricsURL string
 	// ScrapePath is the URL path where Envoy serves Prometheus metrics.
 	ScrapePath string
+	// MergePort is the port to server merged metrics.
+	MergePort int
 }
 
 // EnvoyConfig contains configuration for the Envoy process.

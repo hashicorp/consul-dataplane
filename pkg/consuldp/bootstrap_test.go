@@ -98,6 +98,7 @@ func TestBootstrapConfig(t *testing.T) {
 				Telemetry: &TelemetryConfig{
 					UseCentralConfig: true,
 					Prometheus: PrometheusTelemetryConfig{
+						MergePort:  20100,
 						ScrapePath: "/custom/scrape/path",
 					},
 				},
