@@ -45,9 +45,8 @@ func assertServerMatchesExpected(t *testing.T, server *net.UDPConn, buf []byte, 
 	n, _ := server.Read(buf)
 	msg := string(buf[:n])
 
-	if msg != expected {
-		t.Fatalf("Line %s does not match expected: %s", msg, expected)
-	}
+	require.Equal(t, msg, expected, fmt.Sprintf("Line %s does not match expected: %s", msg, expected))
+
 }
 
 func TestMetricsServerClosed(t *testing.T) {
