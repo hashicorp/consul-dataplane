@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: hashicorp/actions-go-build@v0
+      - uses: hashicorp/actions-go-build@v0.1.3
         with:
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.get-product-version.outputs.product-version }}
@@ -142,7 +142,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: hashicorp/actions-go-build@v0
+      - uses: hashicorp/actions-go-build@v0.1.3
         with:
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.get-product-version.outputs.product-version }}
@@ -214,7 +214,7 @@ jobs:
           version: ${{env.version}}
           target: release-ubi
           arch: amd64
-          redhat_tag: scan.connect.redhat.com/ospid-631f805e0d15f623c5996c2e/${{env.repo}}:${{env.version}}-ubi
+          redhat_tag: quay.io/redhat-isv-containers/631f805e0d15f623c5996c2e:${{env.version}}-ubi
 
   build-docker-ubi-dockerhub:
     name: Docker ${{ matrix.arch }} UBI build for DockerHub

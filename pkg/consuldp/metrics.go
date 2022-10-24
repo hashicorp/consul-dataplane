@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -27,9 +28,9 @@ type Stats int
 const (
 	// mergedMetricsBackendBindPort is the port which will serve the merged
 	// metrics. The envoy bootstrap config uses this port to setup the publicly
-	// available scarpe url that prometheus listener which will point to this port
-	mergedMetricsBackendBindPort = "20100"
-	mergedMetricsBackendBindAddr = "127.0.0.1:" + mergedMetricsBackendBindPort
+	// available scrape url that prometheus listener which will point to this port
+	defaultMergedMetricsBackendBindPort = "20100"
+	mergedMetricsBackendBindHost        = "127.0.0.1:"
 
 	// The consul dataplane specific metrics will be exposed on this port on the loopback
 	cdpMetricsBindPort = "20101"
@@ -104,25 +105,31 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 
 		switch {
 		case bcfg.PrometheusBindAddr != "":
-			// 1. start consul dataplane metric sinks of type Prometheus
+			// 1. start consul dataplane metric sinks of type Prometheus.
 			err := m.configureCDPMetricSinks(Prometheus)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for prometheus: %w", err)
 			}
 
 			// 2. Setup prometheus handler for the merged metrics endpoint that prometheus
-			// will actually scrape
+			// will actually scrape.
 			mux := http.NewServeMux()
 			mux.HandleFunc("/stats/prometheus", m.mergedMetricsHandler)
 			m.urls = []string{cdpMetricsUrl, fmt.Sprintf("http://%s:%v/stats/prometheus", m.envoyAdminAddr, m.envoyAdminBindPort)}
 			if m.cfg != nil && m.cfg.Prometheus.ServiceMetricsURL != "" {
 				m.urls = append(m.urls, m.cfg.Prometheus.ServiceMetricsURL)
 			}
+
+			// 3. Determine what the merged metrics bind port is. It can be set as a flag.
+			mergedMetricsBackendBindPort := defaultMergedMetricsBackendBindPort
+			if m.cfg.Prometheus.MergePort != 0 {
+				mergedMetricsBackendBindPort = strconv.Itoa(m.cfg.Prometheus.MergePort)
+			}
 			m.promScrapeServer = &http.Server{
-				Addr:    mergedMetricsBackendBindAddr,
+				Addr:    mergedMetricsBackendBindHost + mergedMetricsBackendBindPort,
 				Handler: mux,
 			}
-			// Start prometheus metrics sink
+			// 4. Start prometheus metrics sink
 			go m.startPrometheusMergedMetricsSink()
 
 		case bcfg.StatsdURL != "":
