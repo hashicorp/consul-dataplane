@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
@@ -261,10 +262,10 @@ func non2xxCode(code int) bool {
 func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.PrometheusOpts, error) {
 	r := prom.NewRegistry()
 	reg := prom.WrapRegistererWithPrefix("consul_dataplane_", r)
-	// err := reg.Register(collectors.NewGoCollector())
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
+	err := reg.Register(collectors.NewGoCollector())
+	if err != nil {
+		return nil, nil, err
+	}
 	opts := &prometheus.PrometheusOpts{
 		Registerer:       reg,
 		GaugeDefinitions: append(gauges, discovery.Gauges...),
