@@ -148,6 +148,7 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 				return fmt.Errorf("failure enabling consul dataplane metrics for dogstatsD: %w", err)
 			}
 		}
+		// Set the cache sink with the fanout sinks which will trigger a replay to all of the children sinks
 		m.cacheSink.SetSink(m.sinks)
 	} else {
 		// send metrics to black hole if they aren't being configured.
@@ -288,8 +289,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		if err != nil {
 			return err
 		}
-		// we set the cache sink to be the prometheus sink to
-		// replay out metrics recorded to the cache.
+		// Append the prometheus sink to the fanout sink
 		m.sinks = append(m.sinks, sink)
 
 		go m.runPrometheusCDPServer(r)
@@ -298,6 +298,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		if err != nil {
 			return err
 		}
+		// Append the statsd sink to the fanout sink
 		m.sinks = append(m.sinks, sink)
 	case Dogstatsd:
 
@@ -306,6 +307,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 			return err
 		}
 		sink.SetTags(m.dogstatsTags)
+		// Append the dogstatsd sink to the fanout sink
 		m.sinks = append(m.sinks, sink)
 	}
 	return nil
