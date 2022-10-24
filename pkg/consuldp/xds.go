@@ -8,7 +8,6 @@ import (
 
 	"github.com/adamthesax/grpc-proxy/proxy"
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -113,13 +112,12 @@ func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServ
 
 func (cdp *ConsulDataplane) streamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		return handler(srv, &metricServerStream{ss, cdp.logger}) // blocking if connected so envoy not connecting will end up being quite spiky
+		return handler(srv, &metricServerStream{ss})
 	}
 }
 
 type metricServerStream struct {
 	grpc.ServerStream
-	logger hclog.Logger
 }
 
 func (s *metricServerStream) SendMsg(m interface{}) error {
