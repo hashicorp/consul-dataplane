@@ -151,6 +151,14 @@ github.com/googleapis/gax-go/v2 v2.0.5/go.mod h1:DWXyrwAJ9X0FpwwEdw+IPEYBICEFu5m
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/hashicorp/consul-server-connection-manager v0.0.0-20221014171920-1e2af7207415 h1:NZnQy0p2YjL9L+tsFqHWs4MubbDxCi4aJEFOI0uvaTo=
 github.com/hashicorp/consul-server-connection-manager v0.0.0-20221014171920-1e2af7207415/go.mod h1:M4QVHe3V96rwbf1HHYQlEe6XGagLENeh+r8BhcVL4jA=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019033606-ec980d48ec87 h1:cZ28cSkR03udtjCTCzkq7MUG4mRR2/iNc0liQZqh5bM=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019033606-ec980d48ec87/go.mod h1:M4QVHe3V96rwbf1HHYQlEe6XGagLENeh+r8BhcVL4jA=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019034147-2c35067f37c7 h1:ttX0OM4nnQWDQ1TF0VHd6fZ1CIl8Tx//Kp+LWbBTtw0=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019034147-2c35067f37c7/go.mod h1:M4QVHe3V96rwbf1HHYQlEe6XGagLENeh+r8BhcVL4jA=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019034955-97bf56c8639c h1:mOl4Fm1hLSZTC0WIiKCGvAgEN3LR8dpiNfTE1lrnD0w=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019034955-97bf56c8639c/go.mod h1:M4QVHe3V96rwbf1HHYQlEe6XGagLENeh+r8BhcVL4jA=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019035424-92b8d7c2ce17 h1:TrH2uVDXHg2nUNsBDh9GGrf7BqA+SpBp2sy2KZrfQI8=
+github.com/hashicorp/consul-server-connection-manager v0.0.0-20221019035424-92b8d7c2ce17/go.mod h1:M4QVHe3V96rwbf1HHYQlEe6XGagLENeh+r8BhcVL4jA=
 github.com/hashicorp/consul/proto-public v0.1.1 h1:C28d6xX+DwoD2dSex/kwD0/nJ4XNgoBtQXtZEm4FGEk=
 github.com/hashicorp/consul/proto-public v0.1.1/go.mod h1:vs2KkuWwtjkIgA5ezp4YKPzQp4GitV+q/+PvksrA92k=
 github.com/hashicorp/consul/sdk v0.11.0 h1:HRzj8YSCln2yGgCumN5CL8lYlD3gBurnervJRJAZyC4=

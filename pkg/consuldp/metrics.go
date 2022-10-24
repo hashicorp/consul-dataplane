@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
@@ -49,6 +48,7 @@ type metricsConfig struct {
 	logger hclog.Logger
 
 	cacheSink          *metricscache.Sink
+	sinks              metrics.FanoutSink
 	cfg                *TelemetryConfig
 	envoyAdminAddr     string
 	envoyAdminBindPort int
@@ -103,9 +103,8 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			m.stopMetricsServers()
 		}()
 
-		switch {
-		case bcfg.PrometheusBindAddr != "":
-			// 1. start consul dataplane metric sinks of type Prometheus.
+		if bcfg.PrometheusBindAddr != "" {
+			// 1. start consul dataplane metric sinks of type Prometheus
 			err := m.configureCDPMetricSinks(Prometheus)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for prometheus: %w", err)
@@ -131,16 +130,16 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			}
 			// 4. Start prometheus metrics sink
 			go m.startPrometheusMergedMetricsSink()
-
-		case bcfg.StatsdURL != "":
+		}
+		if bcfg.StatsdURL != "" {
 			m.statsdUrl = bcfg.StatsdURL
 
 			err := m.configureCDPMetricSinks(Statsd)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for statsd: %w", err)
 			}
-
-		case bcfg.DogstatsdURL != "":
+		}
+		if bcfg.DogstatsdURL != "" {
 			m.statsdUrl = bcfg.DogstatsdURL
 			m.dogstatsTags = bcfg.StatsTags
 
@@ -149,10 +148,10 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 				return fmt.Errorf("failure enabling consul dataplane metrics for dogstatsD: %w", err)
 			}
 		}
+		m.cacheSink.SetSink(m.sinks)
 	} else {
 		// send metrics to black hole if they aren't being configured.
 		m.cacheSink.SetSink(&metrics.BlackholeSink{})
-
 	}
 
 	return nil
@@ -261,10 +260,10 @@ func non2xxCode(code int) bool {
 func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.PrometheusOpts, error) {
 	r := prom.NewRegistry()
 	reg := prom.WrapRegistererWithPrefix("consul_dataplane_", r)
-	err := reg.Register(collectors.NewGoCollector())
-	if err != nil {
-		return nil, nil, err
-	}
+	// err := reg.Register(collectors.NewGoCollector())
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
 	opts := &prometheus.PrometheusOpts{
 		Registerer:       reg,
 		GaugeDefinitions: append(gauges, discovery.Gauges...),
@@ -291,7 +290,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		}
 		// we set the cache sink to be the prometheus sink to
 		// replay out metrics recorded to the cache.
-		m.cacheSink.SetSink(sink)
+		m.sinks = append(m.sinks, sink)
 
 		go m.runPrometheusCDPServer(r)
 	case Statsd:
@@ -299,7 +298,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		if err != nil {
 			return err
 		}
-		m.cacheSink.SetSink(sink)
+		m.sinks = append(m.sinks, sink)
 	case Dogstatsd:
 
 		sink, err := datadog.NewDogStatsdSink(m.statsdUrl, cfgs.HostName)
@@ -307,7 +306,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 			return err
 		}
 		sink.SetTags(m.dogstatsTags)
-		m.cacheSink.SetSink(sink)
+		m.sinks = append(m.sinks, sink)
 	}
 	return nil
 
