@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -24,6 +25,19 @@ import (
 )
 
 type Stats int
+
+func (s Stats) String() string {
+	switch s {
+	case Prometheus:
+		return "prometheus"
+	case Dogstatsd:
+		return "dogstatsD"
+	case Statsd:
+		return "statsD"
+	default:
+		return "default"
+	}
+}
 
 const (
 	// mergedMetricsBackendBindPort is the port which will serve the merged
@@ -49,12 +63,15 @@ type metricsConfig struct {
 	logger hclog.Logger
 
 	cacheSink          *metricscache.Sink
+	sinks              metrics.FanoutSink
 	cfg                *TelemetryConfig
 	envoyAdminAddr     string
 	envoyAdminBindPort int
 
-	statsdUrl    string
-	dogstatsTags []string
+	statsDAddr string
+
+	dogstatsDAddr string
+	dogstatsTags  []string
 
 	// merged metrics config
 	promScrapeServer *http.Server // the server that will serve all the merged metrics
@@ -103,9 +120,8 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			m.stopMetricsServers()
 		}()
 
-		switch {
-		case bcfg.PrometheusBindAddr != "":
-			// 1. start consul dataplane metric sinks of type Prometheus.
+		if bcfg.PrometheusBindAddr != "" {
+			// 1. start consul dataplane metric sinks of type Prometheus
 			err := m.configureCDPMetricSinks(Prometheus)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for prometheus: %w", err)
@@ -131,28 +147,36 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			}
 			// 4. Start prometheus metrics sink
 			go m.startPrometheusMergedMetricsSink()
-
-		case bcfg.StatsdURL != "":
-			m.statsdUrl = bcfg.StatsdURL
-
-			err := m.configureCDPMetricSinks(Statsd)
+		}
+		if bcfg.StatsdURL != "" {
+			addr, err := parseSinkAddr(bcfg.StatsdURL, Statsd)
+			if err != nil {
+				return err
+			}
+			m.statsDAddr = addr
+			err = m.configureCDPMetricSinks(Statsd)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for statsd: %w", err)
 			}
-
-		case bcfg.DogstatsdURL != "":
-			m.statsdUrl = bcfg.DogstatsdURL
+		}
+		if bcfg.DogstatsdURL != "" {
+			dogstatsDAddr, err := parseSinkAddr(bcfg.DogstatsdURL, Dogstatsd)
+			if err != nil {
+				return err
+			}
+			m.dogstatsDAddr = dogstatsDAddr
 			m.dogstatsTags = bcfg.StatsTags
 
-			err := m.configureCDPMetricSinks(Dogstatsd)
+			err = m.configureCDPMetricSinks(Dogstatsd)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for dogstatsD: %w", err)
 			}
 		}
+		// Set the cache sink with the fanout sinks which will trigger a replay to all of the children sinks
+		m.cacheSink.SetSink(m.sinks)
 	} else {
 		// send metrics to black hole if they aren't being configured.
 		m.cacheSink.SetSink(&metrics.BlackholeSink{})
-
 	}
 
 	return nil
@@ -289,25 +313,26 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		if err != nil {
 			return err
 		}
-		// we set the cache sink to be the prometheus sink to
-		// replay out metrics recorded to the cache.
-		m.cacheSink.SetSink(sink)
+		// Append the prometheus sink to the fanout sink
+		m.sinks = append(m.sinks, sink)
 
 		go m.runPrometheusCDPServer(r)
 	case Statsd:
-		sink, err := metrics.NewStatsdSink(m.statsdUrl)
+		sink, err := metrics.NewStatsdSink(m.statsDAddr)
 		if err != nil {
 			return err
 		}
-		m.cacheSink.SetSink(sink)
+		// Append the statsd sink to the fanout sink
+		m.sinks = append(m.sinks, sink)
 	case Dogstatsd:
 
-		sink, err := datadog.NewDogStatsdSink(m.statsdUrl, cfgs.HostName)
+		sink, err := datadog.NewDogStatsdSink(m.dogstatsDAddr, cfgs.HostName)
 		if err != nil {
 			return err
 		}
 		sink.SetTags(m.dogstatsTags)
-		m.cacheSink.SetSink(sink)
+		// Append the dogstatsd sink to the fanout sink
+		m.sinks = append(m.sinks, sink)
 	}
 	return nil
 
@@ -328,4 +353,23 @@ func (m *metricsConfig) runPrometheusCDPServer(gather prom.Gatherer) {
 		m.logger.Error("failed to serve metrics requests", "error", err)
 		close(m.errorExitCh)
 	}
+}
+
+func parseSinkAddr(addr string, s Stats) (string, error) {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse address %s", addr)
+	}
+	var address string
+	switch {
+	case s == Prometheus:
+		return "", fmt.Errorf("prometheus not implemented")
+	case u.Scheme == "udp":
+		address = fmt.Sprintf("%s:%s", u.Hostname(), u.Port())
+	case u.Scheme == "unix" && s == Dogstatsd:
+		address = addr
+	default:
+		return "", fmt.Errorf("unsupported addr: %s for sink type: %s", addr, s)
+	}
+	return address, nil
 }
