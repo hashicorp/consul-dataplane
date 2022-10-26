@@ -25,6 +25,19 @@ import (
 
 type Stats int
 
+func (s Stats) String() string {
+	switch s {
+	case Prometheus:
+		return "prometheus"
+	case Dogstatsd:
+		return "dogstatsD"
+	case Statsd:
+		return "statsD"
+	default:
+		return "default"
+	}
+}
+
 const (
 	// mergedMetricsBackendBindPort is the port which will serve the merged
 	// metrics. The envoy bootstrap config uses this port to setup the publicly
