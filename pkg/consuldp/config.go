@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/go-rootcerts"
@@ -236,7 +237,7 @@ type TelemetryConfig struct {
 // PrometheusTelemetryConfig contains Prometheus-specific telemetry config.
 type PrometheusTelemetryConfig struct {
 	// RetentionTime controls the duration that metrics are aggregated for.
-	RetentionTime string
+	RetentionTime time.Duration
 	// CACertsPath is a path to a file or directory containing CA certificates
 	// to use to verify the Prometheus server's certificate. This is only
 	// necessary if the server presents a certificate that isn't signed by a
