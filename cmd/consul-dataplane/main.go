@@ -144,6 +144,10 @@ func validateFlags() {
 	default:
 		log.Fatal("invalid log level. valid values - TRACE, DEBUG, INFO, WARN, ERROR")
 	}
+
+	if promRetentionTime <= 0 {
+		log.Fatal("Prometheus retention time must be greater than 0")
+	}
 }
 
 func main() {
