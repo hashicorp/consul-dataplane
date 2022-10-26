@@ -266,6 +266,7 @@ func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.Prometheu
 		return nil, nil, err
 	}
 	opts := &prometheus.PrometheusOpts{
+		Expiration:       m.cfg.Prometheus.RetentionTime,
 		Registerer:       reg,
 		GaugeDefinitions: append(gauges, discovery.Gauges...),
 		// CounterDefinitions: ,

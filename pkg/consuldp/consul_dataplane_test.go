@@ -2,6 +2,7 @@ package consuldp
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +36,7 @@ func validConfig() *Config {
 		Telemetry: &TelemetryConfig{
 			UseCentralConfig: true,
 			Prometheus: PrometheusTelemetryConfig{
-				RetentionTime:     "30s",
+				RetentionTime:     30 * time.Second,
 				CACertsPath:       "/tmp/my-certs/",
 				KeyFile:           "/tmp/my-key.pem",
 				CertFile:          "/tmp/my-cert.pem",

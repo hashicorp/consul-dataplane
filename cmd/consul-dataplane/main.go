@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
@@ -49,7 +50,7 @@ var (
 
 	useCentralTelemetryConfig bool
 
-	promRetentionTime     string
+	promRetentionTime     time.Duration
 	promCACertsPath       string
 	promKeyFile           string
 	promCertFile          string
@@ -107,7 +108,7 @@ func init() {
 
 	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy applies the central telemetry configuration.")
 
-	flag.StringVar(&promRetentionTime, "telemetry-prom-retention-time", "", "The duration for Prometheus metrics aggregation.")
+	flag.DurationVar(&promRetentionTime, "telemetry-prom-retention-time", 60*time.Second, "The duration for Prometheus metrics aggregation.")
 	flag.StringVar(&promCACertsPath, "telemetry-prom-ca-certs-path", "", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
 	flag.StringVar(&promKeyFile, "telemetry-prom-key-file", "", "The path to the client private key used to serve Prometheus metrics.")
 	flag.StringVar(&promCertFile, "telemetry-prom-cert-file", "", "The path to the client certificate used to serve Prometheus metrics.")
