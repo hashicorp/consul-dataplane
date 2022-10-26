@@ -3,6 +3,7 @@ package consuldp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -421,4 +422,57 @@ func TestMetricsDatadogWithGlobalTags(t *testing.T) {
 			assertServerMatchesExpected(t, server, buf, tt.Expected)
 		})
 	}
+}
+
+func TestParseAddr(t *testing.T) {
+	testCases := map[string]struct {
+		addr         string
+		s            Stats
+		expectedErr  error
+		expectedAddr string
+	}{
+		"prometheus": {
+			addr:        "udp://0.0.0.0:1234",
+			s:           Prometheus,
+			expectedErr: errors.New("prometheus not implemented"),
+		},
+		"statsd good": {
+			addr:         "udp://0.0.0.0:1234",
+			s:            Statsd,
+			expectedAddr: "0.0.0.0:1234",
+		},
+		"statsd bad": {
+			addr:        "unix://path/to/mysocket",
+			s:           Statsd,
+			expectedErr: errors.New("unsupported addr: unix://path/to/mysocket for sink type: statsD"),
+		},
+		"dogstatsd good udp": {
+			addr:         "udp://0.0.0.0:1234",
+			s:            Dogstatsd,
+			expectedAddr: "0.0.0.0:1234",
+		},
+		"dogstatsd good unix": {
+			addr:         "unix://path/to/mysocket",
+			s:            Dogstatsd,
+			expectedAddr: "unix://path/to/mysocket",
+		},
+		"dogstatsd bad tcp": {
+			addr:        "tcp://0.0.0.0:1234",
+			s:           Dogstatsd,
+			expectedErr: errors.New("unsupported addr: tcp://0.0.0.0:1234 for sink type: dogstatsD"),
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			addr, err := parseSinkAddr(tc.addr, tc.s)
+			if tc.expectedErr != nil {
+				require.Error(t, err)
+				require.EqualValues(t, err, tc.expectedErr)
+			} else {
+
+				require.Equal(t, addr, tc.expectedAddr)
+			}
+		})
+	}
+
 }

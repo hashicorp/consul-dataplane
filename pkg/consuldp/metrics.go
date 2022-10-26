@@ -344,3 +344,22 @@ func (m *metricsConfig) runPrometheusCDPServer(gather prom.Gatherer) {
 		close(m.errorExitCh)
 	}
 }
+
+func parseSinkAddr(addr string, s Stats) (string, error) {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse address %s", addr)
+	}
+	var address string
+	switch {
+	case s == Prometheus:
+		return "", fmt.Errorf("prometheus not implemented")
+	case u.Scheme == "udp":
+		address = fmt.Sprintf("%s:%s", u.Hostname(), u.Port())
+	case u.Scheme == "unix" && s == Dogstatsd:
+		address = addr
+	default:
+		return "", fmt.Errorf("unsupported addr: %s for sink type: %s", addr, s)
+	}
+	return address, nil
+}
