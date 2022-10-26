@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -67,8 +68,10 @@ type metricsConfig struct {
 	envoyAdminAddr     string
 	envoyAdminBindPort int
 
-	statsdUrl    string
-	dogstatsTags []string
+	statsDAddr string
+
+	dogstatsDAddr string
+	dogstatsTags  []string
 
 	// merged metrics config
 	promScrapeServer *http.Server // the server that will serve all the merged metrics
@@ -146,18 +149,25 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			go m.startPrometheusMergedMetricsSink()
 		}
 		if bcfg.StatsdURL != "" {
-			m.statsdUrl = bcfg.StatsdURL
-
-			err := m.configureCDPMetricSinks(Statsd)
+			addr, err := parseSinkAddr(bcfg.StatsdURL, Statsd)
+			if err != nil {
+				return err
+			}
+			m.statsDAddr = addr
+			err = m.configureCDPMetricSinks(Statsd)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for statsd: %w", err)
 			}
 		}
 		if bcfg.DogstatsdURL != "" {
-			m.statsdUrl = bcfg.DogstatsdURL
+			dogstatsDAddr, err := parseSinkAddr(bcfg.DogstatsdURL, Dogstatsd)
+			if err != nil {
+				return err
+			}
+			m.dogstatsDAddr = dogstatsDAddr
 			m.dogstatsTags = bcfg.StatsTags
 
-			err := m.configureCDPMetricSinks(Dogstatsd)
+			err = m.configureCDPMetricSinks(Dogstatsd)
 			if err != nil {
 				return fmt.Errorf("failure enabling consul dataplane metrics for dogstatsD: %w", err)
 			}
@@ -308,7 +318,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 
 		go m.runPrometheusCDPServer(r)
 	case Statsd:
-		sink, err := metrics.NewStatsdSink(m.statsdUrl)
+		sink, err := metrics.NewStatsdSink(m.statsDAddr)
 		if err != nil {
 			return err
 		}
@@ -316,7 +326,7 @@ func (m *metricsConfig) configureCDPMetricSinks(s Stats) error {
 		m.sinks = append(m.sinks, sink)
 	case Dogstatsd:
 
-		sink, err := datadog.NewDogStatsdSink(m.statsdUrl, cfgs.HostName)
+		sink, err := datadog.NewDogStatsdSink(m.dogstatsDAddr, cfgs.HostName)
 		if err != nil {
 			return err
 		}

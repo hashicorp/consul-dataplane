@@ -274,7 +274,8 @@ func TestMetricsStatsD(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{StatsdURL: fmt.Sprintf("%v:%v", dogStatsdAddr, port)})
+	err := m.startMetrics(ctx, &bootstrap.BootstrapConfig{StatsdURL: fmt.Sprintf("udp://%v:%v", dogStatsdAddr, port)})
+	require.NoError(t, err)
 
 	for _, tt := range testMetrics {
 		t.Run(tt.Method, func(t *testing.T) {
@@ -340,8 +341,8 @@ func TestMetricsDatadogWithoutGlobalTags(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{DogstatsdURL: fmt.Sprintf("%v:%v", dogStatsdAddr, port)})
-
+	err := m.startMetrics(ctx, &bootstrap.BootstrapConfig{DogstatsdURL: fmt.Sprintf("udp://%v:%v", dogStatsdAddr, port)})
+	require.NoError(t, err)
 	for _, tt := range testMetrics {
 		t.Run(tt.Method, func(t *testing.T) {
 			switch tt.Method {
@@ -407,8 +408,8 @@ func TestMetricsDatadogWithGlobalTags(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{DogstatsdURL: fmt.Sprintf("%v:%v", dogStatsdAddr, port), StatsTags: []string{globalTags}})
-
+	err := m.startMetrics(ctx, &bootstrap.BootstrapConfig{DogstatsdURL: fmt.Sprintf("udp://%v:%v", dogStatsdAddr, port), StatsTags: []string{globalTags}})
+	require.NoError(t, err)
 	for _, tt := range testMetrics {
 		t.Run(tt.Method, func(t *testing.T) {
 			switch tt.Method {
