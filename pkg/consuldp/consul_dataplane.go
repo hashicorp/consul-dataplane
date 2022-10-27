@@ -107,6 +107,14 @@ func validateConfig(cfg *Config) error {
 					"and -telemetry-prom-key-file to enable TLS for prometheus metrics")
 			}
 		}
+
+		if prom.RetentionTime == 0 {
+			return errors.New("-telemetry-prom-retention-time must be greater than 0")
+		}
+
+		if prom.ScrapePath == "" {
+			return errors.New("-telemetry-prom-scrape-path must not be empty")
+		}
 	}
 
 	return nil
