@@ -39,7 +39,7 @@ func (cfg DataplaneConfig) ToArgs() []string {
 
 // RunDataplane runs consul-dataplane in the given pod's network. It captures
 // the Envoy proxy's config as an artifact at the end of the test.
-func RunDataplane(t *testing.T, pod *Container, suite *Suite, cfg DataplaneConfig) *Container {
+func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Container {
 	t.Helper()
 
 	volume := suite.Volume(t)

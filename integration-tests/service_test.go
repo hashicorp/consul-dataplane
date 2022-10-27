@@ -9,7 +9,7 @@ const echoServiceImage = "hashicorp/http-echo:0.2.3"
 
 // RunService runs an HTTP echo server in the given pod's network, running on
 // port :8080.
-func RunService(t *testing.T, suite *Suite, pod *Container, serviceName string) *Container {
+func RunService(t *testing.T, suite *Suite, pod *Pod, serviceName string) *Container {
 	t.Helper()
 
 	return suite.RunContainer(t, serviceName, true, ContainerRequest{

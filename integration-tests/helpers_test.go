@@ -1,7 +1,6 @@
 package integrationtests
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/miekg/dns"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/api"
@@ -97,23 +97,24 @@ func canAccess(ip string, port int) (bool, error) {
 	return false, fmt.Errorf("unexpected response status: %d - body: %s", rsp.StatusCode, bytes)
 }
 
-func DNSLookup(t *testing.T, suite *Suite, serverIP string, serverPort int, host string) []string {
+func DNSLookup(t *testing.T, suite *Suite, protocol string, serverIP string, serverPort int, host string) []string {
 	t.Helper()
 
-	r := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, "udp", net.JoinHostPort(serverIP, strconv.Itoa(serverPort)))
-		},
-	}
+	req := new(dns.Msg)
+	req.SetQuestion(host, dns.TypeA)
 
-	addrs, err := r.LookupIPAddr(suite.Context(t), host)
+	c := new(dns.Client)
+	c.Net = protocol
+	rsp, _, err := c.ExchangeContext(
+		suite.Context(t),
+		req,
+		net.JoinHostPort(serverIP, strconv.Itoa(serverPort)),
+	)
 	require.NoError(t, err)
 
-	results := make([]string, len(addrs))
-	for idx, addr := range addrs {
-		results[idx] = addr.String()
+	results := make([]string, len(rsp.Answer))
+	for idx, rr := range rsp.Answer {
+		results[idx] = rr.(*dns.A).A.String()
 	}
 	return results
 }

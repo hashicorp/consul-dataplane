@@ -52,8 +52,11 @@ var (
 	// to.
 	serverHTTPPort = tcpPort(8500)
 
-	// dnsPort is the port Consul Dataplane's DNS proxy wil be bound to.
-	dnsPort = udpPort(40000)
+	// dnsUDPPort is UDP the port Consul Dataplane's DNS proxy wil be bound to.
+	dnsUDPPort = udpPort(40000)
+
+	// dnsTCPPort is TCP the port Consul Dataplane's DNS proxy wil be bound to.
+	dnsTCPPort = tcpPort(40000)
 )
 
 func TestMain(m *testing.M) {
@@ -88,6 +91,7 @@ func TestMain(m *testing.M) {
 //	  port.
 //	* Setting the intention action to deny.
 //	* Attempting to make the same request and checking that it fails.
+//	* Making DNS queries against the frontend dataplane's UDP and TCP DNS proxies.
 func TestIntegration(t *testing.T) {
 	suite := NewSuite(t)
 
@@ -127,13 +131,14 @@ func TestIntegration(t *testing.T) {
 		ProxyServiceID:   "backend-sidecar",
 		LoginAuthMethod:  authMethod.name(),
 		LoginBearerToken: authMethod.GenerateToken(t, "backend"),
-		DNSBindPort:      dnsPort.Port(),
+		DNSBindPort:      dnsUDPPort.Port(),
 	})
 
 	frontendPod := RunPod(t, suite, "frontend", []nat.Port{
 		envoyAdminPort,
 		upstreamLocalBindPort,
-		dnsPort,
+		dnsUDPPort,
+		dnsTCPPort,
 	})
 
 	RegisterService(t, client, &api.AgentService{
@@ -165,7 +170,7 @@ func TestIntegration(t *testing.T) {
 		ProxyServiceID:   "frontend-sidecar",
 		LoginAuthMethod:  authMethod.name(),
 		LoginBearerToken: authMethod.GenerateToken(t, "frontend"),
-		DNSBindPort:      dnsPort.Port(),
+		DNSBindPort:      dnsUDPPort.Port(),
 	})
 
 	SetConfigEntry(t, client, &api.ProxyConfigEntry{
@@ -218,17 +223,18 @@ func TestIntegration(t *testing.T) {
 		frontendPod.MappedPorts[upstreamLocalBindPort],
 	)
 
-	ExposeInternalPort(t,
-		suite,
-		frontendPod,
-		dnsPort,
-	)
+	dnsPorts := []nat.Port{dnsUDPPort, dnsTCPPort}
+	frontendPod.ExposeInternalPorts(t, dnsPorts)
 
-	addrs := DNSLookup(t,
-		suite,
-		frontendPod.HostIP,
-		frontendPod.MappedPorts[dnsPort],
-		"backend-sidecar.service.consul.",
-	)
-	require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
+	for _, port := range dnsPorts {
+		addrs := DNSLookup(t,
+			suite,
+			port.Proto(),
+			frontendPod.HostIP,
+			frontendPod.MappedPorts[port],
+			"backend-sidecar.service.consul.",
+		)
+		require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
+	}
+
 }
