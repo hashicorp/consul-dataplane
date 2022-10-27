@@ -1,8 +1,10 @@
 package integrationtests
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 	"testing"
@@ -16,6 +18,14 @@ import (
 
 func tcpPort(n int) nat.Port {
 	port, err := nat.NewPort("tcp", strconv.Itoa(n))
+	if err != nil {
+		panic(err)
+	}
+	return port
+}
+
+func udpPort(n int) nat.Port {
+	port, err := nat.NewPort("udp", strconv.Itoa(n))
 	if err != nil {
 		panic(err)
 	}
@@ -85,4 +95,25 @@ func canAccess(ip string, port int) (bool, error) {
 
 	bytes, err := io.ReadAll(rsp.Body)
 	return false, fmt.Errorf("unexpected response status: %d - body: %s", rsp.StatusCode, bytes)
+}
+
+func DNSLookup(t *testing.T, suite *Suite, serverIP string, serverPort int, host string) []string {
+	t.Helper()
+
+	r := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "udp", net.JoinHostPort(serverIP, strconv.Itoa(serverPort)))
+		},
+	}
+
+	addrs, err := r.LookupIPAddr(suite.Context(t), host)
+	require.NoError(t, err)
+
+	results := make([]string, len(addrs))
+	for idx, addr := range addrs {
+		results[idx] = addr.String()
+	}
+	return results
 }

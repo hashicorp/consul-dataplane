@@ -16,6 +16,7 @@ type DataplaneConfig struct {
 	ProxyServiceID   string
 	LoginAuthMethod  string
 	LoginBearerToken string
+	DNSBindPort      string
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -31,6 +32,7 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-ca-certs", "/data/ca-cert.pem",
 		"-tls-server-name", "server.dc1.consul",
 		"-log-level", "debug",
+		"-consul-dns-bind-port", cfg.DNSBindPort,
 	}
 	return args
 }

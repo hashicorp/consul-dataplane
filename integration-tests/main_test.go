@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/api"
 )
@@ -50,6 +51,9 @@ var (
 	// serverHTTPPort is the port the Consul server's HTTP interface will be bound
 	// to.
 	serverHTTPPort = tcpPort(8500)
+
+	// dnsPort is the port Consul Dataplane's DNS proxy wil be bound to.
+	dnsPort = udpPort(40000)
 )
 
 func TestMain(m *testing.M) {
@@ -123,11 +127,13 @@ func TestIntegration(t *testing.T) {
 		ProxyServiceID:   "backend-sidecar",
 		LoginAuthMethod:  authMethod.name(),
 		LoginBearerToken: authMethod.GenerateToken(t, "backend"),
+		DNSBindPort:      dnsPort.Port(),
 	})
 
 	frontendPod := RunPod(t, suite, "frontend", []nat.Port{
 		envoyAdminPort,
 		upstreamLocalBindPort,
+		dnsPort,
 	})
 
 	RegisterService(t, client, &api.AgentService{
@@ -159,6 +165,7 @@ func TestIntegration(t *testing.T) {
 		ProxyServiceID:   "frontend-sidecar",
 		LoginAuthMethod:  authMethod.name(),
 		LoginBearerToken: authMethod.GenerateToken(t, "frontend"),
+		DNSBindPort:      dnsPort.Port(),
 	})
 
 	SetConfigEntry(t, client, &api.ProxyConfigEntry{
@@ -210,4 +217,18 @@ func TestIntegration(t *testing.T) {
 		frontendPod.HostIP,
 		frontendPod.MappedPorts[upstreamLocalBindPort],
 	)
+
+	ExposeInternalPort(t,
+		suite,
+		frontendPod,
+		dnsPort,
+	)
+
+	addrs := DNSLookup(t,
+		suite,
+		frontendPod.HostIP,
+		frontendPod.MappedPorts[dnsPort],
+		"backend-sidecar.service.consul.",
+	)
+	require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
 }

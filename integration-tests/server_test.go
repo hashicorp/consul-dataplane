@@ -27,6 +27,7 @@ acl {
 
 	tokens {
 		initial_management = "` + rootACLToken + `"
+		default = "` + rootACLToken + `"
 	}
 }
 
