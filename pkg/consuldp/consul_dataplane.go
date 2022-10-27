@@ -108,8 +108,8 @@ func validateConfig(cfg *Config) error {
 			}
 		}
 
-		if prom.RetentionTime == 0 {
-			return errors.New("-telemetry-prom-retention-time must be greater than 0")
+		if prom.RetentionTime <= 0 {
+			return errors.New("-telemetry-prom-retention-time must be greater than zero")
 		}
 
 		if prom.ScrapePath == "" {
