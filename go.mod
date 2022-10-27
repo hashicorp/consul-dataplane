@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/armon/go-metrics v0.4.1
-	github.com/hashicorp/consul-server-connection-manager v0.0.0-20221021152734-b0e0a3f762e8
+	github.com/hashicorp/consul-server-connection-manager v0.1.0
 	github.com/hashicorp/consul/proto-public v0.1.1
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-multierror v1.1.1
@@ -27,7 +27,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.0.0 // indirect
-	github.com/hashicorp/go-netaddrs v0.0.0-20220509001840-90ed9d26ec46 // indirect
+	github.com/hashicorp/go-netaddrs v0.1.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
