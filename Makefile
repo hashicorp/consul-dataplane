@@ -115,4 +115,12 @@ INTEGRATION_TESTS_DATAPLANE_IMAGE ?= $(PRODUCT_NAME)/release-default:$(VERSION)
 
 .PHONY: integration-tests
 integration-tests: docker/release-default
-	cd integration-tests && go test -v ./ -output-dir="$(INTEGRATION_TESTS_OUTPUT_DIR)" -dataplane-image="$(INTEGRATION_TESTS_DATAPLANE_IMAGE)" -server-image="$(INTEGRATION_TESTS_SERVER_IMAGE)"
+ifdef INTEGRATION_TESTS_OUTPUT_DIR
+# make's built-in realpath function doesn't support non-existent directories
+# and intermittently has issues finding newly created ones (so preemptively
+# creating it with mkdir isn't an option) so we'll rely on the realpath bin.
+ifeq (, $(shell which realpath))
+ $(error "GNU Coreutils are required to run the integration-tests target with INTEGRATION_TESTS_OUTPUT_DIR.")
+endif
+endif
+	cd integration-tests && go test -v ./ -output-dir="$(shell realpath $(INTEGRATION_TESTS_OUTPUT_DIR))" -dataplane-image="$(INTEGRATION_TESTS_DATAPLANE_IMAGE)" -server-image="$(INTEGRATION_TESTS_SERVER_IMAGE)"
