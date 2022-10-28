@@ -113,7 +113,7 @@ func init() {
 	flag.StringVar(&promKeyFile, "telemetry-prom-key-file", "", "The path to the client private key used to serve Prometheus metrics.")
 	flag.StringVar(&promCertFile, "telemetry-prom-cert-file", "", "The path to the client certificate used to serve Prometheus metrics.")
 	flag.StringVar(&promServiceMetricsURL, "telemetry-prom-service-metrics-url", "", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
-	flag.StringVar(&promScrapePath, "telemetry-prom-scrape-path", "", "The URL path where Envoy serves Prometheus metrics.")
+	flag.StringVar(&promScrapePath, "telemetry-prom-scrape-path", "/metrics", "The URL path where Envoy serves Prometheus metrics.")
 	flag.IntVar(&promMergePort, "telemetry-prom-merge-port", 20100, "The port to serve merged Prometheus metrics.")
 
 	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address on which the Envoy admin server is available.")
@@ -143,10 +143,6 @@ func validateFlags() {
 	case "TRACE", "DEBUG", "INFO", "WARN", "ERROR":
 	default:
 		log.Fatal("invalid log level. valid values - TRACE, DEBUG, INFO, WARN, ERROR")
-	}
-
-	if promRetentionTime <= 0 {
-		log.Fatal("Prometheus retention time must be greater than 0")
 	}
 }
 
