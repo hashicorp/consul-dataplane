@@ -118,3 +118,23 @@ func DNSLookup(t *testing.T, suite *Suite, protocol string, serverIP string, ser
 	}
 	return results
 }
+
+func GetMetrics(t *testing.T, ip string, port int) string {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s:%d/metrics", ip, port)
+
+	rsp, err := http.Get(url)
+	require.NoError(t, err)
+	defer rsp.Body.Close()
+
+	bytes, err := io.ReadAll(rsp.Body)
+	require.NoError(t, err)
+
+	if rsp.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected response status: %d - body: %s", rsp.StatusCode, bytes)
+	}
+
+	return string(bytes)
+
+}

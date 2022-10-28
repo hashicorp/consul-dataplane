@@ -3,6 +3,7 @@ package integrationtests
 import (
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"testing"
@@ -57,6 +58,10 @@ var (
 
 	// dnsTCPPort is TCP the port Consul Dataplane's DNS proxy wil be bound to.
 	dnsTCPPort = tcpPort(40000)
+
+	// metricsPort is the port Consul Dataplane will serve merged prometheus
+	// metrics on.
+	metricsPort = tcpPort(50000)
 )
 
 func TestMain(m *testing.M) {
@@ -85,13 +90,15 @@ func TestMain(m *testing.M) {
 //	* Running a simple HTTP server for the "backend" service.
 //	* Running consul-datplane for each sidecar, with the "frontend" sidecar's
 //	  local listener port for its "backend" upstream exposed to the host.
-//	* Creating proxy-defaults to set the default protocol to HTTP.
+//	* Creating proxy-defaults to set the default protocol to HTTP and prometheus
+//	  bind address.
 //	* Creating an L7/HTTP intention to allow "frontend" to talk to "backend".
 //	* Making an HTTP request through the "frontend" sidecar's exposed "backend"
 //	  port.
 //	* Setting the intention action to deny.
 //	* Attempting to make the same request and checking that it fails.
 //	* Making DNS queries against the frontend dataplane's UDP and TCP DNS proxies.
+//	* Scraping the prometheus merged metrics endpoint.
 func TestIntegration(t *testing.T) {
 	suite := NewSuite(t)
 
@@ -100,6 +107,15 @@ func TestIntegration(t *testing.T) {
 
 	authMethod := NewAuthMethod(t)
 	authMethod.Register(t, client)
+
+	SetConfigEntry(t, client, &api.ProxyConfigEntry{
+		Kind: api.ProxyDefaults,
+		Name: api.ProxyConfigGlobal,
+		Config: map[string]any{
+			"protocol":                   "http",
+			"envoy_prometheus_bind_addr": net.JoinHostPort("0.0.0.0", metricsPort.Port()),
+		},
+	})
 
 	RegisterSytheticNode(t, client)
 
@@ -110,6 +126,7 @@ func TestIntegration(t *testing.T) {
 
 	backendPod := RunPod(t, suite, "backend", []nat.Port{
 		envoyAdminPort,
+		metricsPort,
 	})
 
 	RegisterService(t, client, &api.AgentService{
@@ -126,12 +143,13 @@ func TestIntegration(t *testing.T) {
 	RunService(t, suite, backendPod, "backend")
 
 	RunDataplane(t, backendPod, suite, DataplaneConfig{
-		Addresses:        server.Container.ContainerIP,
-		ServiceNodeName:  syntheticNodeName,
-		ProxyServiceID:   "backend-sidecar",
-		LoginAuthMethod:  authMethod.name(),
-		LoginBearerToken: authMethod.GenerateToken(t, "backend"),
-		DNSBindPort:      dnsUDPPort.Port(),
+		Addresses:         server.Container.ContainerIP,
+		ServiceNodeName:   syntheticNodeName,
+		ProxyServiceID:    "backend-sidecar",
+		LoginAuthMethod:   authMethod.name(),
+		LoginBearerToken:  authMethod.GenerateToken(t, "backend"),
+		DNSBindPort:       dnsUDPPort.Port(),
+		ServiceMetricsURL: "http://localhost:8080",
 	})
 
 	frontendPod := RunPod(t, suite, "frontend", []nat.Port{
@@ -165,20 +183,13 @@ func TestIntegration(t *testing.T) {
 	})
 
 	RunDataplane(t, frontendPod, suite, DataplaneConfig{
-		Addresses:        server.Container.ContainerIP,
-		ServiceNodeName:  syntheticNodeName,
-		ProxyServiceID:   "frontend-sidecar",
-		LoginAuthMethod:  authMethod.name(),
-		LoginBearerToken: authMethod.GenerateToken(t, "frontend"),
-		DNSBindPort:      dnsUDPPort.Port(),
-	})
-
-	SetConfigEntry(t, client, &api.ProxyConfigEntry{
-		Kind: api.ProxyDefaults,
-		Name: api.ProxyConfigGlobal,
-		Config: map[string]any{
-			"protocol": "http",
-		},
+		Addresses:         server.Container.ContainerIP,
+		ServiceNodeName:   syntheticNodeName,
+		ProxyServiceID:    "frontend-sidecar",
+		LoginAuthMethod:   authMethod.name(),
+		LoginBearerToken:  authMethod.GenerateToken(t, "frontend"),
+		DNSBindPort:       dnsUDPPort.Port(),
+		ServiceMetricsURL: "http://localhost:8080",
 	})
 
 	SetConfigEntry(t, client, &api.ServiceIntentionsConfigEntry{
@@ -237,4 +248,11 @@ func TestIntegration(t *testing.T) {
 		require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
 	}
 
+	metrics := GetMetrics(t,
+		backendPod.HostIP,
+		backendPod.MappedPorts[metricsPort],
+	)
+	require.Contains(t, metrics, "consul_dataplane_go_goroutines")
+	require.Contains(t, metrics, "envoy_server_total_connections")
+	require.Contains(t, metrics, `service_metric{service_name="backend"}`)
 }

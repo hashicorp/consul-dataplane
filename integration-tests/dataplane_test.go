@@ -11,12 +11,13 @@ import (
 )
 
 type DataplaneConfig struct {
-	Addresses        string
-	ServiceNodeName  string
-	ProxyServiceID   string
-	LoginAuthMethod  string
-	LoginBearerToken string
-	DNSBindPort      string
+	Addresses         string
+	ServiceNodeName   string
+	ProxyServiceID    string
+	LoginAuthMethod   string
+	LoginBearerToken  string
+	DNSBindPort       string
+	ServiceMetricsURL string
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -33,6 +34,9 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-tls-server-name", "server.dc1.consul",
 		"-log-level", "debug",
 		"-consul-dns-bind-port", cfg.DNSBindPort,
+		"-telemetry-use-central-config",
+		"-telemetry-prom-scrape-path", "/metrics",
+		"-telemetry-prom-service-metrics-url", cfg.ServiceMetricsURL,
 	}
 	return args
 }

@@ -15,6 +15,6 @@ func RunService(t *testing.T, suite *Suite, pod *Pod, serviceName string) *Conta
 	return suite.RunContainer(t, serviceName, true, ContainerRequest{
 		NetworkMode: pod.Network(),
 		Image:       echoServiceImage,
-		Cmd:         []string{"-listen", ":8080", "-text", fmt.Sprintf("Response from %s", serviceName)},
+		Cmd:         []string{"-listen", ":8080", "-text", fmt.Sprintf("service_metric{service_name=%q} 1", serviceName)},
 	})
 }
