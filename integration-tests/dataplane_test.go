@@ -3,7 +3,6 @@ package integrationtests
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -65,7 +64,7 @@ func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Co
 			pod.MappedPorts[envoyAdminPort],
 		)
 
-		rsp, err := http.Get(url)
+		rsp, err := httpClient.Get(url)
 		if err != nil {
 			t.Logf("failed to dump Envoy config: %v\n", err)
 			return
