@@ -32,7 +32,7 @@ func udpPort(n int) nat.Port {
 	return port
 }
 
-func RegisterSytheticNode(t *testing.T, client *api.Client) {
+func RegisterSyntheticNode(t *testing.T, client *api.Client) {
 	t.Helper()
 
 	_, err := client.Catalog().Register(&api.CatalogRegistration{

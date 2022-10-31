@@ -117,7 +117,7 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	RegisterSytheticNode(t, client)
+	RegisterSyntheticNode(t, client)
 
 	RegisterService(t, client, &api.AgentService{
 		Service: "backend",
