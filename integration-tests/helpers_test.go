@@ -1,6 +1,7 @@
 package integrationtests
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +16,10 @@ import (
 
 	"github.com/hashicorp/consul/api"
 )
+
+var httpClient = &http.Client{
+	Timeout: 1 * time.Second,
+}
 
 func tcpPort(n int) nat.Port {
 	port, err := nat.NewPort("tcp", strconv.Itoa(n))
@@ -83,7 +88,7 @@ func ExpectHTTPAccess(t *testing.T, ip string, port int) {
 
 func canAccess(ip string, port int) (bool, error) {
 	url := fmt.Sprintf("http://%s:%d/", ip, port)
-	rsp, err := http.Get(url)
+	rsp, err := httpClient.Get(url)
 	if err != nil {
 		return false, err
 	}
@@ -100,13 +105,16 @@ func canAccess(ip string, port int) (bool, error) {
 func DNSLookup(t *testing.T, suite *Suite, protocol string, serverIP string, serverPort int, host string) []string {
 	t.Helper()
 
+	ctx, cancel := context.WithTimeout(suite.Context(t), 1*time.Second)
+	defer cancel()
+
 	req := new(dns.Msg)
 	req.SetQuestion(host, dns.TypeA)
 
 	c := new(dns.Client)
 	c.Net = protocol
 	rsp, _, err := c.ExchangeContext(
-		suite.Context(t),
+		ctx,
 		req,
 		net.JoinHostPort(serverIP, strconv.Itoa(serverPort)),
 	)
@@ -124,7 +132,7 @@ func GetMetrics(t *testing.T, ip string, port int) string {
 
 	url := fmt.Sprintf("http://%s:%d/metrics", ip, port)
 
-	rsp, err := http.Get(url)
+	rsp, err := httpClient.Get(url)
 	require.NoError(t, err)
 	defer rsp.Body.Close()
 
