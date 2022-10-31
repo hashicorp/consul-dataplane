@@ -103,12 +103,11 @@ func TestIntegration(t *testing.T) {
 	suite := NewSuite(t)
 
 	server := RunServer(t, suite)
-	client := server.Client(t)
 
 	authMethod := NewAuthMethod(t)
-	authMethod.Register(t, client)
+	authMethod.Register(t, server)
 
-	SetConfigEntry(t, client, &api.ProxyConfigEntry{
+	server.SetConfigEntry(t, &api.ProxyConfigEntry{
 		Kind: api.ProxyDefaults,
 		Name: api.ProxyConfigGlobal,
 		Config: map[string]any{
@@ -117,9 +116,9 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	RegisterSyntheticNode(t, client)
+	server.RegisterSyntheticNode(t)
 
-	RegisterService(t, client, &api.AgentService{
+	server.RegisterService(t, &api.AgentService{
 		Service: "backend",
 		Port:    8080,
 	})
@@ -129,7 +128,7 @@ func TestIntegration(t *testing.T) {
 		metricsPort,
 	})
 
-	RegisterService(t, client, &api.AgentService{
+	server.RegisterService(t, &api.AgentService{
 		Service: "backend-sidecar",
 		Kind:    api.ServiceKindConnectProxy,
 		Port:    proxyInboundListenerPort.Int(),
@@ -159,12 +158,12 @@ func TestIntegration(t *testing.T) {
 		dnsTCPPort,
 	})
 
-	RegisterService(t, client, &api.AgentService{
+	server.RegisterService(t, &api.AgentService{
 		Service: "frontend",
 		Port:    8080,
 	})
 
-	RegisterService(t, client, &api.AgentService{
+	server.RegisterService(t, &api.AgentService{
 		Service: "frontend-sidecar",
 		Kind:    api.ServiceKindConnectProxy,
 		Port:    proxyInboundListenerPort.Int(),
@@ -192,7 +191,7 @@ func TestIntegration(t *testing.T) {
 		ServiceMetricsURL: "http://localhost:8080",
 	})
 
-	SetConfigEntry(t, client, &api.ServiceIntentionsConfigEntry{
+	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
 		Kind: api.ServiceIntentions,
 		Name: "backend",
 		Sources: []*api.SourceIntention{
@@ -217,7 +216,7 @@ func TestIntegration(t *testing.T) {
 		frontendPod.MappedPorts[upstreamLocalBindPort],
 	)
 
-	SetConfigEntry(t, client, &api.ServiceIntentionsConfigEntry{
+	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
 		Kind: api.ServiceIntentions,
 		Name: "backend",
 		Sources: []*api.SourceIntention{

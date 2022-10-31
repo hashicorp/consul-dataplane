@@ -58,10 +58,10 @@ func (am *AuthMethod) GenerateToken(t *testing.T, service string) string {
 }
 
 // Register the auth-method and binding rules with the Consul server.
-func (am *AuthMethod) Register(t *testing.T, client *api.Client) {
+func (am *AuthMethod) Register(t *testing.T, server *ConsulServer) {
 	t.Helper()
 
-	_, _, err := client.ACL().AuthMethodCreate(&api.ACLAuthMethod{
+	_, _, err := server.Client.ACL().AuthMethodCreate(&api.ACLAuthMethod{
 		Name: am.name(),
 		Type: "jwt",
 		Config: map[string]any{
@@ -73,7 +73,7 @@ func (am *AuthMethod) Register(t *testing.T, client *api.Client) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, _, err = client.ACL().BindingRuleCreate(&api.ACLBindingRule{
+	_, _, err = server.Client.ACL().BindingRuleCreate(&api.ACLBindingRule{
 		AuthMethod: am.name(),
 		BindType:   api.BindingRuleBindTypeService,
 		BindName:   "${value.service}",

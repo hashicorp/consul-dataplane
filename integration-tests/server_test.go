@@ -51,23 +51,11 @@ tls {
 
 type ConsulServer struct {
 	Container *Container
-}
-
-// Client returns a Consul API client configured to talk to the server.
-func (c ConsulServer) Client(t *testing.T) *api.Client {
-	t.Helper()
-
-	client, err := api.NewClient(&api.Config{
-		Address: net.JoinHostPort(c.Container.HostIP, strconv.Itoa(c.Container.MappedPorts[serverHTTPPort])),
-		Token:   rootACLToken,
-	})
-	require.NoError(t, err)
-
-	return client
+	Client    *api.Client
 }
 
 // RunServer runs a Consul server.
-func RunServer(t *testing.T, suite *Suite) ConsulServer {
+func RunServer(t *testing.T, suite *Suite) *ConsulServer {
 	t.Helper()
 
 	GenerateServerTLS(t, suite)
@@ -85,5 +73,42 @@ func RunServer(t *testing.T, suite *Suite) ConsulServer {
 		Cmd:          []string{"consul", "agent", "-config-file", "/data/server.hcl", "-client", "0.0.0.0"},
 	})
 
-	return ConsulServer{Container: container}
+	client, err := api.NewClient(&api.Config{
+		Address: net.JoinHostPort(container.HostIP, strconv.Itoa(container.MappedPorts[serverHTTPPort])),
+		Token:   rootACLToken,
+	})
+	require.NoError(t, err)
+
+	return &ConsulServer{
+		Container: container,
+		Client:    client,
+	}
+}
+
+func (s *ConsulServer) RegisterSyntheticNode(t *testing.T) {
+	t.Helper()
+
+	_, err := s.Client.Catalog().Register(&api.CatalogRegistration{
+		Node:    syntheticNodeName,
+		Address: "127.0.0.1",
+	}, nil)
+	require.NoError(t, err)
+}
+
+func (s *ConsulServer) SetConfigEntry(t *testing.T, entry api.ConfigEntry) {
+	t.Helper()
+
+	_, _, err := s.Client.ConfigEntries().Set(entry, nil)
+	require.NoError(t, err)
+}
+
+func (s *ConsulServer) RegisterService(t *testing.T, service *api.AgentService) {
+	t.Helper()
+
+	_, err := s.Client.Catalog().Register(&api.CatalogRegistration{
+		Node:           syntheticNodeName,
+		SkipNodeUpdate: true,
+		Service:        service,
+	}, nil)
+	require.NoError(t, err)
 }
