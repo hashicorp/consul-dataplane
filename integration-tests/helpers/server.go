@@ -1,4 +1,4 @@
-package integrationtests
+package helpers
 
 import (
 	"net"
@@ -12,42 +12,53 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
-const rootACLToken = "1e7038d4-53ff-4c18-a0c0-1e72d9c101dc"
+const (
+	// SyntheticNodeName is the name given to the "synthetic" node services are
+	// registered to.
+	SyntheticNodeName = "synthetic-node"
 
-var serverConfig = `
-server = true
-data_dir = "/consul/data"
-log_level = "debug"
+	rootACLToken = "1e7038d4-53ff-4c18-a0c0-1e72d9c101dc"
+)
 
-bootstrap_expect = 1
+var (
+	serverHTTPPort = TCP(8500)
+	serverGRPCPort = TCP(8502)
 
-acl {
-	enabled = true
-	default_policy = "deny"
+	serverConfig = `
+		server = true
+		data_dir = "/consul/data"
+		log_level = "debug"
 
-	tokens {
-		initial_management = "` + rootACLToken + `"
-		default = "` + rootACLToken + `"
-	}
-}
+		bootstrap_expect = 1
 
-connect {
-	enabled = true
-}
+		acl {
+			enabled = true
+			default_policy = "deny"
 
-ports {
-	http = ` + serverHTTPPort.Port() + `
-	grpc_tls = 8502
-}
+			tokens {
+				initial_management = "` + rootACLToken + `"
+				default = "` + rootACLToken + `"
+			}
+		}
 
-tls {
-	grpc {
-		ca_file = "/data/ca-cert.pem"
-		cert_file = "/data/server-cert.pem"
-		key_file = "/data/server-key.pem"
-	}
-}
-`
+		connect {
+			enabled = true
+		}
+
+		ports {
+			http = ` + serverHTTPPort.Port() + `
+			grpc_tls = ` + serverGRPCPort.Port() + `
+		}
+
+		tls {
+			grpc {
+				ca_file = "/data/ca-cert.pem"
+				cert_file = "/data/server-cert.pem"
+				key_file = "/data/server-key.pem"
+			}
+		}
+	`
+)
 
 type ConsulServer struct {
 	Container *Container
@@ -64,11 +75,11 @@ func RunServer(t *testing.T, suite *Suite) *ConsulServer {
 	volume.WriteFile(t, "server.hcl", []byte(serverConfig))
 
 	container := suite.RunContainer(t, "server", true, ContainerRequest{
-		Image: serverImage,
+		Image: suite.opts.ServerImage,
 		Mounts: []testcontainers.ContainerMount{
 			testcontainers.VolumeMount(volume.Name, "/data"),
 		},
-		ExposedPorts: []string{"8500/tcp"},
+		ExposedPorts: []string{string(serverHTTPPort)},
 		WaitingFor:   wait.ForLog("New leader elected"),
 		Cmd:          []string{"consul", "agent", "-config-file", "/data/server.hcl", "-client", "0.0.0.0"},
 	})
@@ -89,7 +100,7 @@ func (s *ConsulServer) RegisterSyntheticNode(t *testing.T) {
 	t.Helper()
 
 	_, err := s.Client.Catalog().Register(&api.CatalogRegistration{
-		Node:    syntheticNodeName,
+		Node:    SyntheticNodeName,
 		Address: "127.0.0.1",
 	}, nil)
 	require.NoError(t, err)
@@ -106,7 +117,7 @@ func (s *ConsulServer) RegisterService(t *testing.T, service *api.AgentService) 
 	t.Helper()
 
 	_, err := s.Client.Catalog().Register(&api.CatalogRegistration{
-		Node:           syntheticNodeName,
+		Node:           SyntheticNodeName,
 		SkipNodeUpdate: true,
 		Service:        service,
 	}, nil)

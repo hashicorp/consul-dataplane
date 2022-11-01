@@ -1,4 +1,4 @@
-package integrationtests
+package helpers
 
 import (
 	"bytes"
@@ -18,20 +18,43 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
+type SuiteOptions struct {
+	// OutputDir is the directory artifacts will be written to. It can be configured
+	// using the -output-dir flag.
+	OutputDir string
+
+	// DisableReaper controls whether the container reaper is enabled. It can be
+	// configured using the -disable-reaper flag.
+	//
+	// See: https://hub.docker.com/r/testcontainers/ryuk
+	DisableReaper bool
+
+	// ServerImage is the container image reference for the Consul server. It can
+	// be configured using the -server-image flag.
+	ServerImage string
+
+	// DataplaneImage is the container image reference for Consul Dataplane. It
+	// can be configured using the -dataplane-image flag.
+	DataplaneImage string
+}
+
 // Suite handles the lifecycle of resources (e.g. containers) created during a
 // test, and writes artifacts to disk when the test finishes.
 type Suite struct {
 	// Name is used as a prefix in container and volume names.
 	Name string
 
+	opts SuiteOptions
+
 	mu        sync.Mutex
 	artifacts map[string][]byte
 	volume    *Volume
 }
 
-func NewSuite(t *testing.T) *Suite {
+func NewSuite(t *testing.T, opts SuiteOptions) *Suite {
 	suite := &Suite{
 		Name:      fmt.Sprintf("int-%d", time.Now().UnixNano()),
+		opts:      opts,
 		artifacts: make(map[string][]byte),
 	}
 
@@ -53,7 +76,7 @@ func (s *Suite) RunContainer(t *testing.T, name string, captureLogs bool, req Co
 
 	req.Name = fmt.Sprintf("%s-%s", s.Name, name)
 	req.AutoRemove = false
-	req.SkipReaper = disableReaper
+	req.SkipReaper = s.opts.DisableReaper
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -139,12 +162,12 @@ func (s *Suite) cleanup(t *testing.T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if outputDir == "" {
+	if s.opts.OutputDir == "" {
 		return
 	}
 
 	for name, data := range s.artifacts {
-		if err := os.WriteFile(filepath.Join(outputDir, name), data, 0660); err != nil {
+		if err := os.WriteFile(filepath.Join(s.opts.OutputDir, name), data, 0660); err != nil {
 			t.Logf("failed to write artifact %s: %v", name, err)
 		}
 	}

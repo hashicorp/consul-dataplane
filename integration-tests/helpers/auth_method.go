@@ -1,4 +1,4 @@
-package integrationtests
+package helpers
 
 import (
 	"crypto/ecdsa"
@@ -19,6 +19,8 @@ import (
 // AuthMethod is a JWT ACL auth-method, that allows us to easily generate
 // bearer tokens in tests.
 type AuthMethod struct {
+	Name string
+
 	key *ecdsa.PrivateKey
 }
 
@@ -28,7 +30,7 @@ func NewAuthMethod(t *testing.T) *AuthMethod {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	return &AuthMethod{key: key}
+	return &AuthMethod{Name: "auth-method", key: key}
 }
 
 // GenerateToken generates a JWT bearer token for the given service's identity.
@@ -62,7 +64,7 @@ func (am *AuthMethod) Register(t *testing.T, server *ConsulServer) {
 	t.Helper()
 
 	_, _, err := server.Client.ACL().AuthMethodCreate(&api.ACLAuthMethod{
-		Name: am.name(),
+		Name: am.Name,
 		Type: "jwt",
 		Config: map[string]any{
 			"BoundIssuer":          am.jwtIssuer(),
@@ -74,7 +76,7 @@ func (am *AuthMethod) Register(t *testing.T, server *ConsulServer) {
 	require.NoError(t, err)
 
 	_, _, err = server.Client.ACL().BindingRuleCreate(&api.ACLBindingRule{
-		AuthMethod: am.name(),
+		AuthMethod: am.Name,
 		BindType:   api.BindingRuleBindTypeService,
 		BindName:   "${value.service}",
 	}, nil)
@@ -92,10 +94,6 @@ func (am *AuthMethod) publicKeyPEM(t *testing.T) string {
 		Bytes: der,
 	})
 	return string(keyPem)
-}
-
-func (*AuthMethod) name() string {
-	return "auth-method"
 }
 
 func (*AuthMethod) jwtIssuer() string {

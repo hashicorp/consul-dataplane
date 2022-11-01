@@ -1,4 +1,4 @@
-package integrationtests
+package helpers
 
 import (
 	"strings"
@@ -17,7 +17,7 @@ func GenerateServerTLS(t *testing.T, suite *Suite) {
 	volume := suite.Volume(t)
 
 	container := suite.RunContainer(t, "generate-tls-certs", false, ContainerRequest{
-		Image: serverImage,
+		Image: suite.opts.ServerImage,
 		Cmd:   []string{"sleep", "infinity"},
 		Mounts: []testcontainers.ContainerMount{
 			testcontainers.VolumeMount(volume.Name, "/data"),

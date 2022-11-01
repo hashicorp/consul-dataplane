@@ -1,4 +1,4 @@
-package integrationtests
+package helpers
 
 import (
 	"context"
@@ -19,7 +19,7 @@ var httpClient = &http.Client{
 	Timeout: 1 * time.Second,
 }
 
-func tcpPort(n int) nat.Port {
+func TCP(n int) nat.Port {
 	port, err := nat.NewPort("tcp", strconv.Itoa(n))
 	if err != nil {
 		panic(err)
@@ -27,7 +27,7 @@ func tcpPort(n int) nat.Port {
 	return port
 }
 
-func udpPort(n int) nat.Port {
+func UDP(n int) nat.Port {
 	port, err := nat.NewPort("udp", strconv.Itoa(n))
 	if err != nil {
 		panic(err)

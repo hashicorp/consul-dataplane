@@ -12,67 +12,43 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/api"
+
+	. "github.com/hashicorp/consul-dataplane/integration-tests/helpers"
 )
 
-// syntheticNodeName is the name given to the "synthetic" node services are
-// registered to.
-const syntheticNodeName = "synthetic-node"
-
 var (
-	// serverImage is the container image reference for the Consul server. It can
-	// be configured using the -server-image flag.
-	serverImage string
-
-	// dataplaneImage is the container image reference for Consul Dataplane. It
-	// can be configured using the -dataplane-image flag.
-	dataplaneImage string
-
-	// outputDir is the directory artifacts will be written to. It can be configured
-	// using the -output-dir flag.
-	outputDir string
-
-	// disableReaper controls whether the container reaper is enabled. It can be
-	// configured using the -disable-reaper flag.
-	//
-	// See: https://hub.docker.com/r/testcontainers/ryuk
-	disableReaper bool
-
 	// upstreamLocalBindPort is the port the frontend sidecar will bind the local
 	// listener for its backend upstream to.
-	upstreamLocalBindPort = tcpPort(10000)
+	upstreamLocalBindPort = TCP(10000)
 
 	// proxyInboundListenerPort is the port the sidecars will bind their public
 	// listeners to. Only the backend sidecar's public port is used in these tests.
-	proxyInboundListenerPort = tcpPort(20000)
-
-	// envoyAdminPort is the port both sidecars will bind the Envoy admin server
-	// to.
-	envoyAdminPort = tcpPort(30000)
-
-	// serverHTTPPort is the port the Consul server's HTTP interface will be bound
-	// to.
-	serverHTTPPort = tcpPort(8500)
+	proxyInboundListenerPort = TCP(20000)
 
 	// dnsUDPPort is UDP the port Consul Dataplane's DNS proxy wil be bound to.
-	dnsUDPPort = udpPort(40000)
+	dnsUDPPort = UDP(40000)
 
 	// dnsTCPPort is TCP the port Consul Dataplane's DNS proxy wil be bound to.
-	dnsTCPPort = tcpPort(40000)
+	dnsTCPPort = TCP(40000)
 
 	// metricsPort is the port Consul Dataplane will serve merged prometheus
 	// metrics on.
-	metricsPort = tcpPort(50000)
+	metricsPort = TCP(50000)
+
+	// opts are the options used to configure the test suite (e.g. Consul server
+	// image, output directory) set by flags in TestMain.
+	opts SuiteOptions
 )
 
 func TestMain(m *testing.M) {
-	flag.StringVar(&serverImage, "server-image", "hashicorppreview/consul:1.14-dev-39f665a1ef63ef31adee30f62244f9a9143464cd", "")
-	flag.StringVar(&dataplaneImage, "dataplane-image", "hashicorp/consul-dataplane:1.0.0-beta2", "")
-	flag.StringVar(&outputDir, "output-dir", "", "")
-	flag.BoolVar(&disableReaper, "disable-reaper", false, "")
+	flag.StringVar(&opts.ServerImage, "server-image", "hashicorppreview/consul:1.14-dev-39f665a1ef63ef31adee30f62244f9a9143464cd", "")
+	flag.StringVar(&opts.DataplaneImage, "dataplane-image", "hashicorp/consul-dataplane:1.0.0-beta2", "")
+	flag.StringVar(&opts.OutputDir, "output-dir", "", "")
+	flag.BoolVar(&opts.DisableReaper, "disable-reaper", false, "")
 	flag.Parse()
 
-	if outputDir != "" {
-		if err := os.MkdirAll(outputDir, 0770); err != nil {
+	if opts.OutputDir != "" {
+		if err := os.MkdirAll(opts.OutputDir, 0770); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to create -output-dir: %v", err)
 			os.Exit(1)
 		}
@@ -100,7 +76,7 @@ func TestMain(m *testing.M) {
 //	* Making DNS queries against the frontend dataplane's UDP and TCP DNS proxies.
 //	* Scraping the prometheus merged metrics endpoint.
 func TestIntegration(t *testing.T) {
-	suite := NewSuite(t)
+	suite := NewSuite(t, opts)
 
 	server := RunServer(t, suite)
 
@@ -124,7 +100,7 @@ func TestIntegration(t *testing.T) {
 	})
 
 	backendPod := RunPod(t, suite, "backend", []nat.Port{
-		envoyAdminPort,
+		EnvoyAdminPort,
 		metricsPort,
 	})
 
@@ -143,16 +119,16 @@ func TestIntegration(t *testing.T) {
 
 	RunDataplane(t, backendPod, suite, DataplaneConfig{
 		Addresses:         server.Container.ContainerIP,
-		ServiceNodeName:   syntheticNodeName,
+		ServiceNodeName:   SyntheticNodeName,
 		ProxyServiceID:    "backend-sidecar",
-		LoginAuthMethod:   authMethod.name(),
+		LoginAuthMethod:   authMethod.Name,
 		LoginBearerToken:  authMethod.GenerateToken(t, "backend"),
 		DNSBindPort:       dnsUDPPort.Port(),
 		ServiceMetricsURL: "http://localhost:8080",
 	})
 
 	frontendPod := RunPod(t, suite, "frontend", []nat.Port{
-		envoyAdminPort,
+		EnvoyAdminPort,
 		upstreamLocalBindPort,
 		dnsUDPPort,
 		dnsTCPPort,
@@ -183,9 +159,9 @@ func TestIntegration(t *testing.T) {
 
 	RunDataplane(t, frontendPod, suite, DataplaneConfig{
 		Addresses:         server.Container.ContainerIP,
-		ServiceNodeName:   syntheticNodeName,
+		ServiceNodeName:   SyntheticNodeName,
 		ProxyServiceID:    "frontend-sidecar",
-		LoginAuthMethod:   authMethod.name(),
+		LoginAuthMethod:   authMethod.Name,
 		LoginBearerToken:  authMethod.GenerateToken(t, "frontend"),
 		DNSBindPort:       dnsUDPPort.Port(),
 		ServiceMetricsURL: "http://localhost:8080",

@@ -1,4 +1,4 @@
-package integrationtests
+package helpers
 
 import (
 	"fmt"
@@ -8,6 +8,9 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+// EnvoyAdminPort is the port Consul Dataplane will bind the Envoy admin server to.
+var EnvoyAdminPort = TCP(30000)
 
 type DataplaneConfig struct {
 	Addresses         string
@@ -25,7 +28,7 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-service-node-name", cfg.ServiceNodeName,
 		"-proxy-service-id", cfg.ProxyServiceID,
 		"-envoy-admin-bind-address", "0.0.0.0",
-		"-envoy-admin-bind-port", envoyAdminPort.Port(),
+		"-envoy-admin-bind-port", EnvoyAdminPort.Port(),
 		"-credential-type", "login",
 		"-login-auth-method", cfg.LoginAuthMethod,
 		"-login-bearer-token", cfg.LoginBearerToken,
@@ -49,7 +52,7 @@ func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Co
 
 	container := suite.RunContainer(t, fmt.Sprintf("%s-dataplane", cfg.ProxyServiceID), true, ContainerRequest{
 		NetworkMode: pod.Network(),
-		Image:       dataplaneImage,
+		Image:       suite.opts.DataplaneImage,
 		Cmd:         cfg.ToArgs(),
 		Mounts: []testcontainers.ContainerMount{
 			testcontainers.VolumeMount(volume.Name, "/data"),
@@ -61,7 +64,7 @@ func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Co
 		url := fmt.Sprintf(
 			"http://%s:%d/config_dump?include_eds",
 			pod.HostIP,
-			pod.MappedPorts[envoyAdminPort],
+			pod.MappedPorts[EnvoyAdminPort],
 		)
 
 		rsp, err := httpClient.Get(url)
