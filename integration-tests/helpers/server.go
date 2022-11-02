@@ -80,7 +80,7 @@ func RunServer(t *testing.T, suite *Suite) *ConsulServer {
 			testcontainers.VolumeMount(volume.Name, "/data"),
 		},
 		ExposedPorts: []string{string(serverHTTPPort)},
-		WaitingFor:   wait.ForLog("New leader elected"),
+		WaitingFor:   wait.ForLog("successfully established leadership"),
 		Cmd:          []string{"consul", "agent", "-config-file", "/data/server.hcl", "-client", "0.0.0.0"},
 	})
 
