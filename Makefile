@@ -109,3 +109,23 @@ ifdef LAST_RELEASE_GIT_TAG
 else
 	$(error Cannot generate changelog without LAST_RELEASE_GIT_TAG)
 endif
+
+INTEGRATION_TESTS_SERVER_IMAGE    ?= hashicorppreview/consul:1.14-dev
+INTEGRATION_TESTS_DATAPLANE_IMAGE ?= $(PRODUCT_NAME)/release-default:$(VERSION)
+
+.PHONY: expand-integration-tests-output-dir
+expand-integration-tests-output-dir:
+# make's built-in realpath function doesn't support non-existent directories
+# and intermittently has issues finding newly created ones (so preemptively
+# creating it with mkdir isn't an option) so we'll rely on the realpath bin.
+ifdef INTEGRATION_TESTS_OUTPUT_DIR
+ifeq (, $(shell which realpath))
+ $(error "GNU Coreutils are required to run the integration-tests target with INTEGRATION_TESTS_OUTPUT_DIR.")
+else
+EXPANDED_INTEGRATION_TESTS_OUTPUT_DIR = $(shell realpath $(INTEGRATION_TESTS_OUTPUT_DIR))
+endif
+endif
+
+.PHONY: integration-tests
+integration-tests: docker/release-default expand-integration-tests-output-dir
+	cd integration-tests && go test -v ./ -output-dir="$(EXPANDED_INTEGRATION_TESTS_OUTPUT_DIR)" -dataplane-image="$(INTEGRATION_TESTS_DATAPLANE_IMAGE)" -server-image="$(INTEGRATION_TESTS_SERVER_IMAGE)"

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/adamthesax/grpc-proxy/proxy"
+	"github.com/armon/go-metrics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -68,7 +69,10 @@ func (cdp *ConsulDataplane) setupXDSServer() error {
 	// The core library being used is actually this - https://github.com/mwitkow/grpc-proxy.
 	// However, we needed this fix (https://github.com/mwitkow/grpc-proxy/pull/62) which was available on the fork we are using.
 	// TODO: Switch to the main library once the fix is merged to keep upto date.
-	newGRPCServer := grpc.NewServer(grpc.UnknownServiceHandler(proxy.TransparentHandler(cdp.director)))
+	newGRPCServer := grpc.NewServer(
+		grpc.UnknownServiceHandler(proxy.TransparentHandler(cdp.director)),
+		grpc.StreamInterceptor(cdp.streamInterceptor()),
+	)
 
 	cdp.xdsServer = &xdsServer{
 		listener:        lis,
@@ -105,3 +109,33 @@ func (cdp *ConsulDataplane) stopXDSServer() {
 }
 
 func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServer.exitedCh }
+
+func (cdp *ConsulDataplane) streamInterceptor() grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		return handler(srv, &metricServerStream{ss})
+	}
+}
+
+type metricServerStream struct {
+	grpc.ServerStream
+}
+
+func (s *metricServerStream) SendMsg(m interface{}) error {
+	err := s.ServerStream.SendMsg(m)
+	if err == nil {
+		metrics.SetGauge([]string{"envoy_connected"}, 1)
+		return nil
+	}
+	metrics.SetGauge([]string{"envoy_connected"}, 0)
+	return err
+}
+
+func (s *metricServerStream) RecvMsg(m interface{}) error {
+	err := s.ServerStream.RecvMsg(m)
+	if err == nil {
+		metrics.SetGauge([]string{"envoy_connected"}, 1)
+		return nil
+	}
+	metrics.SetGauge([]string{"envoy_connected"}, 0)
+	return err
+}
