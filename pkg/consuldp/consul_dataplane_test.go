@@ -2,6 +2,7 @@ package consuldp
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +36,8 @@ func validConfig() *Config {
 		Telemetry: &TelemetryConfig{
 			UseCentralConfig: true,
 			Prometheus: PrometheusTelemetryConfig{
-				RetentionTime:     "30s",
+				ScrapePath:        "/metrics",
+				RetentionTime:     30 * time.Second,
 				CACertsPath:       "/tmp/my-certs/",
 				KeyFile:           "/tmp/my-key.pem",
 				CertFile:          "/tmp/my-cert.pem",
@@ -142,6 +144,16 @@ func TestNewConsulDPError(t *testing.T) {
 			name:      "missing prometheus cert file",
 			modFn:     func(c *Config) { c.Telemetry.Prometheus.CertFile = "" },
 			expectErr: "Must provide -telemetry-prom-ca-certs-path, -telemetry-prom-cert-file, and -telemetry-prom-key-file to enable TLS for prometheus metrics",
+		},
+		{
+			name:      "missing prometheus retention time",
+			modFn:     func(c *Config) { c.Telemetry.Prometheus.RetentionTime = 0 },
+			expectErr: "-telemetry-prom-retention-time must be greater than zero",
+		},
+		{
+			name:      "missing prometheus scrape path",
+			modFn:     func(c *Config) { c.Telemetry.Prometheus.ScrapePath = "" },
+			expectErr: "-telemetry-prom-scrape-path must not be empty",
 		},
 		{
 			name:      "missing xds bind address",

@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
@@ -49,12 +50,13 @@ var (
 
 	useCentralTelemetryConfig bool
 
-	promRetentionTime     string
+	promRetentionTime     time.Duration
 	promCACertsPath       string
 	promKeyFile           string
 	promCertFile          string
 	promServiceMetricsURL string
 	promScrapePath        string
+	promMergePort         int
 
 	adminBindAddr    string
 	adminBindPort    int
@@ -106,12 +108,13 @@ func init() {
 
 	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy applies the central telemetry configuration.")
 
-	flag.StringVar(&promRetentionTime, "telemetry-prom-retention-time", "", "The duration for Prometheus metrics aggregation.")
+	flag.DurationVar(&promRetentionTime, "telemetry-prom-retention-time", 60*time.Second, "The duration for Prometheus metrics aggregation.")
 	flag.StringVar(&promCACertsPath, "telemetry-prom-ca-certs-path", "", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
 	flag.StringVar(&promKeyFile, "telemetry-prom-key-file", "", "The path to the client private key used to serve Prometheus metrics.")
 	flag.StringVar(&promCertFile, "telemetry-prom-cert-file", "", "The path to the client certificate used to serve Prometheus metrics.")
 	flag.StringVar(&promServiceMetricsURL, "telemetry-prom-service-metrics-url", "", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
-	flag.StringVar(&promScrapePath, "telemetry-prom-scrape-path", "", "The URL path where Envoy serves Prometheus metrics.")
+	flag.StringVar(&promScrapePath, "telemetry-prom-scrape-path", "/metrics", "The URL path where Envoy serves Prometheus metrics.")
+	flag.IntVar(&promMergePort, "telemetry-prom-merge-port", 20100, "The port to serve merged Prometheus metrics.")
 
 	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address on which the Envoy admin server is available.")
 	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server is available.")
@@ -204,6 +207,7 @@ func main() {
 				CertFile:          promCertFile,
 				ServiceMetricsURL: promServiceMetricsURL,
 				ScrapePath:        promScrapePath,
+				MergePort:         promMergePort,
 			},
 		},
 		Envoy: &consuldp.EnvoyConfig{
