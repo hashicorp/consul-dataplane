@@ -43,12 +43,6 @@ type BootstrapTplArgs struct {
 	// service and is expected to be used for that purpose.
 	LocalAgentClusterName string
 
-	// Token is the Consul ACL token provided which is required to make gRPC
-	// discovery requests. If non-empty, this must be configured as the gRPC
-	// service "initial_metadata" with the key "x-consul-token" in order to
-	// authorize the discovery streaming RPCs.
-	Token string
-
 	// StaticClustersJSON is JSON string, each is expected to be a valid Cluster
 	// definition. They are appended to the "static_resources.clusters" list. Note
 	// that cluster names should be chosen in such a way that they won't collide
@@ -272,12 +266,7 @@ const bootstrapTemplate = `{
       "api_type": "DELTA_GRPC",
       "transport_api_version": "V3",
       "grpc_services": {
-        "initial_metadata": [
-          {
-            "key": "x-consul-token",
-            "value": "{{ .Token }}"
-          }
-        ],
+        "initial_metadata": [],
         "envoy_grpc": {
           "cluster_name": "{{ .LocalAgentClusterName }}"
         }
