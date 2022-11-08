@@ -32,11 +32,12 @@ var (
 	logLevel string
 	logJSON  bool
 
-	nodeName  string
-	nodeID    string
-	serviceID string
-	namespace string
-	partition string
+	nodeName      string
+	nodeID        string
+	serviceID     string
+	serviceIDPath string
+	namespace     string
+	partition     string
 
 	credentialType       string
 	token                string
@@ -93,6 +94,7 @@ func init() {
 	flag.StringVar(&nodeName, "service-node-name", "", "The name of the Consul node to which the proxy service instance is registered.")
 	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the Consul node to which the proxy service instance is registered.")
 	flag.StringVar(&serviceID, "proxy-service-id", "", "The proxy service instance's ID.")
+	flag.StringVar(&serviceIDPath, "proxy-service-id-path", "", "The path to a file containing the proxy service instance's ID.")
 	flag.StringVar(&namespace, "service-namespace", "", "The Consul Enterprise namespace in which the proxy service instance is registered.")
 	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
@@ -155,6 +157,7 @@ func main() {
 		return
 	}
 
+	readServiceIDFromFile()
 	validateFlags()
 
 	consuldpCfg := &consuldp.Config{
@@ -247,5 +250,21 @@ func main() {
 	if err != nil {
 		cancel()
 		log.Fatal(err)
+	}
+}
+
+// readServiceIDFromFile reads the service ID from the file specified by the
+// -proxy-service-id-path flag.
+//
+// We do this here, rather than in the consuldp package's config handling,
+// because this option only really makes sense as a CLI flag (and we handle
+// all flag parsing here).
+func readServiceIDFromFile() {
+	if serviceID == "" && serviceIDPath != "" {
+		id, err := os.ReadFile(serviceIDPath)
+		if err != nil {
+			log.Fatalf("failed to read given -proxy-service-id-path: %v", err)
+		}
+		serviceID = string(id)
 	}
 }
