@@ -205,6 +205,7 @@ The `consul-dataplane` binary supports the following flags.
 | `-login-namespace`                    | string   |               | The Consul Enterprise namespace containing the auth method.                                                                                                                                                                                |
 | `-login-partition`                    | string   |               | The Consul Enterprise partition containing the auth method.                                                                                                                                                                                |
 | `-proxy-service-id`                   | string   |               | The proxy service instance's ID.                                                                                                                                                                                                           |
+| `-proxy-service-id-path`              | string   |               | The path to a file containing the proxy service instance's ID.                                                                                                                                                                             |
 | `-server-watch-disabled`              | bool     | `false`       | Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.                                                                             |
 | `-service-namespace`                  | string   |               | The Consul Enterprise namespace in which the proxy service instance is registered.                                                                                                                                                         |
 | `-service-node-id`                    | string   |               | The ID of the Consul node to which the proxy service instance is registered.                                                                                                                                                               |
@@ -226,3 +227,18 @@ The `consul-dataplane` binary supports the following flags.
 | `-tls-server-name`                    | string   |               | The hostname to expect in the server certificate's subject. This is required if `-addresses` is not a DNS name.                                                                                                                            |
 | `-version`                            | bool     | `false`       | Prints the current version of consul-dataplane.                                                                                                                                                                                            |
 | `-xds-bind-addr`                      | string   | `"127.0.0.1"` | The address on which the Envoy xDS server is available.                                                                                                                                                                                    |
+
+### Extending the Container Image
+
+The official `hashicorp/consul-dataplane` container image is ["distroless"](https://github.com/GoogleContainerTools/distroless)
+and only includes the bare-minimum runtime dependencies, for greater security.
+
+You may want to add a shell that can be used by the `-addresses exec=...` flag
+to resolve Consul servers with a custom script.
+
+Here's an example of how you might do that, copying `sh` from the busybox image:
+
+```Dockerfile
+FROM hashicorp/consul-dataplane:latest
+COPY --from=busybox:uclibc /bin/sh /bin/sh
+```
