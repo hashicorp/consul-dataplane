@@ -32,11 +32,12 @@ var (
 	logLevel string
 	logJSON  bool
 
-	nodeName  string
-	nodeID    string
-	serviceID string
-	namespace string
-	partition string
+	nodeName      string
+	nodeID        string
+	serviceID     string
+	serviceIDPath string
+	namespace     string
+	partition     string
 
 	credentialType       string
 	token                string
@@ -74,67 +75,67 @@ var (
 func init() {
 	flag.BoolVar(&printVersion, "version", false, "Prints the current version of consul-dataplane.")
 
-	flag.StringVar(&addresses, "addresses", "", "Consul server gRPC addresses. Value can be:\n"+
+	StringVar(&addresses, "addresses", "", "DP_CONSUL_ADDRESSES", "Consul server gRPC addresses. Value can be:\n"+
 		"1. A DNS name that resolves to server addresses or the DNS name of a load balancer in front of the Consul servers; OR\n"+
 		"2. An executable command in the format, 'exec=<executable with optional args>'. The executable\n"+
 		"	a) on success - should exit 0 and print to stdout whitespace delimited IP (v4/v6) addresses\n"+
 		"	b) on failure - exit with a non-zero code and optionally print an error message of up to 1024 bytes to stderr.\n"+
-		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.")
+		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.\n")
 
-	flag.IntVar(&grpcPort, "grpc-port", 8502, "The Consul server gRPC port to which consul-dataplane connects.")
+	IntVar(&grpcPort, "grpc-port", 8502, "DP_CONSUL_GRPC_PORT", "The Consul server gRPC port to which consul-dataplane connects.")
 
-	flag.BoolVar(&serverWatchDisabled, "server-watch-disabled", false, "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
+	BoolVar(&serverWatchDisabled, "server-watch-disabled", false, "DP_SERVER_WATCH_DISABLED", "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
 
-	flag.StringVar(&logLevel, "log-level", "info", "Log level of the messages to print. "+
+	StringVar(&logLevel, "log-level", "info", "DP_LOG_LEVEL", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
-	flag.BoolVar(&logJSON, "log-json", false, "Enables log messages in JSON format.")
+	BoolVar(&logJSON, "log-json", false, "DP_LOG_JSON", "Enables log messages in JSON format.")
 
-	flag.StringVar(&nodeName, "service-node-name", "", "The name of the Consul node to which the proxy service instance is registered.")
-	flag.StringVar(&nodeID, "service-node-id", "", "The ID of the Consul node to which the proxy service instance is registered.")
-	flag.StringVar(&serviceID, "proxy-service-id", "", "The proxy service instance's ID.")
-	flag.StringVar(&namespace, "service-namespace", "", "The Consul Enterprise namespace in which the proxy service instance is registered.")
-	flag.StringVar(&partition, "service-partition", "", "The Consul Enterprise partition in which the proxy service instance is registered.")
+	StringVar(&nodeName, "service-node-name", "", "DP_SERVICE_NODE_NAME", "The name of the Consul node to which the proxy service instance is registered.")
+	StringVar(&nodeID, "service-node-id", "", "DP_SERVICE_NODE_ID", "The ID of the Consul node to which the proxy service instance is registered.")
+	StringVar(&serviceID, "proxy-service-id", "", "DP_PROXY_SERVICE_ID", "The proxy service instance's ID.")
+	StringVar(&serviceIDPath, "proxy-service-id-path", "", "DP_PROXY_SERVICE_ID_PATH", "The path to a file containing the proxy service instance's ID.")
+	StringVar(&namespace, "service-namespace", "", "DP_SERVICE_NAMESPACE", "The Consul Enterprise namespace in which the proxy service instance is registered.")
+	StringVar(&partition, "service-partition", "", "DP_SERVICE_PARTITION", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
-	flag.StringVar(&credentialType, "credential-type", "", "The type of credentials, either static or login, used to authenticate with Consul servers.")
-	flag.StringVar(&token, "static-token", "", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
-	flag.StringVar(&loginAuthMethod, "login-auth-method", "", "The auth method used to log in.")
-	flag.StringVar(&loginNamespace, "login-namespace", "", "The Consul Enterprise namespace containing the auth method.")
-	flag.StringVar(&loginPartition, "login-partition", "", "The Consul Enterprise partition containing the auth method.")
-	flag.StringVar(&loginDatacenter, "login-datacenter", "", "The datacenter containing the auth method.")
-	flag.StringVar(&loginBearerToken, "login-bearer-token", "", "The bearer token presented to the auth method.")
-	flag.StringVar(&loginBearerTokenPath, "login-bearer-token-path", "", "The path to a file containing the bearer token presented to the auth method.")
-	flag.Var((*FlagMapValue)(&loginMeta), "login-meta", `A set of key/value pairs to attach to the ACL token. Each pair is formatted as "<key>=<value>". This flag may be passed multiple times.`)
+	StringVar(&credentialType, "credential-type", "", "DP_CREDENTIAL_TYPE", "The type of credentials, either static or login, used to authenticate with Consul servers.")
+	StringVar(&token, "static-token", "", "DP_CREDENTIAL_STATIC_TOKEN", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
+	StringVar(&loginAuthMethod, "login-auth-method", "", "DP_CREDENTIAL_LOGIN_AUTH_METHOD", "The auth method used to log in.")
+	StringVar(&loginNamespace, "login-namespace", "", "DP_CREDENTIAL_LOGIN_NAMESPACE", "The Consul Enterprise namespace containing the auth method.")
+	StringVar(&loginPartition, "login-partition", "", "DP_CREDENTIAL_LOGIN_PARTITION", "The Consul Enterprise partition containing the auth method.")
+	StringVar(&loginDatacenter, "login-datacenter", "", "DP_CREDENTIAL_LOGIN_DATACENTER", "The datacenter containing the auth method.")
+	StringVar(&loginBearerToken, "login-bearer-token", "", "DP_CREDENTIAL_LOGIN_BEARER_TOKEN", "The bearer token presented to the auth method.")
+	StringVar(&loginBearerTokenPath, "login-bearer-token-path", "", "DP_CREDENTIAL_LOGIN_BEARER_TOKEN_PATH", "The path to a file containing the bearer token presented to the auth method.")
+	MapVar((*FlagMapValue)(&loginMeta), "login-meta", "DP_CREDENTIAL_LOGIN_META", `A set of key/value pairs to attach to the ACL token. Each pair is formatted as "<key>=<value>". This flag may be passed multiple times.`)
 
-	flag.BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "Controls whether the proxy applies the central telemetry configuration.")
+	BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "DP_TELEMETRY_USE_CENTRAL_CONFIG", "Controls whether the proxy applies the central telemetry configuration.")
 
-	flag.DurationVar(&promRetentionTime, "telemetry-prom-retention-time", 60*time.Second, "The duration for Prometheus metrics aggregation.")
-	flag.StringVar(&promCACertsPath, "telemetry-prom-ca-certs-path", "", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
-	flag.StringVar(&promKeyFile, "telemetry-prom-key-file", "", "The path to the client private key used to serve Prometheus metrics.")
-	flag.StringVar(&promCertFile, "telemetry-prom-cert-file", "", "The path to the client certificate used to serve Prometheus metrics.")
-	flag.StringVar(&promServiceMetricsURL, "telemetry-prom-service-metrics-url", "", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
-	flag.StringVar(&promScrapePath, "telemetry-prom-scrape-path", "/metrics", "The URL path where Envoy serves Prometheus metrics.")
-	flag.IntVar(&promMergePort, "telemetry-prom-merge-port", 20100, "The port to serve merged Prometheus metrics.")
+	DurationVar(&promRetentionTime, "telemetry-prom-retention-time", 60*time.Second, "DP_TELEMETRY_PROM_RETENTION_TIME", "The duration for prometheus metrics aggregation.")
+	StringVar(&promCACertsPath, "telemetry-prom-ca-certs-path", "", "DP_TELEMETRY_PROM_CA_CERTS_PATH", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
+	StringVar(&promKeyFile, "telemetry-prom-key-file", "", "DP_TELEMETRY_PROM_KEY_FILE", "The path to the client private key used to serve Prometheus metrics.")
+	StringVar(&promCertFile, "telemetry-prom-cert-file", "", "DP_TELEMETRY_PROM_CERT_FILE", "The path to the client certificate used to serve Prometheus metrics.")
+	StringVar(&promServiceMetricsURL, "telemetry-prom-service-metrics-url", "", "DP_TELEMETRY_PROM_SERVICE_METRICS_URL", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
+	StringVar(&promScrapePath, "telemetry-prom-scrape-path", "/metrics", "DP_TELEMETRY_PROM_SCRAPE_PATH", "The URL path where Envoy serves Prometheus metrics.")
+	IntVar(&promMergePort, "telemetry-prom-merge-port", 20100, "DP_TELEMETRY_PROM_MERGE_PORT", "The port to serve merged Prometheus metrics.")
 
-	flag.StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "The address on which the Envoy admin server is available.")
-	flag.IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "The port on which the Envoy admin server is available.")
-	flag.StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "The address on which Envoy's readiness probe is available.")
-	flag.IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "The port on which Envoy's readiness probe is available.")
-	flag.IntVar(&envoyConcurrency, "envoy-concurrency", 2, "The number of worker threads that Envoy uses.")
+	StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "DP_ENVOY_ADMIN_BIND_ADDRESS", "The address on which the Envoy admin server is available.")
+	IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "DP_ENVOY_ADMIN_BIND_PORT", "The port on which the Envoy admin server is available.")
+	StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "DP_ENVOY_READY_BIND_ADDRESS", "The address on which Envoy's readiness probe is available.")
+	IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "DP_ENVOY_READY_BIND_PORT", "The port on which Envoy's readiness probe is available.")
+	IntVar(&envoyConcurrency, "envoy-concurrency", 2, "DP_ENVOY_CONCURRENCY", "The number of worker threads that Envoy uses.")
 
-	flag.StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "The address on which the Envoy xDS server is available.")
-	flag.IntVar(&xdsBindPort, "xds-bind-port", 0, "The port on which the Envoy xDS server is available.")
+	StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
+	IntVar(&xdsBindPort, "xds-bind-port", 0, "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
 
-	flag.BoolVar(&tlsDisabled, "tls-disabled", false, "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
-	flag.StringVar(&tlsCACertsPath, "ca-certs", "", "The path to a file or directory containing CA certificates used to verify the server's certificate.")
-	flag.StringVar(&tlsCertFile, "tls-cert", "", "The path to a client certificate file. This is required if tls.grpc.verify_incoming is enabled on the server.")
-	flag.StringVar(&tlsKeyFile, "tls-key", "", "The path to a client private key file. This is required if tls.grpc.verify_incoming is enabled on the server.")
-	flag.StringVar(&tlsServerName, "tls-server-name", "", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
-	flag.BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
+	BoolVar(&tlsDisabled, "tls-disabled", false, "DP_TLS_DISABLED", "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
+	StringVar(&tlsCACertsPath, "ca-certs", "", "DP_CA_CERTS", "The path to a file or directory containing CA certificates used to verify the server's certificate.")
+	StringVar(&tlsCertFile, "tls-cert", "", "DP_TLS_CERT", "The path to a client certificate file. This is required if tls.grpc.verify_incoming is enabled on the server.")
+	StringVar(&tlsKeyFile, "tls-key", "", "DP_TLS_KEY", "The path to a client private key file. This is required if tls.grpc.verify_incoming is enabled on the server.")
+	StringVar(&tlsServerName, "tls-server-name", "", "DP_TLS_SERVER_NAME", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
+	BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "DP_TLS_INSECURE_SKIP_VERIFY", "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
 
-	flag.StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "The address that will be bound to the consul dns proxy.")
-	flag.IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
-
+	StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns proxy.")
+	IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -155,6 +156,7 @@ func main() {
 		return
 	}
 
+	readServiceIDFromFile()
 	validateFlags()
 
 	consuldpCfg := &consuldp.Config{
@@ -247,5 +249,21 @@ func main() {
 	if err != nil {
 		cancel()
 		log.Fatal(err)
+	}
+}
+
+// readServiceIDFromFile reads the service ID from the file specified by the
+// -proxy-service-id-path flag.
+//
+// We do this here, rather than in the consuldp package's config handling,
+// because this option only really makes sense as a CLI flag (and we handle
+// all flag parsing here).
+func readServiceIDFromFile() {
+	if serviceID == "" && serviceIDPath != "" {
+		id, err := os.ReadFile(serviceIDPath)
+		if err != nil {
+			log.Fatalf("failed to read given -proxy-service-id-path: %v", err)
+		}
+		serviceID = string(id)
 	}
 }
