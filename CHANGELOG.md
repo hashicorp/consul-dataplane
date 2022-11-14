@@ -1,3 +1,13 @@
+## 1.0.0-beta4 (November 14, 2022)
+
+FEATURES:
+
+* support environment variables for configuration options [[GH-47](https://github.com/hashicorp/consul-dataplane/pull/47)]
+
+IMPROVEMENTS:
+
+* Container image is now "distroless" for better security [[GH-15](https://github.com/hashicorp/consul-dataplane/pull/15)]
+
 ## 1.0.0-beta3 (November 2, 2022)
 
 FEATURES:
