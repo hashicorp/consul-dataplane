@@ -266,18 +266,19 @@ jobs:
     strategy:
       matrix:
         server:
-          # TODO: change this once 1.14 GA ships (beta1 doesn't support central
-          # service configuration, which breaks the integration tests)
-          - version: v1.14-dev
-            image: hashicorppreview/consul:1.14-dev
+          - version: v1.14.0
+            image: docker.mirror.hashicorp.services/hashicorp/consul:1.14
+        dataplane:
+          - image_suffix: "dev"
+          - image_suffix: "dev-ubi"
     env:
       repo: ${{ github.event.repository.name }}
-      version: ${{ needs.get-product-version.outputs.product-version }}
+      version: ${{ needs.get-product-version.outputs.product-version }}-${{ matrix.dataplane.image_suffix }}
     steps:
       - name: Set docker dev tag
         run: |
           version="${{env.version}}"
-          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
+          echo "dev_tag=${version%.*}" >> $GITHUB_ENV
       - name: Set image tarball
         run: |
           echo "image_tarball=${{env.repo}}_release-default_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
