@@ -197,66 +197,65 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-${{ github.sha }}
 
-# TODO: UBI is disabled until we can resolve a glibc compatibility issue with Envoy.
-#  build-docker-redhat:
-#    name: Docker UBI Image Build (for Red Hat Certified Container Registry)
-#    needs:
-#      - get-product-version
-#      - build-linux
-#    runs-on: ubuntu-latest
-#    env:
-#      repo: ${{github.event.repository.name}}
-#      version: ${{needs.get-product-version.outputs.product-version}}
-#
-#    steps:
-#      - uses: actions/checkout@v2
-#      - uses: hashicorp/actions-docker-build@v1
-#        with:
-#          version: ${{env.version}}
-#          target: release-ubi
-#          arch: amd64
-#          redhat_tag: quay.io/redhat-isv-containers/631f805e0d15f623c5996c2e:${{env.version}}-ubi
-#
-#  build-docker-ubi-dockerhub:
-#    name: Docker ${{ matrix.arch }} UBI build for DockerHub
-#    needs:
-#      - get-product-version
-#      - build-linux
-#    runs-on: ubuntu-latest
-#    strategy:
-#      matrix:
-#        arch: ["amd64"]
-#    env:
-#      repo: ${{ github.event.repository.name }}
-#      version: ${{ needs.get-product-version.outputs.product-version }}
-#    steps:
-#      - uses: actions/checkout@v2
-#      # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
-#      # This naming convention will be used ONLY for per-commit dev images
-#      - name: Set docker dev tag
-#        run: |
-#          version="${{ env.version }}"
-#          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
-#
-#      - name: Docker Build (Action)
-#        uses: hashicorp/actions-docker-build@v1
-#        with:
-#          smoke_test: |
-#            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
-#            if [ "${TEST_VERSION}" != "${version}" ]; then
-#              echo "Test FAILED"
-#              exit 1
-#            fi
-#            echo "Test PASSED"
-#          version: ${{ env.version }}
-#          target: release-ubi
-#          arch: ${{ matrix.arch }}
-#          tags: |
-#            docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
-#            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}-ubi
-#          dev_tags: |
-#            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
-#            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
+  build-docker-redhat:
+    name: Docker UBI Image Build (for Red Hat Certified Container Registry)
+    needs:
+      - get-product-version
+      - build-linux
+    runs-on: ubuntu-latest
+    env:
+      repo: ${{github.event.repository.name}}
+      version: ${{needs.get-product-version.outputs.product-version}}
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/actions-docker-build@v1
+        with:
+          version: ${{env.version}}
+          target: release-ubi
+          arch: amd64
+          redhat_tag: quay.io/redhat-isv-containers/631f805e0d15f623c5996c2e:${{env.version}}-ubi
+
+  build-docker-ubi-dockerhub:
+    name: Docker ${{ matrix.arch }} UBI build for DockerHub
+    needs:
+      - get-product-version
+      - build-linux
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: ["amd64"]
+    env:
+      repo: ${{ github.event.repository.name }}
+      version: ${{ needs.get-product-version.outputs.product-version }}
+    steps:
+      - uses: actions/checkout@v2
+      # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
+      # This naming convention will be used ONLY for per-commit dev images
+      - name: Set docker dev tag
+        run: |
+          version="${{ env.version }}"
+          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
+
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@v1
+        with:
+          smoke_test: |
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            if [ "${TEST_VERSION}" != "${version}" ]; then
+              echo "Test FAILED"
+              exit 1
+            fi
+            echo "Test PASSED"
+          version: ${{ env.version }}
+          target: release-ubi
+          arch: ${{ matrix.arch }}
+          tags: |
+            docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
+            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}-ubi
+          dev_tags: |
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }})
