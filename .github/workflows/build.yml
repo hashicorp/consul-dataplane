@@ -270,7 +270,9 @@ jobs:
             image: docker.mirror.hashicorp.services/hashicorp/consul:1.14
         dataplane:
           - image_suffix: "dev"
+            docker_target: 'release-default'
           - image_suffix: "dev-ubi"
+            docker_target: 'release-ubi'
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}-${{ matrix.dataplane.image_suffix }}
@@ -281,7 +283,7 @@ jobs:
           echo "dev_tag=${version%.*}" >> $GITHUB_ENV
       - name: Set image tarball
         run: |
-          echo "image_tarball=${{env.repo}}_release-default_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
+          echo "image_tarball=${{env.repo}}_${{ matrix.dataplane.docker_target }}_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
       - uses: actions/download-artifact@v3
         with:
           name: ${{env.image_tarball}}
