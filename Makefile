@@ -8,8 +8,8 @@ GOBIN        ?= $(GOPATH)/bin
 
 # Get local ARCH; on Intel Mac, 'uname -m' returns x86_64 which we turn into amd64.
 # Not using 'go env GOOS/GOARCH' here so 'make docker' will work without local Go install.
-ARCH     = $(shell A=$$(uname -m); [ $$A = x86_64 ] && A=amd64; echo $$A)
-OS       = $(shell uname | tr [[:upper:]] [[:lower:]])
+ARCH     ?= $(shell A=$$(uname -m); [ $$A = x86_64 ] && A=amd64; echo $$A)
+OS       ?= $(shell uname | tr [[:upper:]] [[:lower:]])
 PLATFORM = $(OS)/$(ARCH)
 DIST     = dist/$(PLATFORM)
 BIN      = $(DIST)/$(BIN_NAME)
