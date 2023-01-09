@@ -54,14 +54,19 @@ type ProxyConfig struct {
 	// Logger that will be used to emit log messages.
 	//
 	// Note: Envoy logs are *not* written to this logger, and instead are written
-	// directly to EnvoyLogOutput.
+	// directly to EnvoyOutputStream + EnvoyErrorStream.
 	Logger hclog.Logger
 
 	// LogJSON determines whether the logs emitted by Envoy will be in JSON format.
 	LogJSON bool
 
-	// EnvoyLogOutput is the io.Writer to which Envoy logs will be written.
-	EnvoyLogOutput io.Writer
+	// EnvoyErrorStream is the io.Writer to which the Envoy output stream will be redirected.
+	// Envoy writes process debug logs to the error stream.
+	EnvoyErrorStream io.Writer
+
+	// EnvoyOutputStream is the io.Writer to which the Envoy output stream will be redirected.
+	// The default Consul access log configuration write logs to the output stream.
+	EnvoyOutputStream io.Writer
 
 	// BootstrapConfig is the Envoy bootstrap configuration (in YAML or JSON format)
 	// that will be provided to Envoy via the --config-path flag.
@@ -85,8 +90,11 @@ func NewProxy(cfg ProxyConfig) (*Proxy, error) {
 	if len(cfg.BootstrapConfig) == 0 {
 		return nil, errors.New("BootstrapConfig is required to run an Envoy proxy")
 	}
-	if cfg.EnvoyLogOutput == nil {
-		cfg.EnvoyLogOutput = hclog.DefaultOutput
+	if cfg.EnvoyOutputStream == nil {
+		cfg.EnvoyOutputStream = os.Stdout
+	}
+	if cfg.EnvoyErrorStream == nil {
+		cfg.EnvoyErrorStream = os.Stderr
 	}
 	return &Proxy{
 		cfg:      cfg,
@@ -259,8 +267,8 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 	)
 
 	cmd := exec.CommandContext(ctx, p.cfg.ExecutablePath, args...)
-	cmd.Stdout = p.cfg.EnvoyLogOutput
-	cmd.Stderr = p.cfg.EnvoyLogOutput
+	cmd.Stdout = p.cfg.EnvoyOutputStream
+	cmd.Stderr = p.cfg.EnvoyErrorStream
 
 	return cmd
 }
