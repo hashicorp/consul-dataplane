@@ -39,6 +39,30 @@ func TestBootstrapConfig(t *testing.T) {
 		cfg *Config
 		rsp *pbdataplane.GetEnvoyBootstrapParamsResponse
 	}{
+		"access-logs": {
+			&Config{
+				Service: &ServiceConfig{
+					ServiceID: "web-proxy",
+					NodeName:  nodeName,
+				},
+				Envoy: &EnvoyConfig{
+					AdminBindAddress: "127.0.0.1",
+					AdminBindPort:    19000,
+				},
+				Telemetry: &TelemetryConfig{
+					UseCentralConfig: false,
+				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
+			},
+			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Service:  "web",
+				NodeName: nodeName,
+				Config: makeStruct(map[string]any{
+					"envoy_dogstatsd_url": "this-should-not-appear-in-generated-config",
+				}),
+				AccessLogs: []string{"{\"name\":\"Consul Listener Filter Log\",\"typedConfig\":{\"@type\":\"type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog\",\"logFormat\":{\"jsonFormat\":{\"custom_field\":\"%START_TIME%\"}}}}"},
+			},
+		},
 		"basic": {
 			&Config{
 				Service: &ServiceConfig{
