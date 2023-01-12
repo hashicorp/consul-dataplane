@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const echoServiceImage = "hashicorp/http-echo:0.2.3"
+const echoServiceImage = "ttl.sh/dans/http-echo:latest"
 
 // RunService runs an HTTP echo server in the given pod's network, running on
 // port :8080.
