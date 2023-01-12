@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -32,6 +33,11 @@ type SuiteOptions struct {
 	// ServerImage is the container image reference for the Consul server. It can
 	// be configured using the -server-image flag.
 	ServerImage string
+
+	// ServerVersion is the Consul semver (e.g. v1.x.x-prerelease) used in the image.
+	// It is used to determine the capabilities allowed for the version of Consul under test.
+	// It can be configured sing the -server-version flag.
+	ServerVersion string
 
 	// DataplaneImage is the container image reference for Consul Dataplane. It
 	// can be configured using the -dataplane-image flag.
@@ -222,6 +228,18 @@ type Container struct {
 // containers to it.
 func (c *Container) Network() container.NetworkMode {
 	return container.NetworkMode(fmt.Sprintf("container:%s", c.Name))
+}
+
+// ContainerLogs returns the container's logs.
+func (c *Container) ContainerLogs(t *testing.T) string {
+	rc, err := c.Logs(context.Background())
+	defer rc.Close()
+
+	require.NoError(t, err)
+	out, err := io.ReadAll(rc)
+	require.NoError(t, err)
+
+	return string(out)
 }
 
 type Volume struct {

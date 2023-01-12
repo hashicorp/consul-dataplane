@@ -6,12 +6,14 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	. "github.com/hashicorp/consul-dataplane/integration-tests/helpers"
 )
@@ -41,11 +43,17 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	flag.StringVar(&opts.ServerImage, "server-image", "hashicorppreview/consul:1.14-dev-39f665a1ef63ef31adee30f62244f9a9143464cd", "")
-	flag.StringVar(&opts.DataplaneImage, "dataplane-image", "hashicorp/consul-dataplane:1.0.0-beta2", "")
+	flag.StringVar(&opts.ServerImage, "server-image", "hashicorppreview/consul:1.15-dev", "")
+	flag.StringVar(&opts.ServerVersion, "server-version", "v1.15.0-dev", "")
+	flag.StringVar(&opts.DataplaneImage, "dataplane-image", "consul-dataplane/release-default:1.0.0-dev", "")
 	flag.StringVar(&opts.OutputDir, "output-dir", "", "")
 	flag.BoolVar(&opts.DisableReaper, "disable-reaper", false, "")
 	flag.Parse()
+
+	if !semver.IsValid(semver.MajorMinor(opts.ServerVersion)) {
+		fmt.Fprintf(os.Stderr, "invalid semver %s for -server-version", opts.ServerVersion)
+		os.Exit(1)
+	}
 
 	if opts.OutputDir != "" {
 		if err := os.MkdirAll(opts.OutputDir, 0770); err != nil {
@@ -59,22 +67,23 @@ func TestMain(m *testing.M) {
 
 // TestIntegration covers the end-to-end service mesh flow by:
 //
-//	* Running a Consul server with TLS and ACLs enabled.
-//	* Creating a JWT ACL auth-method.
-//	* Registering two services and sidecars ("frontend" and "backend") with an
-//	  upstream relationship.
-//	* Running a simple HTTP server for the "backend" service.
-//	* Running consul-datplane for each sidecar, with the "frontend" sidecar's
-//	  local listener port for its "backend" upstream exposed to the host.
-//	* Creating proxy-defaults to set the default protocol to HTTP and prometheus
-//	  bind address.
-//	* Creating an L7/HTTP intention to allow "frontend" to talk to "backend".
-//	* Making an HTTP request through the "frontend" sidecar's exposed "backend"
-//	  port.
-//	* Setting the intention action to deny.
-//	* Attempting to make the same request and checking that it fails.
-//	* Making DNS queries against the frontend dataplane's UDP and TCP DNS proxies.
-//	* Scraping the prometheus merged metrics endpoint.
+//   - Running a Consul server with TLS and ACLs enabled.
+//   - Creating a JWT ACL auth-method.
+//   - Registering two services and sidecars ("frontend" and "backend") with an
+//     upstream relationship.
+//   - Running a simple HTTP server for the "backend" service.
+//   - Running consul-datplane for each sidecar, with the "frontend" sidecar's
+//     local listener port for its "backend" upstream exposed to the host.
+//   - Creating proxy-defaults to set the default protocol to HTTP and prometheus
+//     bind address. Also set access logs on the admin interface of Envoy
+//   - Creating an L7/HTTP intention to allow "frontend" to talk to "backend".
+//   - Making an HTTP request through the "frontend" sidecar's exposed "backend"
+//     port.
+//   - Setting the intention action to deny.
+//   - Attempting to make the same request and checking that it fails.
+//   - Making DNS queries against the frontend dataplane's UDP and TCP DNS proxies.
+//   - Scraping the prometheus merged metrics endpoint.
+//   - Make a call to Envoy's admin interface and check for the access logs.
 func TestIntegration(t *testing.T) {
 	suite := NewSuite(t, opts)
 
@@ -83,14 +92,24 @@ func TestIntegration(t *testing.T) {
 	authMethod := NewAuthMethod(t)
 	authMethod.Register(t, server)
 
-	server.SetConfigEntry(t, &api.ProxyConfigEntry{
+	proxyDefault := &api.ProxyConfigEntry{
 		Kind: api.ProxyDefaults,
 		Name: api.ProxyConfigGlobal,
 		Config: map[string]any{
 			"protocol":                   "http",
 			"envoy_prometheus_bind_addr": net.JoinHostPort("0.0.0.0", metricsPort.Port()),
 		},
-	})
+	}
+
+	// Consul 1.15 supports access logs
+	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
+		proxyDefault.AccessLogs = &api.AccessLogsConfig{
+			Enabled:    true,
+			JSONFormat: "{\"custom_field_path\":\"%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%\"}",
+		}
+	}
+
+	server.SetConfigEntry(t, proxyDefault)
 
 	server.RegisterSyntheticNode(t)
 
@@ -117,7 +136,7 @@ func TestIntegration(t *testing.T) {
 
 	RunService(t, suite, backendPod, "backend")
 
-	RunDataplane(t, backendPod, suite, DataplaneConfig{
+	backendDataplane := RunDataplane(t, backendPod, suite, DataplaneConfig{
 		Addresses:         server.Container.ContainerIP,
 		ServiceNodeName:   SyntheticNodeName,
 		ProxyServiceID:    "backend-sidecar",
@@ -230,4 +249,13 @@ func TestIntegration(t *testing.T) {
 	require.Contains(t, metrics, "consul_dataplane_go_goroutines")
 	require.Contains(t, metrics, "envoy_server_total_connections")
 	require.Contains(t, metrics, `service_metric{service_name="backend"}`)
+
+	// Test access logs (Consul 1.15 or greater)
+	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
+		GetEnvoyClusters(t, backendPod.HostIP, backendPod.MappedPorts[EnvoyAdminPort])
+		require.Eventuallyf(t, func() bool {
+			output := backendDataplane.ContainerLogs(t)
+			return strings.Contains(output, "{\"custom_field_path\":\"/clusters\"}")
+		}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
+	}
 }

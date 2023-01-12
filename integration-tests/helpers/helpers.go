@@ -116,3 +116,12 @@ func GetMetrics(t *testing.T, ip string, port int) string {
 	return string(bytes)
 
 }
+
+func GetEnvoyClusters(t *testing.T, ip string, port int) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s:%d/clusters", ip, port)
+
+	_, err := httpClient.Get(url)
+	require.NoError(t, err)
+}
