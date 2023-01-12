@@ -1,0 +1,3 @@
+```release-note:feature
+support Envoy admin [access logs](https://developer.hashicorp.com/consul/docs/connect/observability/access-logs).
+```

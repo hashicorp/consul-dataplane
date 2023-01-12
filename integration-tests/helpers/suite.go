@@ -34,6 +34,11 @@ type SuiteOptions struct {
 	// be configured using the -server-image flag.
 	ServerImage string
 
+	// ServerVersion is the Consul semver (e.g. v1.x.x-prerelease) used in the image.
+	// It is used to determine the capabilities allowed for the version of Consul under test.
+	// It can be configured sing the -server-version flag.
+	ServerVersion string
+
 	// DataplaneImage is the container image reference for Consul Dataplane. It
 	// can be configured using the -dataplane-image flag.
 	DataplaneImage string

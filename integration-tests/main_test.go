@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/consul/api"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
 
 	. "github.com/hashicorp/consul-dataplane/integration-tests/helpers"
 )
@@ -44,10 +44,16 @@ var (
 
 func TestMain(m *testing.M) {
 	flag.StringVar(&opts.ServerImage, "server-image", "hashicorppreview/consul:1.15-dev", "")
+	flag.StringVar(&opts.ServerVersion, "server-version", "v1.15.0-dev", "")
 	flag.StringVar(&opts.DataplaneImage, "dataplane-image", "consul-dataplane/release-default:1.0.0-dev", "")
 	flag.StringVar(&opts.OutputDir, "output-dir", "", "")
 	flag.BoolVar(&opts.DisableReaper, "disable-reaper", false, "")
 	flag.Parse()
+
+	if !semver.IsValid(semver.MajorMinor(opts.ServerVersion)) {
+		fmt.Fprintf(os.Stderr, "invalid semver %s for -server-version", opts.ServerVersion)
+		os.Exit(1)
+	}
 
 	if opts.OutputDir != "" {
 		if err := os.MkdirAll(opts.OutputDir, 0770); err != nil {
@@ -86,18 +92,24 @@ func TestIntegration(t *testing.T) {
 	authMethod := NewAuthMethod(t)
 	authMethod.Register(t, server)
 
-	server.SetConfigEntry(t, &api.ProxyConfigEntry{
+	proxyDefault := &api.ProxyConfigEntry{
 		Kind: api.ProxyDefaults,
 		Name: api.ProxyConfigGlobal,
 		Config: map[string]any{
 			"protocol":                   "http",
 			"envoy_prometheus_bind_addr": net.JoinHostPort("0.0.0.0", metricsPort.Port()),
 		},
-		AccessLogs: &api.AccessLogsConfig{
+	}
+
+	// Consul 1.15 supports access logs
+	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
+		proxyDefault.AccessLogs = &api.AccessLogsConfig{
 			Enabled:    true,
 			JSONFormat: "{\"custom_field_path\":\"%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%\"}",
-		},
-	})
+		}
+	}
+
+	server.SetConfigEntry(t, proxyDefault)
 
 	server.RegisterSyntheticNode(t)
 
@@ -238,10 +250,12 @@ func TestIntegration(t *testing.T) {
 	require.Contains(t, metrics, "envoy_server_total_connections")
 	require.Contains(t, metrics, `service_metric{service_name="backend"}`)
 
-	// Test access logs
-	GetEnvoyClusters(t, backendPod.HostIP, backendPod.MappedPorts[EnvoyAdminPort])
-	require.Eventuallyf(t, func() bool {
-		output := backendDataplane.ContainerLogs(t)
-		return strings.Contains(output, "{\"custom_field_path\":\"/clusters\"}")
-	}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
+	// Test access logs (Consul 1.15 or greater)
+	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
+		GetEnvoyClusters(t, backendPod.HostIP, backendPod.MappedPorts[EnvoyAdminPort])
+		require.Eventuallyf(t, func() bool {
+			output := backendDataplane.ContainerLogs(t)
+			return strings.Contains(output, "{\"custom_field_path\":\"/clusters\"}")
+		}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
+	}
 }

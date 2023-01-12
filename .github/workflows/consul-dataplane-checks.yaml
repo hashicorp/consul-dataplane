@@ -25,7 +25,8 @@ jobs:
         with:
           go-version: '1.19'
       - run: make docker
-      - run: cd integration-test && go test -dataplane-image="consul-dataplane/release-default:$(make version)"
+      #  Currently the server version below is set to 1.15-dev: integration-tests/main_test.go
+      - run: cd integration-tests && go test -dataplane-image="consul-dataplane/release-default:$(make version)"
   golangci:
     name: lint
     runs-on: ubuntu-latest
