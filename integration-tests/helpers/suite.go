@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -222,6 +223,18 @@ type Container struct {
 // containers to it.
 func (c *Container) Network() container.NetworkMode {
 	return container.NetworkMode(fmt.Sprintf("container:%s", c.Name))
+}
+
+// ContainerLogs returns the container's logs.
+func (c *Container) ContainerLogs(t *testing.T) string {
+	rc, err := c.Logs(context.Background())
+	defer rc.Close()
+
+	require.NoError(t, err)
+	out, err := io.ReadAll(rc)
+	require.NoError(t, err)
+
+	return string(out)
 }
 
 type Volume struct {
