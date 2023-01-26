@@ -1,0 +1,3 @@
+```release-note:improvement
+Update consul-server-connection-manager to version 0.1.1. 
+```
