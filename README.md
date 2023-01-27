@@ -69,3 +69,7 @@ Here's an example of how you might do that, copying `sh` from the busybox image:
 FROM hashicorp/consul-dataplane:latest
 COPY --from=busybox:uclibc /bin/sh /bin/sh
 ```
+
+## Releasing
+
+See: engineering docs
