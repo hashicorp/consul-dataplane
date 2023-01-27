@@ -267,8 +267,8 @@ jobs:
     strategy:
       matrix:
         server:
-          - version: v1.14.0
-            image: docker.mirror.hashicorp.services/hashicorp/consul:1.14
+          - version: v1.14.4
+            image: docker.mirror.hashicorp.services/hashicorp/consul:1.14.4
         dataplane:
           - image_suffix: "dev"
             docker_target: "release-default"

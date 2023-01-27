@@ -100,7 +100,7 @@ unit-tests:
 .PHONY: changelog
 changelog:
 ifdef LAST_RELEASE_GIT_TAG
-	changelog-build \
+	@changelog-build \
 		-last-release $(LAST_RELEASE_GIT_TAG) \
 		-entries-dir .changelog/ \
 		-changelog-template .changelog/changelog.tmpl \
