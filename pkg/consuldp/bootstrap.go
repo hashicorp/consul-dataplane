@@ -60,6 +60,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		ProxyID:               svc.ServiceID,
 		NodeName:              rsp.NodeName,
 		ProxySourceService:    rsp.Service,
+		AdminAccessLogConfig:  rsp.AccessLogs,
 		AdminAccessLogPath:    defaultAdminAccessLogsPath,
 		AdminBindAddress:      envoy.AdminBindAddress,
 		AdminBindPort:         strconv.Itoa(envoy.AdminBindPort),

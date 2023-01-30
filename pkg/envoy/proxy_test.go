@@ -26,11 +26,12 @@ func TestProxy(t *testing.T) {
 	t.Cleanup(func() { _ = os.Remove(outputPath) })
 
 	p, err := NewProxy(ProxyConfig{
-		Logger:          hclog.New(&hclog.LoggerOptions{Level: hclog.Warn, Output: io.Discard}),
-		EnvoyLogOutput:  io.Discard,
-		ExecutablePath:  "testdata/fake-envoy",
-		ExtraArgs:       []string{"--test-output", outputPath},
-		BootstrapConfig: bootstrapConfig,
+		Logger:            hclog.New(&hclog.LoggerOptions{Level: hclog.Warn, Output: io.Discard}),
+		EnvoyErrorStream:  io.Discard,
+		EnvoyOutputStream: io.Discard,
+		ExecutablePath:    "testdata/fake-envoy",
+		ExtraArgs:         []string{"--test-output", outputPath},
+		BootstrapConfig:   bootstrapConfig,
 	})
 	require.NoError(t, err)
 	require.NoError(t, p.Run(context.Background()))
@@ -80,10 +81,11 @@ func TestProxy_Crash(t *testing.T) {
 	t.Cleanup(func() { _ = os.Remove(outputPath) })
 
 	p, err := NewProxy(ProxyConfig{
-		ExecutablePath:  "testdata/fake-envoy",
-		ExtraArgs:       []string{"--test-output", outputPath},
-		BootstrapConfig: []byte(`hello world`),
-		EnvoyLogOutput:  io.Discard,
+		ExecutablePath:    "testdata/fake-envoy",
+		ExtraArgs:         []string{"--test-output", outputPath},
+		BootstrapConfig:   []byte(`hello world`),
+		EnvoyErrorStream:  io.Discard,
+		EnvoyOutputStream: io.Discard,
 	})
 	require.NoError(t, err)
 	require.NoError(t, p.Run(context.Background()))
@@ -109,10 +111,11 @@ func TestProxy_ContextDone(t *testing.T) {
 	t.Cleanup(func() { _ = os.Remove(outputPath) })
 
 	p, err := NewProxy(ProxyConfig{
-		ExecutablePath:  "testdata/fake-envoy",
-		ExtraArgs:       []string{"--test-output", outputPath},
-		BootstrapConfig: []byte(`hello world`),
-		EnvoyLogOutput:  io.Discard,
+		ExecutablePath:    "testdata/fake-envoy",
+		ExtraArgs:         []string{"--test-output", outputPath},
+		BootstrapConfig:   []byte(`hello world`),
+		EnvoyErrorStream:  io.Discard,
+		EnvoyOutputStream: io.Discard,
 	})
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
