@@ -271,6 +271,8 @@ jobs:
             image: docker.mirror.hashicorp.services/hashicorp/consul:1.14.4
           - version: v1.15.0-dev
             image: hashicorppreview/consul:1.15-dev
+          - version: v1.16.0-dev
+            image: hashicorppreview/consul:1.16-dev
         dataplane:
           - image_suffix: "dev"
             docker_target: "release-default"
