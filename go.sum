@@ -140,8 +140,8 @@ github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm4
 github.com/google/uuid v1.1.2/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/googleapis/gax-go/v2 v2.0.4/go.mod h1:0Wqv26UfaUD9n4G6kQubkQ+KchISgw+vpHVxEJEs9eg=
 github.com/googleapis/gax-go/v2 v2.0.5/go.mod h1:DWXyrwAJ9X0FpwwEdw+IPEYBICEFu5mhpdKc/us6bOk=
-github.com/hashicorp/consul-server-connection-manager v0.1.1 h1:uLL+56/qMTU2cYbTqJqqJ02L1TIgNdQZMo7f6MHExUI=
-github.com/hashicorp/consul-server-connection-manager v0.1.1/go.mod h1:0jIi+bPKHXBhJi3iF9vGihsxssXj+u1/8+hvql4iVkY=
+github.com/hashicorp/consul-server-connection-manager v0.1.2 h1:tNVQHUPuMbd+cMdD8kd+qkZUYpmLmrHMAV/49f4L53I=
+github.com/hashicorp/consul-server-connection-manager v0.1.2/go.mod h1:NzQoVi1KcxGI2SangsDue8+ZPuXZWs+6BKAKrDNyg+w=
 github.com/hashicorp/consul/proto-public v0.1.1 h1:C28d6xX+DwoD2dSex/kwD0/nJ4XNgoBtQXtZEm4FGEk=
 github.com/hashicorp/consul/proto-public v0.1.1/go.mod h1:vs2KkuWwtjkIgA5ezp4YKPzQp4GitV+q/+PvksrA92k=
 github.com/hashicorp/consul/sdk v0.13.0 h1:lce3nFlpv8humJL8rNrrGHYSKc3q+Kxfeg3Ii1m6ZWU=
