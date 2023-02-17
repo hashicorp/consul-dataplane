@@ -28,8 +28,7 @@ jobs:
         # version, because "goenv" can react to it automatically.
         run: |
           echo "Building with Go $(cat .go-version)"
-          echo "name=go-version::$(cat .go-version)" >> $GITHUB_OUTPUT
-          echo "Github Output: $GITHUB_OUTPUT"
+          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
 
   get-product-version:
     runs-on: ubuntu-latest
