@@ -29,6 +29,7 @@ jobs:
         run: |
           echo "Building with Go $(cat .go-version)"
           echo "name=go-version::$(cat .go-version)" >> $GITHUB_OUTPUT
+          echo "Github Output: $GITHUB_OUTPUT"
 
   get-product-version:
     runs-on: ubuntu-latest
