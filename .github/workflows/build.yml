@@ -40,7 +40,7 @@ jobs:
         id: get-product-version
         run: |
           make version
-          echo "::set-output name=product-version::$(make version)"
+          echo "product-version=$(make version)" >> $GITHUB_OUTPUT
 
   generate-metadata-file:
     needs: get-product-version
