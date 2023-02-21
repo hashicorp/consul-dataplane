@@ -1,6 +1,6 @@
 module github.com/hashicorp/consul-dataplane
 
-go 1.19
+go 1.20
 
 require (
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
