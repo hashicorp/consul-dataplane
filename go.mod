@@ -6,7 +6,7 @@ require (
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/armon/go-metrics v0.4.1
 	github.com/hashicorp/consul-server-connection-manager v0.1.2
-	github.com/hashicorp/consul/proto-public v0.1.2-0.20230111184009-6d2880e89478
+	github.com/hashicorp/consul/proto-public v0.3.0
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
