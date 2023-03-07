@@ -85,6 +85,29 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 		},
+		"hcp-metrics": {
+			cfg: &Config{
+				Service: &ServiceConfig{
+					ServiceID: "web-proxy",
+					NodeName:  nodeName,
+				},
+				Envoy: &EnvoyConfig{
+					AdminBindAddress: "127.0.0.1",
+					AdminBindPort:    19000,
+				},
+				Telemetry: &TelemetryConfig{
+					UseCentralConfig: true,
+				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
+			},
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Service:  "web",
+				NodeName: nodeName,
+				Config: makeStruct(map[string]any{
+					"envoy_hcp_metrics_bind_socket_dir": "/tmp/consul/hcp-metrics",
+				}),
+			},
+		},
 		"custom-prometheus-scrape-path": {
 			&Config{
 				Service: &ServiceConfig{
