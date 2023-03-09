@@ -813,10 +813,7 @@ func appendHCPMetricsConfig(args *BootstrapTplArgs, hcpMetricsBindSocketDir stri
 		dir += "/"
 	}
 
-	path := fmt.Sprintf("%s%s.sock",dir,args.ProxyID)
-	if args.Namespace != ""{
-		path = fmt.Sprintf("%s%s_%s.sock",dir,args.Namespace,args.ProxyID)
-	} 
+	path := fmt.Sprintf("%s%s_%s.sock",dir,args.Namespace,args.ProxyID)
 
 	if args.StatsSinksJSON != "" {
 		args.StatsSinksJSON += ",\n"
