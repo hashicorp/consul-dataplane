@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"text/template"
 )
@@ -808,12 +809,8 @@ func (c *BootstrapConfig) generateListenerConfig(args *BootstrapTplArgs, bindAdd
 // appendHCPMetricsConfig generates config to enable a socket at path: <hcpMetricsBindSocketDir>/<namespace>_<proxy_id>.sock
 // or <hcpMetricsBindSocketDir>/<proxy_id>.sock, if namespace is empty.
 func appendHCPMetricsConfig(args *BootstrapTplArgs, hcpMetricsBindSocketDir string) {
-	dir := hcpMetricsBindSocketDir
-	if !strings.HasSuffix(dir, "/") {
-		dir += "/"
-	}
-
-	path := fmt.Sprintf("%s%s_%s.sock",dir,args.Namespace,args.ProxyID)
+	sock := fmt.Sprintf("%s_%s.sock",args.Namespace,args.ProxyID)
+	path := path.Join(hcpMetricsBindSocketDir, sock)
 
 	if args.StatsSinksJSON != "" {
 		args.StatsSinksJSON += ",\n"
