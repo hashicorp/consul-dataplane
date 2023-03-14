@@ -109,6 +109,31 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 		},
+		"hcp-metrics": {
+			cfg: &Config{
+				Service: &ServiceConfig{
+					ServiceID: "web-proxy",
+					NodeName:  nodeName,
+					Namespace: "default",
+				},
+				Envoy: &EnvoyConfig{
+					AdminBindAddress: "127.0.0.1",
+					AdminBindPort:    19000,
+				},
+				Telemetry: &TelemetryConfig{
+					UseCentralConfig: true,
+				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
+			},
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Service:   "web",
+				Namespace: "default",
+				NodeName:  nodeName,
+				Config: makeStruct(map[string]any{
+					"envoy_hcp_metrics_bind_socket_dir": "/tmp/consul/hcp-metrics",
+				}),
+			},
+		},
 		"custom-prometheus-scrape-path": {
 			&Config{
 				Service: &ServiceConfig{
@@ -192,6 +217,7 @@ func TestBootstrapConfig(t *testing.T) {
 				GetEnvoyBootstrapParams(mock.Anything, &pbdataplane.GetEnvoyBootstrapParamsRequest{
 					NodeSpec:  &pbdataplane.GetEnvoyBootstrapParamsRequest_NodeName{NodeName: tc.cfg.Service.NodeName},
 					ServiceId: tc.cfg.Service.ServiceID,
+					Namespace: tc.cfg.Service.Namespace,
 				}).Call.
 				Return(tc.rsp, nil)
 

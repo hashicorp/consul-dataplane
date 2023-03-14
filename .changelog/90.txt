@@ -1,0 +1,4 @@
+```release-note:feature
+Add envoy_hcp_metrics_bind_socket_dir flag to configure a directory where a unix socket is created. 
+This enables Envoy metrics collection, which will be forwarded to a HCP metrics collector.
+```
