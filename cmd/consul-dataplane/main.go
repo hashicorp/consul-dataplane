@@ -139,6 +139,12 @@ func init() {
 
 	StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns proxy.")
 	IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
+
+	BoolVar(&shutdownDrainListeners, "shutdown-drain-listeners", true, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
+	// TODO: Should the grace period be implemented as a minimum or maximum? If all
+	// connections have drained from the proxy before the end of the grace period,
+	// should it terminate earlier?
+	IntVar(&shutdownGracePeriod, "shutdown-grace-period", 30, "DP_SHUTDOWN_GRACE_PERIOD", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
 }
 
 // validateFlags performs semantic validation of the flag values
