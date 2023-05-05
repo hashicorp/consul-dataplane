@@ -73,6 +73,11 @@ var (
 
 	consulDNSBindAddr string
 	consulDNSPort     int
+
+	shutdownDrainListeners bool
+	shutdownGracePeriod    int
+	gracefulShutdownPath   string
+	gracefulPort           int
 )
 
 func init() {
