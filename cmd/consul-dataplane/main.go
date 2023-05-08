@@ -148,9 +148,6 @@ func init() {
 	// Default is false because it will generally be configured appropriately by Helm
 	// configuration or pod annotation.
 	BoolVar(&shutdownDrainListeners, "shutdown-drain-listeners", false, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
-	// TODO: Should the grace period be implemented as a minimum or maximum? If all
-	// connections have drained from the proxy before the end of the grace period,
-	// should it terminate earlier?
 	// Default is 0 because it will generally be configured appropriately by Helm
 	// configuration or pod annotation.
 	IntVar(&shutdownGracePeriod, "shutdown-grace-period", 0, "DP_SHUTDOWN_GRACE_PERIOD", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
@@ -233,12 +230,16 @@ func main() {
 			},
 		},
 		Envoy: &consuldp.EnvoyConfig{
-			AdminBindAddress: adminBindAddr,
-			AdminBindPort:    adminBindPort,
-			ReadyBindAddress: readyBindAddr,
-			ReadyBindPort:    readyBindPort,
-			EnvoyConcurrency: envoyConcurrency,
-			ExtraArgs:        flag.Args(),
+			AdminBindAddress:       adminBindAddr,
+			AdminBindPort:          adminBindPort,
+			ReadyBindAddress:       readyBindAddr,
+			ReadyBindPort:          readyBindPort,
+			EnvoyConcurrency:       envoyConcurrency,
+			ShutdownDrainListeners: shutdownDrainListeners,
+			ShutdownGracePeriod:    shutdownGracePeriod,
+			GracefulShutdownPath:   gracefulShutdownPath,
+			GracefulPort:           gracefulPort,
+			ExtraArgs:              flag.Args(),
 		},
 		XDSServer: &consuldp.XDSServer{
 			BindAddress: xdsBindAddr,
