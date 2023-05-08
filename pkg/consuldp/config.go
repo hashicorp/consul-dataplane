@@ -271,6 +271,14 @@ type EnvoyConfig struct {
 	ReadyBindPort int
 	// EnvoyConcurrency is the envoy concurrency https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
 	EnvoyConcurrency int
+	// ShutdownDrainListeners configures whether to wait for all proxy listeners to drain before terminating the proxy container.
+	ShutdownDrainListeners bool
+	// ShutdownGracePeriod is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
+	ShutdownGracePeriod int
+	// GracefulShutdownPath is the path on which the HTTP endpoint to initiate a graceful shutdown of Envoy is served
+	GracefulShutdownPath string
+	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
+	GracefulPort int
 	// ExtraArgs are the extra arguments passed to envoy at startup of the proxy
 	ExtraArgs []string
 }
