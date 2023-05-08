@@ -1,0 +1,3 @@
+```release-note:feature
+Add -shutdown-drain-listeners, -shutdown-grace-period, -graceful-shutdown-path and -graceful-port flags to configure proxy lifecycle management settings for the Envoy container.
+```
