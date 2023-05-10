@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 	// "net/url"
-	// "strconv"
+	"strconv"
 	"sync"
 	// "time"
 
@@ -28,73 +28,71 @@ const (
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 )
 
-// lifecycleConfig handles all configuration related to merging
-// the metrics and presenting them on promScrapeServer
+// lifecycleConfig handles all configuration related to managing the Envoy proxy
+// lifecycle, including exposing management controls via an HTTP server.
 type lifecycleConfig struct {
 	logger hclog.Logger
 
 	envoyAdminAddr     string
 	envoyAdminBindPort int
 
-	// merged metrics config
-	promScrapeServer *http.Server // the server that will serve all the merged metrics
-	client           httpGetter   // the client that will scrape the urls
-	urls             []string     // the urls that will be scraped
+	// consuldp proxy lifecycle management config
+	gracefulPort         int
+	gracefulShutdownPath string
+	client               httpGetter // client that will dial the managed Envoy proxy
 
-	// consuldp metrics server
-	cdpLifecycleServer *http.Server // cdp metrics prometheus scrape server
+	// consuldp proxy lifecycle management server
+	lifecycleServer *http.Server
 
-	// lifecycle control
+	// consuldp proxy lifecycle server control
 	errorExitCh chan struct{}
 	running     bool
 	mu          sync.Mutex
 }
 
-func (m *lifecycleConfig) startLifecycleServer(ctx context.Context, bcfg *bootstrap.BootstrapConfig) error {
+func (m *lifecycleConfig) startLifecycleManager(ctx context.Context, bcfg *bootstrap.BootstrapConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.running {
 		return nil
 	}
 
-	m.logger = hclog.FromContext(ctx).Named("metrics")
+	m.logger = hclog.FromContext(ctx).Named("lifecycle")
 	m.running = true
 	go func() {
 		<-ctx.Done()
 		m.stopLifecycleServer()
 	}()
 
-	// 2. Setup prometheus handler for the merged metrics endpoint that prometheus
-	// will actually scrape.
+	// Start the server which will expose HTTP endpoints for proxy lifecycle
+	// management control
 	mux := http.NewServeMux()
-	mux.HandleFunc("/stats/prometheus", m.mergedMetricsHandler)
-	m.urls = []string{cdpLifecycleUrl, fmt.Sprintf("http://%s:%v/stats/prometheus", m.envoyAdminAddr, m.envoyAdminBindPort)}
-	// if m.cfg != nil && m.cfg.Prometheus.ServiceMetricsURL != "" {
-	// 	m.urls = append(m.urls, m.cfg.Prometheus.ServiceMetricsURL)
-	// }
+	mux.HandleFunc(m.gracefulShutdownPath, m.gracefulShutdown)
 
-	// 3. Determine what the merged metrics bind port is. It can be set as a flag.
-	mergedMetricsBackendBindPort := defaultMergedMetricsBackendBindPort
-	// if m.cfg.Prometheus.MergePort != 0 {
-	// 	mergedMetricsBackendBindPort = strconv.Itoa(m.cfg.Prometheus.MergePort)
-	// }
-	m.promScrapeServer = &http.Server{
-		Addr:    mergedMetricsBackendBindHost + mergedMetricsBackendBindPort,
+	// Determine what the proxy lifecycle management server bind port is. It can be
+	// set as a flag.
+	cdpLifecycleBindPort := defaultLifecycleBindPort
+	if m.gracefulPort != 0 {
+		cdpLifecycleBindPort = strconv.Itoa(m.gracefulPort)
+	}
+	m.lifecycleServer = &http.Server{
+		Addr:    cdpLifecycleBindAddr + cdpLifecycleBindPort,
 		Handler: mux,
 	}
-	// 4. Start prometheus metrics sink
-	go m.startPrometheusMergedMetricsSink()
+
+	// Start the proxy lifecycle management server
+	go m.startLifecycleServer()
 
 	return nil
 }
 
-// startPrometheusMergedMetricsSink starts the main merged metrics server that prometheus
-// will actually be scraping.
-func (m *lifecycleConfig) startPrometheusMergedMetricsSink() {
-	m.logger.Info("starting merged metrics server", "address", m.promScrapeServer.Addr)
-	err := m.promScrapeServer.ListenAndServe()
+// startLifecycleServer starts the main proxy lifecycle management server that
+// exposes HTTP endpoints for proxy lifecycle control.
+func (m *lifecycleConfig) startLifecycleServer() {
+	m.logger.Info("starting proxy lifecycle management server", "address", m.lifecycleServer.Addr)
+	err := m.lifecycleServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		m.logger.Error("failed to serve metrics requests", "error", err)
+		m.logger.Error("failed to serve proxy lifecycle managerments requests", "error", err)
 		close(m.errorExitCh)
 	}
 }
@@ -107,17 +105,17 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 	m.running = false
 	var errs error
 
-	if m.promScrapeServer != nil {
+	if m.lifecycleServer != nil {
 		m.logger.Info("stopping the merged  server")
-		err := m.promScrapeServer.Close()
+		err := m.lifecycleServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing metrics server", "error", err)
 			errs = multierror.Append(err, errs)
 		}
 	}
-	if m.cdpLifecycleServer != nil {
+	if m.lifecycleServer != nil {
 		m.logger.Info("stopping consul dp promtheus server")
-		err := m.cdpLifecycleServer.Close()
+		err := m.lifecycleServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing metrics server", "error", err)
 			errs = multierror.Append(err, errs)
@@ -135,18 +133,27 @@ func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
 	return m.errorExitCh
 }
 
+// gracefulShutdown blocks until at most shutdownGracePeriod seconds have elapsed,
+// or, if configured, until all open connections to Envoy listeners have been
+// drained.
+func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Request) {
+	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
+
+	m.logger.Debug("initiating graceful shutdown")
+	m.logger.Debug("shutting down Envoy", envoyShutdownUrl)
+
+	// TODO: implement
+}
+
 // mergedMetricsHandler responds with merged metrics from multiple sources:
 // Consul Dataplane, Envoy and (optionally) the service/application. The Envoy
 // and service metrics are scraped synchronously during the handling of this
 // request.
 func (m *lifecycleConfig) mergedMetricsHandler(rw http.ResponseWriter, _ *http.Request) {
-	for _, url := range m.urls {
-		m.logger.Debug("scraping url for merging", "url", url)
-		if err := m.scrapeMetrics(rw, url); err != nil {
-			m.scrapeError(rw, url, err)
-			return
-		}
-	}
+	// if err := m.scrapeMetrics(rw, url); err != nil {
+	//     m.scrapeError(rw, url, err)
+	//     return
+	// }
 }
 
 // scrapeMetrics fetches metrics from the given url and copies them to the response.
@@ -177,21 +184,4 @@ func (m *lifecycleConfig) scrapeError(rw http.ResponseWriter, url string, err er
 	m.logger.Error("failed to scrape metrics", "url", url, "error", err)
 	msg := fmt.Sprintf("failed to scrape metrics at url %q", url)
 	http.Error(rw, msg, http.StatusInternalServerError)
-}
-
-// runPrometheusCDPServer takes a prom.Gatherer that will create a handler
-// for http calls to the metrics endpoint and return prometheus style metrics.
-// Eventually these metrics will be scraped and merged.
-func (m *lifecycleConfig) runPrometheusCDPServer(gather prom.Gatherer) {
-	m.cdpLifecycleServer = &http.Server{
-		Addr: cdpLifecycleBindAddr,
-		Handler: promhttp.HandlerFor(gather, promhttp.HandlerOpts{
-			ErrorHandling: promhttp.ContinueOnError,
-		}),
-	}
-	err := m.cdpLifecycleServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		m.logger.Error("failed to serve metrics requests", "error", err)
-		close(m.errorExitCh)
-	}
 }
