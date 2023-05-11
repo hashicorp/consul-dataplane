@@ -161,14 +161,8 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			// 4. Start prometheus metrics sink
 			go m.startPrometheusMergedMetricsSink()
 		}
-		if bcfg.StatsdURL != "" {
-			url = bcfg.StatsdURL
-			if len(url) > 2 && url[0] == '$' {
-				url = os.Getenv(url[1:]
-			} else {
-				url = os.Expand(url, statsSinkEnvMapping)
-			}		 
-			addr, err := parseSinkAddr(url, Statsd)
+		if bcfg.StatsdURL != "" {	 
+			addr, err := parseSinkAddr(bcfg.StatsdURL, Statsd)
 			if err != nil {
 				return err
 			}
@@ -179,13 +173,7 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			}
 		}
 		if bcfg.DogstatsdURL != "" {
-			url = bcfg.DogstatsdURL
-			if len(url) > 2 && url[0] == '$' {
-				url = os.Getenv(url[1:]
-			} else {
-				url = os.Expand(url, statsSinkEnvMapping)
-			}
-			dogstatsDAddr, err := parseSinkAddr(url, Dogstatsd)
+			dogstatsDAddr, err := parseSinkAddr(bcfg.DogstatsdURL, Dogstatsd)
 			if err != nil {
 				return err
 			}
@@ -382,6 +370,12 @@ func (m *metricsConfig) runPrometheusCDPServer(gather prom.Gatherer) {
 }
 
 func parseSinkAddr(addr string, s Stats) (string, error) {
+	if len(addr) > 2 && addr[0] == '$' {
+		url = os.Getenv(addr[1:]
+	} else {
+		url = os.Expand(addr, statsSinkEnvMapping)
+	}	
+						
 	u, err := url.Parse(addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse address %s", addr)
