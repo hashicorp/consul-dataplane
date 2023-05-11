@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -105,6 +106,18 @@ func NewMetricsConfig(cfg *Config, cacheSink *metricscache.Sink) *metricsConfig 
 	}
 }
 
+func statsSinkEnvMapping(s string) string {
+	allowedStatsSinkEnvVars := map[string]bool{
+		"HOST_IP": true,
+	}
+
+	if !allowedStatsSinkEnvVars[s] {
+		// if the specified env var isn't explicitly allowed, unexpand it
+		return fmt.Sprintf("${%s}", s)
+	}
+	return os.Getenv(s)
+}
+
 func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.BootstrapConfig) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -149,7 +162,13 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			go m.startPrometheusMergedMetricsSink()
 		}
 		if bcfg.StatsdURL != "" {
-			addr, err := parseSinkAddr(bcfg.StatsdURL, Statsd)
+			url = bcfg.StatsdURL
+			if len(url) > 2 && url[0] == '$' {
+				url = os.Getenv(url[1:]
+			} else {
+				url = os.Expand(url, statsSinkEnvMapping)
+			}		 
+			addr, err := parseSinkAddr(url, Statsd)
 			if err != nil {
 				return err
 			}
@@ -160,7 +179,13 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			}
 		}
 		if bcfg.DogstatsdURL != "" {
-			dogstatsDAddr, err := parseSinkAddr(bcfg.DogstatsdURL, Dogstatsd)
+			url = bcfg.DogstatsdURL
+			if len(url) > 2 && url[0] == '$' {
+				url = os.Getenv(url[1:]
+			} else {
+				url = os.Expand(url, statsSinkEnvMapping)
+			}
+			dogstatsDAddr, err := parseSinkAddr(url, Dogstatsd)
 			if err != nil {
 				return err
 			}
