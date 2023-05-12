@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 	"testing"
