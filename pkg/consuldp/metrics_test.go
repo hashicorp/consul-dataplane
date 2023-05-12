@@ -478,7 +478,7 @@ func TestParseAddr(t *testing.T) {
 		},
 	}
 
-	os.Setenv("HOST_IP", "1.2.3.4")
+	t.Setenv("HOST_IP", "1.2.3.4")
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			addr, err := parseSinkAddr(tc.addr, tc.s)
