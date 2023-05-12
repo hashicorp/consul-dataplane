@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -103,6 +104,18 @@ func NewMetricsConfig(cfg *Config, cacheSink *metricscache.Sink) *metricsConfig 
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+func statsSinkEnvMapping(s string) string {
+	allowedStatsSinkEnvVars := map[string]bool{
+		"HOST_IP": true,
+	}
+
+	if !allowedStatsSinkEnvVars[s] {
+		// if the specified env var isn't explicitly allowed, unexpand it
+		return fmt.Sprintf("${%s}", s)
+	}
+	return os.Getenv(s)
 }
 
 func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.BootstrapConfig) error {
@@ -357,6 +370,12 @@ func (m *metricsConfig) runPrometheusCDPServer(gather prom.Gatherer) {
 }
 
 func parseSinkAddr(addr string, s Stats) (string, error) {
+	if len(addr) > 2 && addr[0] == '$' {
+		addr = os.Getenv(addr[1:])
+	} else {
+		addr = os.Expand(addr, statsSinkEnvMapping)
+	}
+
 	u, err := url.Parse(addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse address %s", addr)
