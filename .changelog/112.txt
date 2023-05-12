@@ -1,0 +1,3 @@
+```release-note:improvement
+Rename "envoy_hcp_metrics_bind_socket_dir" to "envoy_telemetry_collector_bind_socket_dir", which removes inaccurate HCP references.
+```
