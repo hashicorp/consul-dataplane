@@ -465,7 +465,19 @@ func TestParseAddr(t *testing.T) {
 			s:           Dogstatsd,
 			expectedErr: errors.New("unsupported addr: tcp://0.0.0.0:1234 for sink type: dogstatsD"),
 		},
+		"dogstatsd HOST_IP": {
+			addr:         "udp://${HOST_IP}:1234",
+			s:            Dogstatsd,
+			expectedAddr: "1.2.3.4:1234",
+		},
+		"dogstatsd bad env var": {
+			addr:        "udp://${NOT_SUPPORTED}:1234",
+			s:           Dogstatsd,
+			expectedErr: errors.New("failed to parse address udp://${NOT_SUPPORTED}:1234"),
+		},
 	}
+
+	t.Setenv("HOST_IP", "1.2.3.4")
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			addr, err := parseSinkAddr(tc.addr, tc.s)
