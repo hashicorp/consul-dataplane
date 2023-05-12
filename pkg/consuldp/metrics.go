@@ -164,7 +164,7 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			// 4. Start prometheus metrics sink
 			go m.startPrometheusMergedMetricsSink()
 		}
-		if bcfg.StatsdURL != "" {	 
+		if bcfg.StatsdURL != "" {
 			addr, err := parseSinkAddr(bcfg.StatsdURL, Statsd)
 			if err != nil {
 				return err
@@ -374,11 +374,11 @@ func (m *metricsConfig) runPrometheusCDPServer(gather prom.Gatherer) {
 
 func parseSinkAddr(addr string, s Stats) (string, error) {
 	if len(addr) > 2 && addr[0] == '$' {
-		url = os.Getenv(addr[1:]
+		addr = os.Getenv(addr[1:])
 	} else {
-		url = os.Expand(addr, statsSinkEnvMapping)
-	}	
-						
+		addr = os.Expand(addr, statsSinkEnvMapping)
+	}
+
 	u, err := url.Parse(addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse address %s", addr)
