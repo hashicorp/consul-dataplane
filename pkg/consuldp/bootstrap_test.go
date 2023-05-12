@@ -112,7 +112,7 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 		},
-		"hcp-metrics": {
+		"telemetry-collector": {
 			cfg: &Config{
 				Service: &ServiceConfig{
 					ServiceID: "web-proxy",
@@ -133,7 +133,7 @@ func TestBootstrapConfig(t *testing.T) {
 				Namespace: "default",
 				NodeName:  nodeName,
 				Config: makeStruct(map[string]any{
-					"envoy_hcp_metrics_bind_socket_dir": "/tmp/consul/hcp-metrics",
+					"envoy_telemetry_collector_bind_socket_dir": "/tmp/consul/telemetry-collector",
 				}),
 			},
 		},
