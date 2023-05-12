@@ -469,12 +469,12 @@ func TestParseAddr(t *testing.T) {
 			expectedAddr: "1.2.3.4:1234",
 		},
 		"dogstatsd bad env var": {
-			addr:         "udp://${NOT_SUPPORTED}:1234",
-			s:            Dogstatsd,
-			expectedErr: errors.New("unsupported addr: udp://${NOT_SUPPORTED}:1234 for sink type: dogstatsD"),
+			addr:        "udp://${NOT_SUPPORTED}:1234",
+			s:           Dogstatsd,
+			expectedErr: errors.New("failed to parse address udp://${NOT_SUPPORTED}:1234"),
 		},
 	}
-	
+
 	os.Setenv("HOST_IP", "1.2.3.4")
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
