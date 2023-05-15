@@ -67,6 +67,11 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context, bcfg *boots
 	// Start the server which will expose HTTP endpoints for proxy lifecycle
 	// management control
 	mux := http.NewServeMux()
+	fmt.Printf("graceful shutdown path: %s\n", m.gracefulShutdownPath)
+	// TODO: set a default value in lifecycle manager init instead of empty string
+	// to avoid panic here
+	m.gracefulShutdownPath = "/shutdown"
+
 	mux.HandleFunc(m.gracefulShutdownPath, m.gracefulShutdown)
 
 	// Determine what the proxy lifecycle management server bind port is. It can be
