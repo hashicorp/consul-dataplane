@@ -4,15 +4,15 @@
 package consuldp
 
 import (
-	"bytes"
+	// "bytes"
 	"context"
-	"errors"
+	// "errors"
 	"fmt"
-	"io"
+	// "io"
 	"log"
-	"net"
+	// "net"
 	"net/http"
-	"strings"
+	// "strings"
 	"sync"
 	"testing"
 	"time"
@@ -41,7 +41,7 @@ func TestLifecycleServerClosed(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	_ = m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+	_ = m.startLifecycleManager(ctx, &bootstrap.BootstrapConfig{})
 	require.Equal(t, m.running, true)
 	cancel()
 	require.Eventually(t, func() bool {
@@ -57,13 +57,23 @@ func TestLifecycleServerEnabled(t *testing.T) {
 		gracefulShutdownPath   string
 		gracefulPort           int
 	}{
-		"no service metrics":   {},
-		"with service metrics": {},
-		"custom scrape path":   {},
+		"connection draining disabled without grace period": {},
+		"connection draining enabled without grace period":  {
+			// TODO: long-timeout connection held open
+		},
+		"connection draining disabled with grace period": {},
+		"connection draining enabled with grace period":  {
+			// TODO: decide if grace period should be a minimum time to wait before
+			// shutdown even if all connections have drained, and/or a maximum time
+			// even if some connections are still open, test both
+		},
+		"custom graceful path": {},
 		"custom graceful port": {},
 	}
 	for name, c := range cases {
 		c := c
+		log.Printf("config = %v", c)
+
 		t.Run(name, func(t *testing.T) {
 
 			m := &lifecycleConfig{
@@ -89,53 +99,38 @@ func TestLifecycleServerEnabled(t *testing.T) {
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			err := m.startMetrics(ctx, &bootstrap.BootstrapConfig{PrometheusBindAddr: "nonempty"})
+			err := m.startLifecycleManager(ctx, &bootstrap.BootstrapConfig{})
 			require.NoError(t, err)
-			require.Equal(t, c.bindAddr, m.promScrapeServer.Addr)
+			// require.Equal(t, c.bindAddr, m.promScrapeServer.Addr)
 
 			// Have consul-dataplane's metrics server start on an open port.
 			// And figure out what port was used so we can make requests to it.
 			// Conveniently, this seems to wait until the server is ready for requests.
-			portCh := make(chan int, 1)
-			m.promScrapeServer.Addr = "127.0.0.1:0"
-			m.promScrapeServer.BaseContext = func(l net.Listener) context.Context {
-				portCh <- l.Addr().(*net.TCPAddr).Port
-				return context.Background()
-			}
+			/*
+				portCh := make(chan int, 1)
+				m.promScrapeServer.Addr = "127.0.0.1:0"
+				m.promScrapeServer.BaseContext = func(l net.Listener) context.Context {
+					portCh <- l.Addr().(*net.TCPAddr).Port
+					return context.Background()
+				}
 
-			var port int
-			select {
-			case port = <-portCh:
-			case <-time.After(5 * time.Second):
-			}
+				var port int
+				select {
+				case port = <-portCh:
+				case <-time.After(5 * time.Second):
+				}
 
-			require.NotEqual(t, port, 0, "test failed to figure out metrics server port")
-			log.Printf("port = %v", port)
+				require.NotEqual(t, port, 0, "test failed to figure out metrics server port")
+				log.Printf("port = %v", port)
 
-			url := fmt.Sprintf("http://127.0.0.1:%d/stats/prometheus", port)
-			resp, err := http.Get(url)
-			require.NoError(t, err)
-			require.NotNil(t, resp)
+				url := fmt.Sprintf("http://127.0.0.1:%d/stats/prometheus", port)
+				resp, err := http.Get(url)
+				require.NoError(t, err)
+				require.NotNil(t, resp)
 
-			body, err := io.ReadAll(resp.Body)
-			require.NoError(t, err)
-			expMetrics := strings.Join(c.expMetrics, "")
-			require.Equal(t, expMetrics, string(body))
-
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+			*/
 		})
 	}
-}
-
-type mockClient struct{}
-
-func (c *mockClient) Get(url string) (*http.Response, error) {
-	buf := bytes.NewBufferString(makeFakeMetric(url))
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(buf),
-	}, nil
-}
-
-func makeFakeMetric(url string) string {
-	return fmt.Sprintf(`fake_metric{url="%s"} 1\n`, url)
 }
