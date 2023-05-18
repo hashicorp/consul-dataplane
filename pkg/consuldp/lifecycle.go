@@ -46,6 +46,7 @@ type lifecycleConfig struct {
 
 	// consuldp proxy lifecycle server control
 	errorExitCh chan struct{}
+	shutdownCh  chan struct{}
 	running     bool
 	mu          sync.Mutex
 }
@@ -132,61 +133,19 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 	}
 }
 
-// lifecycleServerExited is used to signal that the metrics server
-// exited unexpectedely.
-func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
-	return m.errorExitCh
-}
+// lifecycleServerExited is used to signal that the lifecycle server
+// recieved a signal to initiate shutdown.
+// func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
+// 	return m.errorExitCh
+// }
 
 // gracefulShutdown blocks until at most shutdownGracePeriod seconds have elapsed,
 // or, if configured, until all open connections to Envoy listeners have been
 // drained.
 func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Request) {
-	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
+	// envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
 
 	m.logger.Debug("initiating graceful shutdown")
-	m.logger.Debug("shutting down Envoy", envoyShutdownUrl)
 
 	// TODO: implement
-}
-
-// mergedMetricsHandler responds with merged metrics from multiple sources:
-// Consul Dataplane, Envoy and (optionally) the service/application. The Envoy
-// and service metrics are scraped synchronously during the handling of this
-// request.
-func (m *lifecycleConfig) mergedMetricsHandler(rw http.ResponseWriter, _ *http.Request) {
-	// if err := m.scrapeMetrics(rw, url); err != nil {
-	//     m.scrapeError(rw, url, err)
-	//     return
-	// }
-}
-
-// scrapeMetrics fetches metrics from the given url and copies them to the response.
-func (m *lifecycleConfig) scrapeMetrics(rw http.ResponseWriter, url string) error {
-	resp, err := m.client.Get(url)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err := resp.Body.Close()
-		if err != nil {
-			m.logger.Warn("failed to close metrics request", "error", err)
-		}
-	}()
-
-	if non2xxCode(resp.StatusCode) {
-		return fmt.Errorf("status code %d", resp.StatusCode)
-	}
-
-	// Prometheus metrics are joined by newlines, so when merging metrics
-	// metrics we simply write all lines from each source to the response.
-	_, err = io.Copy(rw, resp.Body)
-	return err
-}
-
-// scrapeError logs an error and responds to the http request with an error.
-func (m *lifecycleConfig) scrapeError(rw http.ResponseWriter, url string, err error) {
-	m.logger.Error("failed to scrape metrics", "url", url, "error", err)
-	msg := fmt.Sprintf("failed to scrape metrics at url %q", url)
-	http.Error(rw, msg, http.StatusInternalServerError)
 }
