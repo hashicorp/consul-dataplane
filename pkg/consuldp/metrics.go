@@ -76,7 +76,7 @@ type metricsConfig struct {
 
 	// merged metrics config
 	promScrapeServer *http.Server // the server that will serve all the merged metrics
-	client           httpGetter   // the client that will scrape the urls
+	client           httpClient   // the client that will scrape the urls
 	urls             []string     // the urls that will be scraped
 
 	// consuldp metrics server
