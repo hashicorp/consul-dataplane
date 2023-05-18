@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -31,8 +32,9 @@ type xdsServer struct {
 	exitedCh        chan struct{}
 }
 
-type httpGetter interface {
+type httpClient interface {
 	Get(string) (*http.Response, error)
+	Post(string, string, io.Reader) (*http.Response, error)
 }
 
 // ConsulDataplane represents the consul-dataplane process
