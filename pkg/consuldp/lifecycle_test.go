@@ -7,7 +7,7 @@ import (
 	// "bytes"
 	"context"
 	// "errors"
-	"fmt"
+	// "fmt"
 	// "io"
 	"log"
 	// "net"
@@ -22,9 +22,8 @@ import (
 )
 
 var (
-	envoyAdminPort   = 19000
-	envoyAdminAddr   = "127.0.0.1"
-	envoyShutdownUrl = fmt.Sprintf("http://%s:%v/quitquitquit", envoyAdminAddr, envoyAdminPort)
+	envoyAdminPort = 19000
+	envoyAdminAddr = "127.0.0.1"
 )
 
 func TestLifecycleServerClosed(t *testing.T) {

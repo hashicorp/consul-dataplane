@@ -6,12 +6,11 @@ package consuldp
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	// "net/url"
 	"strconv"
 	"sync"
-	// "time"
+	"time"
 
 	// "github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/go-hclog"
@@ -39,7 +38,7 @@ type lifecycleConfig struct {
 	// consuldp proxy lifecycle management config
 	gracefulPort         int
 	gracefulShutdownPath string
-	client               httpGetter // client that will dial the managed Envoy proxy
+	client               httpClient // client that will dial the managed Envoy proxy
 
 	// consuldp proxy lifecycle management server
 	lifecycleServer *http.Server
@@ -103,8 +102,7 @@ func (m *lifecycleConfig) startLifecycleServer() {
 	}
 }
 
-// stopLifecycleServer stops the main merged metrics server and the consul
-// dataplane metrics server
+// stopLifecycleServer stops the consul dataplane proxy lifecycle server
 func (m *lifecycleConfig) stopLifecycleServer() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -115,7 +113,7 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 		m.logger.Info("stopping the merged  server")
 		err := m.lifecycleServer.Close()
 		if err != nil {
-			m.logger.Warn("error while closing metrics server", "error", err)
+			m.logger.Warn("error while closing lifecycle server", "error", err)
 			errs = multierror.Append(err, errs)
 		}
 	}
@@ -123,7 +121,7 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 		m.logger.Info("stopping consul dp promtheus server")
 		err := m.lifecycleServer.Close()
 		if err != nil {
-			m.logger.Warn("error while closing metrics server", "error", err)
+			m.logger.Warn("error while closing lifecycle server", "error", err)
 			errs = multierror.Append(err, errs)
 		}
 	}
@@ -143,9 +141,53 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 // or, if configured, until all open connections to Envoy listeners have been
 // drained.
 func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Request) {
-	// envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
-
 	m.logger.Debug("initiating graceful shutdown")
 
-	// TODO: implement
+	// Create a context that is both manually cancellable and will signal
+	// a cancel at the specified duration.
+	// TODO: calculate timeout from m.shutdownGracePeriod
+	// TODO: should this use lifecycleManager ctx instead of context.Background?
+	timeout := 15 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// Create a channel to received a signal that work is done.
+	// TODO: should this be a buffered channel instead?
+	shutdownCh := make(chan int)
+
+	// Ask the goroutine to do some work for us.
+	// If shutdownDrainListeners is enabled, initiatie graceful shutdown of Envoy
+	// and wait until all open connections have closed or shutdownGracePeriod
+	// seconds have elapsed.
+	go func() {
+		// envoyDrainListenersUrl := fmt.Sprintf("http://%s:%v/drain_listeners?inboundonly", m.envoyAdminAddr, m.envoyAdminBindPort)
+		// envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
+
+		// TODO: actually initiate Envoy shutdown and loop checking for open
+		// connections
+		// By default, the Envoy server will close listeners immediately on server
+		// shutdown. To drain listeners for some duration of time prior to server
+		// shutdown, use drain_listeners before shutting down the server.
+		// We want to start draining connections from inbound listeners if
+		// configured, but still allow outbound traffic until gracfulShutdownPeriod
+		// has elapsed to facilitate a graceful application shutdown.
+		// resp, err := m.client.Post(envoyDrainListenersUrl)
+
+		time.Sleep(5 * time.Second)
+
+		// Report the work is done.
+		// TODO: is there actually any point to sending this signal if we always just
+		// want to wait unitl the shutdownGracePeriod has elapsed?
+		shutdownCh <- 0
+	}()
+
+	for {
+		select {
+		case _ = <-shutdownCh:
+			m.logger.Info("shutting down, all open Envoy connections have been drained")
+		case <-ctx.Done():
+			m.logger.Info("shutdown grace period timeout reached")
+			// resp, err := m.client.Post(envoyShutdownUrl)
+		}
+	}
 }
