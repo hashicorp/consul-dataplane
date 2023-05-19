@@ -63,7 +63,6 @@ jobs:
           jql: 'issuetype = "${{ steps.set-ticket-type.outputs.TYPE }}" and cf[10089] = "${{ github.event.issue.html_url || github.event.pull_request.html_url }}"'
 
       - name: Sync comment
-        if: github.event.action == 'created' && steps.search.outputs.issue
         uses: tomhjp/gh-action-jira-comment@6eb6b9ead70221916b6badd118c24535ed220bd9 # v0.2.0
         with:
           issue: ${{ steps.search.outputs.issue }}
