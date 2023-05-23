@@ -10,7 +10,7 @@ import (
 	// "fmt"
 	// "io"
 	"log"
-	// "net"
+	"net"
 	"net/http"
 	// "strings"
 	"sync"
@@ -102,26 +102,26 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			require.NoError(t, err)
 			// require.Equal(t, c.bindAddr, m.promScrapeServer.Addr)
 
-			// Have consul-dataplane's metrics server start on an open port.
-			// And figure out what port was used so we can make requests to it.
+			// Have consul-dataplane's lifecycle server start on an open port
+			// and figure out what port was used so we can make requests to it.
 			// Conveniently, this seems to wait until the server is ready for requests.
+			portCh := make(chan int, 1)
+			m.lifecycleServer.Addr = "127.0.0.1:0"
+			m.lifecycleServer.BaseContext = func(l net.Listener) context.Context {
+				portCh <- l.Addr().(*net.TCPAddr).Port
+				return context.Background()
+			}
+
+			var port int
+			select {
+			case port = <-portCh:
+			case <-time.After(5 * time.Second):
+			}
+
+			require.NotEqual(t, port, 0, "test failed to figure out lifecycle server port")
+			log.Printf("port = %v", port)
+
 			/*
-				portCh := make(chan int, 1)
-				m.promScrapeServer.Addr = "127.0.0.1:0"
-				m.promScrapeServer.BaseContext = func(l net.Listener) context.Context {
-					portCh <- l.Addr().(*net.TCPAddr).Port
-					return context.Background()
-				}
-
-				var port int
-				select {
-				case port = <-portCh:
-				case <-time.After(5 * time.Second):
-				}
-
-				require.NotEqual(t, port, 0, "test failed to figure out metrics server port")
-				log.Printf("port = %v", port)
-
 				url := fmt.Sprintf("http://127.0.0.1:%d/stats/prometheus", port)
 				resp, err := http.Get(url)
 				require.NoError(t, err)
