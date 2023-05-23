@@ -66,15 +66,20 @@ jobs:
     needs:
       - get-go-version
       - get-product-version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04 # the GLIBC is too high on 22.04
     strategy:
       matrix:
-        goos: [linux]
-        goarch: ["arm", "arm64", "386", "amd64"]
+        include:
+          - {goos: "linux", goarch: "arm"}
+          - {goos: "linux", goarch: "arm64"}
+          - {goos: "linux", goarch: "386"}
+          - {goos: "linux", goarch: "amd64"}
+          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: ".fips1402" }
+          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: ".fips1402"}
 
       fail-fast: true
 
-    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} ${{ matrix.fips }} build
 
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
@@ -82,12 +87,17 @@ jobs:
       - uses: hashicorp/actions-go-build@v0.1.3
         with:
           product_name: ${{ env.PKG_NAME }}
-          product_version: ${{ needs.get-product-version.outputs.product-version }}
+          product_version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
           go_version: ${{ needs.get-go-version.outputs.go-version }}
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
           reproducible: assert
-          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
+          instructions: |
+            if [[ "${{ matrix.fips }}" == ".fips1402" ]]
+            then
+              sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
+            fi
+            ${{ matrix.env }} go build -tags=${{ matrix.gotags }} -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
@@ -96,7 +106,7 @@ jobs:
           name: ${{ github.event.repository.name }}
           description: "Consul dataplane connects an application to a Consul service mesh."
           arch: ${{ matrix.goarch }}
-          version: ${{ needs.get-product-version.outputs.product-version }}
+          version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
           maintainer: "HashiCorp"
           homepage: "https://github.com/hashicorp/consul-dataplane"
           license: "MPL-2.0"
@@ -163,9 +173,10 @@ jobs:
         # This is the subset of architectures we build binaries for officially
         # supported by Envoy.
         arch: ["arm64", "amd64"]
+        fips: [ ".fips1402", ""]
     env:
       repo: ${{ github.event.repository.name }}
-      version: ${{ needs.get-product-version.outputs.product-version }}
+      version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
 
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
@@ -183,7 +194,7 @@ jobs:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
-              echo "Test FAILED"
+              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
             fi
             echo "Test PASSED"
@@ -225,9 +236,10 @@ jobs:
     strategy:
       matrix:
         arch: ["amd64"]
+        fips: [".fips1402", ""]
     env:
       repo: ${{ github.event.repository.name }}
-      version: ${{ needs.get-product-version.outputs.product-version }}
+      version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
@@ -243,11 +255,11 @@ jobs:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
-              echo "Test FAILED"
+              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}}."
               exit 1
             fi
             echo "Test PASSED"
-          version: ${{ env.version }}
+          version: ${{ env.version }}${{ matrix.fips }}
           target: release-ubi
           arch: ${{ matrix.arch }}
           tags: |
@@ -284,8 +296,11 @@ jobs:
     steps:
       - name: Set docker dev tag
         run: |
-          version="${{env.version}}"
-          echo "dev_tag=${version%.*}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
+          major_minor_version=$(echo "${{ env.version }}" | cut -d "-" -f 1)
+          dev_tag=$(echo "${{ env.version }}" | cut -d "-" -f 2)
+          version="$major_minor_version${{ matrix.fips }}$dev_tag"
+          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
+
       - name: Set image tarball
         run: |
           echo "image_tarball=${{env.repo}}_${{ matrix.dataplane.docker_target }}_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
