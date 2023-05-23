@@ -23,7 +23,7 @@ const (
 	// defaultLifecycleBindPort is the port which will serve the proxy lifecycle HTTP
 	// endpoints on the loopback interface.
 	defaultLifecycleBindPort = "20300"
-	cdpLifecycleBindAddr     = "127.0.0.1:" + defaultLifecycleBindPort
+	cdpLifecycleBindAddr     = "127.0.0.1"
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 )
 
@@ -105,7 +105,7 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context, bcfg *boots
 		cdpLifecycleBindPort = strconv.Itoa(m.gracefulPort)
 	}
 	m.lifecycleServer = &http.Server{
-		Addr:    cdpLifecycleBindAddr + cdpLifecycleBindPort,
+		Addr:    fmt.Sprintf("%s:%s", cdpLifecycleBindAddr, cdpLifecycleBindPort),
 		Handler: mux,
 	}
 
@@ -134,21 +134,14 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 	var errs error
 
 	if m.lifecycleServer != nil {
-		m.logger.Info("stopping the merged  server")
+		m.logger.Info("stopping the lifecycle management server")
 		err := m.lifecycleServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing lifecycle server", "error", err)
 			errs = multierror.Append(err, errs)
 		}
 	}
-	if m.lifecycleServer != nil {
-		m.logger.Info("stopping consul dp promtheus server")
-		err := m.lifecycleServer.Close()
-		if err != nil {
-			m.logger.Warn("error while closing lifecycle server", "error", err)
-			errs = multierror.Append(err, errs)
-		}
-	}
+
 	// Check if there were errors and then close the error channel
 	if errs != nil {
 		close(m.errorExitCh)
