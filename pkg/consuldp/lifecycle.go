@@ -34,20 +34,44 @@ type lifecycleConfig struct {
 
 	envoyAdminAddr     string
 	envoyAdminBindPort int
+	envoyDrainTime     int
 
 	// consuldp proxy lifecycle management config
-	gracefulPort         int
-	gracefulShutdownPath string
-	client               httpClient // client that will dial the managed Envoy proxy
+	shutdownDrainListeners bool
+	shutdownGracePeriod    int
+	gracefulPort           int
+	gracefulShutdownPath   string
+
+	// client that will dial the managed Envoy proxy
+	client httpClient
 
 	// consuldp proxy lifecycle management server
 	lifecycleServer *http.Server
 
 	// consuldp proxy lifecycle server control
 	errorExitCh chan struct{}
-	shutdownCh  chan struct{}
 	running     bool
 	mu          sync.Mutex
+}
+
+func NewLifecycleConfig(cfg *Config) *lifecycleConfig {
+	return &lifecycleConfig{
+		envoyAdminAddr:     cfg.Envoy.AdminBindAddress,
+		envoyAdminBindPort: cfg.Envoy.AdminBindPort,
+		envoyDrainTime:     cfg.Envoy.EnvoyDrainTime,
+
+		shutdownDrainListeners: cfg.Envoy.ShutdownDrainListeners,
+		shutdownGracePeriod:    cfg.Envoy.ShutdownGracePeriod,
+		gracefulPort:           cfg.Envoy.GracefulPort,
+		gracefulShutdownPath:   cfg.Envoy.GracefulShutdownPath,
+
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+
+		errorExitCh: make(chan struct{}),
+		mu:          sync.Mutex{},
+	}
 }
 
 func (m *lifecycleConfig) startLifecycleManager(ctx context.Context, bcfg *bootstrap.BootstrapConfig) error {
@@ -141,53 +165,53 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 // or, if configured, until all open connections to Envoy listeners have been
 // drained.
 func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Request) {
-	m.logger.Debug("initiating graceful shutdown")
+	envoyDrainListenersUrl := fmt.Sprintf("http://%s:%v/drain_listeners?inboundonly&graceful", m.envoyAdminAddr, m.envoyAdminBindPort)
+	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
+
+	m.logger.Info("initiating shutdown")
+
+	// Wait until shutdownGracePeriod seconds have elapsed before actually
+	// terminating the Envoy proxy process.
+	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriod))
+	timeout := time.Duration(m.shutdownGracePeriod) * time.Second
 
 	// Create a context that is both manually cancellable and will signal
 	// a cancel at the specified duration.
-	// TODO: calculate timeout from m.shutdownGracePeriod
 	// TODO: should this use lifecycleManager ctx instead of context.Background?
-	timeout := 15 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// Create a channel to received a signal that work is done.
-	// TODO: should this be a buffered channel instead?
-	shutdownCh := make(chan int)
-
-	// Ask the goroutine to do some work for us.
-	// If shutdownDrainListeners is enabled, initiatie graceful shutdown of Envoy
-	// and wait until all open connections have closed or shutdownGracePeriod
-	// seconds have elapsed.
 	go func() {
-		// envoyDrainListenersUrl := fmt.Sprintf("http://%s:%v/drain_listeners?inboundonly", m.envoyAdminAddr, m.envoyAdminBindPort)
-		// envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
-
-		// TODO: actually initiate Envoy shutdown and loop checking for open
-		// connections
-		// By default, the Envoy server will close listeners immediately on server
-		// shutdown. To drain listeners for some duration of time prior to server
-		// shutdown, use drain_listeners before shutting down the server.
+		// If shutdownDrainListeners enabled, initiatie graceful shutdown of Envoy.
 		// We want to start draining connections from inbound listeners if
-		// configured, but still allow outbound traffic until gracfulShutdownPeriod
+		// configured, but still allow outbound traffic until gracefulShutdownPeriod
 		// has elapsed to facilitate a graceful application shutdown.
-		// resp, err := m.client.Post(envoyDrainListenersUrl)
+		if m.shutdownDrainListeners {
+			_, err := m.client.Post(envoyDrainListenersUrl, "text/plain", nil)
+			if err != nil {
+				m.logger.Error("envoy: failed to initiate listener drain", "error", err)
+				close(m.errorExitCh)
+			}
+		}
 
-		time.Sleep(5 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				m.logger.Info("shutdown grace period timeout reached")
+				_, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
+				if err != nil {
+					m.logger.Error("envoy: failed to initiate listener drain", "error", err)
+					close(m.errorExitCh)
+				}
+			}
+			// TODO: is there a need to handle context cancelation here if not
+			// able to shutdown cleanly?
+		}
 
-		// Report the work is done.
-		// TODO: is there actually any point to sending this signal if we always just
+		// TODO: is there actually any point to sending a signal if we always just
 		// want to wait unitl the shutdownGracePeriod has elapsed?
-		shutdownCh <- 0
 	}()
 
-	for {
-		select {
-		case _ = <-shutdownCh:
-			m.logger.Info("shutting down, all open Envoy connections have been drained")
-		case <-ctx.Done():
-			m.logger.Info("shutdown grace period timeout reached")
-			// resp, err := m.client.Post(envoyShutdownUrl)
-		}
-	}
+	// Return HTTP 200 Success
+	rw.WriteHeader(http.StatusOK)
 }
