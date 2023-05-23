@@ -92,8 +92,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			require.IsType(t, &http.Client{}, m.client)
 			require.Greater(t, m.client.(*http.Client).Timeout, time.Duration(0))
 
-			// Mock get requests to Envoy and Service instance metrics
-			// so that they return a fake metric string.
+			// Mock requests to Envoy so that admin API responses can be controlled
 			m.client = &mockClient{}
 
 			ctx, cancel := context.WithCancel(context.Background())
