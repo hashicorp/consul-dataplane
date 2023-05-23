@@ -7,8 +7,8 @@ import (
 	// "bytes"
 	"context"
 	// "errors"
-	// "fmt"
-	// "io"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -121,15 +121,14 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			require.NotEqual(t, port, 0, "test failed to figure out lifecycle server port")
 			log.Printf("port = %v", port)
 
-			/*
-				url := fmt.Sprintf("http://127.0.0.1:%d/stats/prometheus", port)
-				resp, err := http.Get(url)
-				require.NoError(t, err)
-				require.NotNil(t, resp)
+			url := fmt.Sprintf("http://127.0.0.1:%d/graceful_shutdown", port)
+			resp, err := http.Get(url) // TODO: longer timeout if needed
+			require.NoError(t, err)
+			require.NotNil(t, resp)
 
-				body, err := io.ReadAll(resp.Body)
-				require.NoError(t, err)
-			*/
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.NotNil(t, body)
 		})
 	}
 }
