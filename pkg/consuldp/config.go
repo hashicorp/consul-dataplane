@@ -274,7 +274,20 @@ type EnvoyConfig struct {
 	ReadyBindPort int
 	// EnvoyConcurrency is the envoy concurrency https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
 	EnvoyConcurrency int
-	// ShutdownDrainListenersEnabled configures whether to wait for all proxy listeners to drain before terminating the proxy container.
+	// EnvoyDrainTime is the time in seconds for which Envoy will drain connections
+	// during a hot restart, when listeners are modified or removed via LDS, or when
+	// initiated manually via a request to the Envoy admin API.
+	// The Envoy HTTP connection manager filter will add “Connection: close” to HTTP1
+	// requests, send HTTP2 GOAWAY, and terminate connections on request completion
+	// (after the delayed close period).
+	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-drain-time-s
+	EnvoyDrainTime int
+	// EnvoyDrainStrategy is the behaviour of Envoy during the drain sequence.
+	// Determines whether all open connections should be encouraged to drain
+	// immediately or to increase the percentage gradually as the drain time elapses.
+	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-drain-strategy
+	EnvoyDrainStrategy string
+	// ShutdownDrainListenersEnabled configures whether to start draining proxy listeners before terminating the proxy container. Drain time defaults to the value of ShutdownGracePeriod, but may be set explicitly with EnvoyDrainTime.
 	ShutdownDrainListenersEnabled bool
 	// ShutdownGracePeriodSeconds is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
 	ShutdownGracePeriodSeconds int

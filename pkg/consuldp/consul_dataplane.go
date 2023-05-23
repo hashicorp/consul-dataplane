@@ -252,17 +252,32 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 }
 
 func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
-	setConcurrency := true
 	extraArgs := cdp.cfg.Envoy.ExtraArgs
-	// Users could set the concurrency as an extra args. Take that as priority for best ux
-	// experience.
-	for _, v := range extraArgs {
-		if v == "--concurrency" {
-			setConcurrency = false
-		}
+
+	envoyArgs := map[string]interface{}{
+		"--concurrency":    cdp.cfg.Envoy.EnvoyConcurrency,
+		"--drain-time-s":   cdp.cfg.Envoy.EnvoyDrainTime,
+		"--drain-strategy": cdp.cfg.Envoy.EnvoyDrainStrategy,
 	}
-	if setConcurrency {
-		extraArgs = append(extraArgs, fmt.Sprintf("--concurrency %v", cdp.cfg.Envoy.EnvoyConcurrency))
+
+	// Users could set the Envoy concurrency, drain time, or drain strategy as an
+	// extra args. Prioritize values set in that way over passthrough or defaults
+	// from consul-dataplane.
+	for envoyArg, cdpEnvoyValue := range envoyArgs {
+		setEnvoyArg := true
+
+		for _, v := range extraArgs {
+			// If found in extraArgs, skip setting value from consul-dataplane Envoy
+			// config
+			if v == envoyArg {
+				setEnvoyArg = false
+			}
+		}
+
+		// If not found, append value from consul-dataplane Envoy config to extraArgs
+		if setEnvoyArg {
+			extraArgs = append(extraArgs, fmt.Sprintf("%s %v", envoyArg, cdpEnvoyValue))
+		}
 	}
 
 	return envoy.ProxyConfig{
