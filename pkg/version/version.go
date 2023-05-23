@@ -38,6 +38,10 @@ func GetHumanVersion() string {
 		}
 	}
 
+	if IsFIPS() {
+		version = fmt.Sprintf("%s.fips1402", version)
+	}
+
 	// Strip off any single quotes added by the git information.
 	return strings.ReplaceAll(version, "'", "")
 }
