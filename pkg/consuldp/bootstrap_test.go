@@ -130,7 +130,7 @@ func TestBootstrapConfig(t *testing.T) {
 				Namespace: "default",
 				NodeName:  nodeName,
 				Config: makeStruct(map[string]any{
-					"envoy_hcp_metrics_bind_socket_dir": "/tmp/consul/hcp-metrics",
+					"envoy_telemetry_collector_bind_socket_dir": "/tmp/consul/hcp-metrics",
 				}),
 			},
 		},
