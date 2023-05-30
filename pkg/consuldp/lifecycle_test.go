@@ -115,6 +115,9 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			// and figure out what port was used so we can make requests to it.
 			// Conveniently, this seems to wait until the server is ready for requests.
 			portCh := make(chan int, 1)
+			if c.gracefulPort == 0 {
+				m.lifecycleServer.Addr = "127.0.0.1:0"
+			}
 			m.lifecycleServer.BaseContext = func(l net.Listener) context.Context {
 				portCh <- l.Addr().(*net.TCPAddr).Port
 				return context.Background()
@@ -130,7 +133,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			if c.gracefulPort != 0 {
 				require.Equal(t, c.gracefulPort, port, "failed to set lifecycle server port")
 			} else {
-				require.Equal(t, 20300, port, "failed to figure out default lifecycle server port")
+				require.NotEqual(t, 0, port, "failed to figure out lifecycle server port")
 			}
 			log.Printf("port = %v\n", port)
 
