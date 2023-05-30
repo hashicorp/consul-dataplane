@@ -298,6 +298,8 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 	}
 
 	return envoy.ProxyConfig{
+		AdminAddr:       cdp.cfg.Envoy.AdminBindAddress,
+		AdminBindPort:   cdp.cfg.Envoy.AdminBindPort,
 		Logger:          cdp.logger,
 		LogJSON:         cdp.cfg.Logging.LogJSON,
 		BootstrapConfig: cfg,

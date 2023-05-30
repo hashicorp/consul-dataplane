@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,6 +39,9 @@ const (
 type Proxy struct {
 	cfg ProxyConfig
 
+	// client that will dial the managed Envoy proxy
+	client *http.Client
+
 	state    state
 	cmd      *exec.Cmd
 	exitedCh chan struct{}
@@ -49,6 +53,16 @@ type ProxyConfig struct {
 	//
 	// Defaults to whichever executable called envoy is found on $PATH.
 	ExecutablePath string
+
+	// AdminAddr is the hostname or IP address of the Envoy admin interface.
+	//
+	// Defaults to 127.0.0.1
+	AdminAddr string
+
+	// AdminBindPort is the port of the Envoy admin interface.
+	//
+	// Defaults to 19000
+	AdminBindPort int
 
 	// ExtraArgs are additional arguments that will be passed to Envoy.
 	ExtraArgs []string
@@ -99,7 +113,12 @@ func NewProxy(cfg ProxyConfig) (*Proxy, error) {
 		cfg.EnvoyErrorStream = os.Stderr
 	}
 	return &Proxy{
-		cfg:      cfg,
+		cfg: cfg,
+
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+
 		exitedCh: make(chan struct{}),
 	}, nil
 }
@@ -153,6 +172,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 // Note: the caller is responsible for ensuring Drain is not called concurrently
 // with Run, as this is thread-unsafe.
 func (p *Proxy) Drain() error {
+	envoyDrainListenersUrl := fmt.Sprintf("http://%s:%v/drain_listeners?inboundonly&graceful", p.cfg.AdminAddr, p.cfg.AdminBindPort)
 	switch p.getState() {
 	case stateExited:
 		// Nothing to do!
@@ -167,12 +187,11 @@ func (p *Proxy) Drain() error {
 		// Start draining inbound connections.
 		p.cfg.Logger.Debug("draining inbound connections to proxy")
 		p.transitionState(stateRunning, stateDraining)
-		// FIXME
-		// _, err := m.client.Post(envoyDrainListenersUrl, "text/plain", nil)
-		// if err != nil {
-		// 	m.logger.Error("envoy: failed to initiate listener drain", "error", err)
-		// }
-		return p.cmd.Process.Kill()
+		_, err := p.client.Post(envoyDrainListenersUrl, "text/plain", nil)
+		if err != nil {
+			p.cfg.Logger.Error("envoy: failed to initiate listener drain", "error", err)
+		}
+		return err
 	default:
 		return errors.New("proxy must be running to drain connections")
 	}
@@ -183,6 +202,8 @@ func (p *Proxy) Drain() error {
 // Note: the caller is responsible for ensuring Quit is not called concurrently
 // with Run, as this is thread-unsafe.
 func (p *Proxy) Quit() error {
+	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+
 	switch p.getState() {
 	case stateExited:
 		// Nothing to do!
@@ -194,22 +215,20 @@ func (p *Proxy) Quit() error {
 		// Gracefully stop the process after draining connections.
 		p.cfg.Logger.Debug("stopping proxy connection draining, starting graceful shutdown of Envoy proxy")
 		p.transitionState(stateDraining, stateStopped)
-		// FIXME
-		// _, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
-		// if err != nil {
-		// 	m.logger.Error("envoy: failed to quit", "error", err)
-		// }
-		return p.cmd.Process.Kill()
+		_, err := p.client.Post(envoyShutdownUrl, "text/plain", nil)
+		if err != nil {
+			p.cfg.Logger.Error("envoy: failed to quit", "error", err)
+		}
+		return err
 	case stateRunning:
 		// Gracefully stop the process.
 		p.cfg.Logger.Debug("starting graceful shutdown of Envoy proxy")
 		p.transitionState(stateRunning, stateStopped)
-		// FIXME
-		// _, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
-		// if err != nil {
-		// 	m.logger.Error("envoy: failed to quit", "error", err)
-		// }
-		return p.cmd.Process.Kill()
+		_, err := p.client.Post(envoyShutdownUrl, "text/plain", nil)
+		if err != nil {
+			p.cfg.Logger.Error("envoy: failed to quit", "error", err)
+		}
+		return err
 	default:
 		return errors.New("proxy must be running to be stopped")
 	}
