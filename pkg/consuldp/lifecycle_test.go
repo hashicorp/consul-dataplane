@@ -150,7 +150,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			} else {
 				require.Equal(t, port, 20300, "failed to figure out default lifecycle server port")
 			}
-			log.Println(fmt.Sprintf("port = %v", port))
+			log.Printf("port = %v\n", port)
 
 			// Check lifecycle server graceful shutdown path configuration
 			if c.gracefulShutdownPath != "" {
@@ -159,7 +159,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 
 			// Check lifecycle server graceful shutdown path configuration
 			url := fmt.Sprintf("http://127.0.0.1:%d%s", port, m.gracefulShutdownPath)
-			log.Println(fmt.Sprintf("sending request to %s", url))
+			log.Printf("sending request to %s\n", url)
 
 			resp, err := http.Get(url)
 

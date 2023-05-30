@@ -151,9 +151,9 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 
 // lifecycleServerExited is used to signal that the lifecycle server
 // recieved a signal to initiate shutdown.
-func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
-	return m.doneCh
-}
+// func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
+// 	return m.doneCh
+// }
 
 // gracefulShutdown blocks until shutdownGracePeriod seconds have elapsed, and, if
 // configured, will drain inbound connections to Envoy listeners during that time.
@@ -166,7 +166,8 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 	// Create a context that  will signal a cancel at the specified duration.
 	// TODO: should this use lifecycleManager ctx instead of context.Background?
 	timeout := time.Duration(m.shutdownGracePeriod) * time.Second
-	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
 	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriod))
 
@@ -187,13 +188,14 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 			}
 		}
 
-		select {
-		case <-ctx.Done():
-			m.logger.Info("shutdown grace period timeout reached")
-			_, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
-			if err != nil {
-				m.logger.Error("envoy: failed to quit", "error", err)
-			}
+		// Block until context timeout has elapsed
+		<-ctx.Done()
+
+		// Finish graceful shutdown, quit Envoy proxy
+		m.logger.Info("shutdown grace period timeout reached")
+		_, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
+		if err != nil {
+			m.logger.Error("envoy: failed to quit", "error", err)
 		}
 	}()
 
