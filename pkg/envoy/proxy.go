@@ -32,6 +32,14 @@ const (
 	logFormatJSON  = `{"@timestamp":"%Y-%m-%dT%T.%fZ%z","@module":"envoy.%n","@level":"%l","@message":"%j","thread":%t}`
 )
 
+// ProxyManager is an interface for managing an Envoy proxy process.
+type ProxyManager interface {
+	Run(ctx context.Context) error
+	Drain() error
+	Quit() error
+	Kill() error
+}
+
 // Proxy manages an Envoy proxy process.
 //
 // TODO(NET-118): properly handle the Envoy process lifecycle, including
