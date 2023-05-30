@@ -181,6 +181,7 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 		// configured, but still allow outbound traffic until gracefulShutdownPeriod
 		// has elapsed to facilitate a graceful application shutdown.
 		if m.shutdownDrainListeners {
+			// TODO: move this logic into Proxy.Drain()
 			_, err := m.client.Post(envoyDrainListenersUrl, "text/plain", nil)
 			if err != nil {
 				m.logger.Error("envoy: failed to initiate listener drain", "error", err)
@@ -192,6 +193,8 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 
 		// Finish graceful shutdown, quit Envoy proxy
 		m.logger.Info("shutdown grace period timeout reached")
+
+		// TODO: move this logic into Proxy.Quit()
 		_, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
 		if err != nil {
 			m.logger.Error("envoy: failed to quit", "error", err)
