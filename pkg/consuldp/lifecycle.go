@@ -23,7 +23,7 @@ const (
 	cdpLifecycleBindAddr     = "127.0.0.1"
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 
-	defaultLifecycleShutdownPath = "/shutdown"
+	defaultLifecycleShutdownPath = "/graceful_shutdown"
 )
 
 // lifecycleConfig handles all configuration related to managing the Envoy proxy
