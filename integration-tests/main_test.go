@@ -22,12 +22,12 @@ import (
 )
 
 var (
-	// upstreamLocalBindPort is the port the frontend sidecar will bind the local
-	// listener for its backend upstream to.
+	// upstreamLocalBindPort is the port each sidecar will bind the local
+	// listener for its upstream to.
 	upstreamLocalBindPort = TCP(10000)
 
 	// proxyInboundListenerPort is the port the sidecars will bind their public
-	// listeners to. Only the backend sidecar's public port is used in these tests.
+	// listeners to.
 	proxyInboundListenerPort = TCP(20000)
 
 	// dnsUDPPort is UDP the port Consul Dataplane's DNS proxy wil be bound to.
@@ -134,6 +134,14 @@ func TestIntegration(t *testing.T) {
 		Proxy: &api.AgentServiceConnectProxyConfig{
 			DestinationServiceName: "backend",
 			LocalServicePort:       8080,
+			Upstreams: []api.Upstream{
+				{
+					DestinationType:  api.UpstreamDestTypeService,
+					DestinationName:  "frontend",
+					LocalBindPort:    upstreamLocalBindPort.Int(),
+					LocalBindAddress: "0.0.0.0",
+				},
+			},
 		},
 	})
 
