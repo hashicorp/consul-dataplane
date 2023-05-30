@@ -21,7 +21,9 @@ type state uint32
 const (
 	stateInitial state = iota
 	stateRunning
+	stateDraining
 	stateStopped
+	stateExited
 )
 
 const (
@@ -136,7 +138,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 	go func() {
 		err := p.cmd.Wait()
 		p.cfg.Logger.Info("envoy process exited", "error", err)
-		p.transitionState(stateRunning, stateStopped)
+		p.transitionState(stateRunning, stateExited)
 		if err := cleanup(); err != nil {
 			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
 		}
@@ -146,21 +148,96 @@ func (p *Proxy) Run(ctx context.Context) error {
 	return nil
 }
 
-// Stop the Envoy proxy process.
+// Start draining inbound connections to the Envoy proxy process.
 //
-// Note: the caller is responsible for ensuring Stop is not called concurrently
+// Note: the caller is responsible for ensuring Drain is not called concurrently
 // with Run, as this is thread-unsafe.
-func (p *Proxy) Stop() error {
+func (p *Proxy) Drain() error {
 	switch p.getState() {
+	case stateExited:
+		// Nothing to do!
+		return nil
 	case stateStopped:
 		// Nothing to do!
 		return nil
+	case stateDraining:
+		// Nothing to do!
+		return nil
 	case stateRunning:
-		// Kill the process.
-		p.cfg.Logger.Debug("stopping envoy")
+		// Start draining inbound connections.
+		p.cfg.Logger.Debug("draining inbound connections to proxy")
+		p.transitionState(stateRunning, stateDraining)
+		// FIXME
+		// _, err := m.client.Post(envoyDrainListenersUrl, "text/plain", nil)
+		// if err != nil {
+		// 	m.logger.Error("envoy: failed to initiate listener drain", "error", err)
+		// }
+		return p.cmd.Process.Kill()
+	default:
+		return errors.New("proxy must be running to drain connections")
+	}
+}
+
+// Gracefully stop the Envoy proxy process.
+//
+// Note: the caller is responsible for ensuring Quit is not called concurrently
+// with Run, as this is thread-unsafe.
+func (p *Proxy) Quit() error {
+	switch p.getState() {
+	case stateExited:
+		// Nothing to do!
+		return nil
+	case stateStopped:
+		// Nothing to do!
+		return nil
+	case stateDraining:
+		// Gracefully stop the process after draining connections.
+		p.cfg.Logger.Debug("stopping proxy connection draining, starting graceful shutdown of Envoy proxy")
+		p.transitionState(stateDraining, stateStopped)
+		// FIXME
+		// _, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
+		// if err != nil {
+		// 	m.logger.Error("envoy: failed to quit", "error", err)
+		// }
+		return p.cmd.Process.Kill()
+	case stateRunning:
+		// Gracefully stop the process.
+		p.cfg.Logger.Debug("starting graceful shutdown of Envoy proxy")
+		p.transitionState(stateRunning, stateStopped)
+		// FIXME
+		// _, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
+		// if err != nil {
+		// 	m.logger.Error("envoy: failed to quit", "error", err)
+		// }
 		return p.cmd.Process.Kill()
 	default:
 		return errors.New("proxy must be running to be stopped")
+	}
+}
+
+// Forcefully kill the Envoy proxy process.
+//
+// Note: the caller is responsible for ensuring Stop is not called concurrently
+// with Run, as this is thread-unsafe.
+func (p *Proxy) Kill() error {
+	switch p.getState() {
+	case stateExited:
+		// Nothing to do!
+		return nil
+	case stateStopped:
+		// Kill the process, may have failed to gracefully stop.
+		p.cfg.Logger.Debug("killing Envoy proxy process")
+		return p.cmd.Process.Kill()
+	case stateDraining:
+		// Kill the process, may have failed to gracefully stop.
+		p.cfg.Logger.Debug("killing Envoy proxy process")
+		return p.cmd.Process.Kill()
+	case stateRunning:
+		// Kill the process.
+		p.cfg.Logger.Debug("killing Envoy proxy process")
+		return p.cmd.Process.Kill()
+	default:
+		return errors.New("proxy must be running to be killed")
 	}
 }
 
