@@ -46,6 +46,7 @@ type ConsulDataplane struct {
 	xdsServer       *xdsServer
 	aclToken        string
 	metricsConfig   *metricsConfig
+	lifecycleConfig *lifecycleConfig
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -211,6 +212,12 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
+	cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg)
+	err = cdp.lifecycleConfig.startLifecycleManager(ctx, bootstrapCfg)
+	if err != nil {
+		return err
+	}
+
 	doneCh := make(chan error)
 	go func() {
 		select {
@@ -225,6 +232,8 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			doneCh <- errors.New("xDS server exited unexpectedly")
 		case <-cdp.metricsConfig.metricsServerExited():
 			doneCh <- errors.New("metrics server exited unexpectedly")
+		case <-cdp.lifecycleConfig.lifecycleServerExited():
+			doneCh <- errors.New("proxy lifecycle maangement server exited unexpectedly")
 		}
 	}()
 	return <-doneCh
