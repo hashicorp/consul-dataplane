@@ -223,13 +223,24 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		case <-proxy.Exited():
 			doneCh <- errors.New("envoy proxy exited unexpectedly")
 		case <-cdp.xdsServerExited():
-			if err := proxy.Stop(); err != nil {
+			// Initiate graceful shutdown of Envoy, kill if error
+			if err := proxy.Quit(); err != nil {
 				cdp.logger.Error("failed to stop proxy", "error", err)
+				if err := proxy.Kill(); err != nil {
+					cdp.logger.Error("failed to kill proxy", "error", err)
+				}
 			}
 			doneCh <- errors.New("xDS server exited unexpectedly")
 		case <-cdp.metricsConfig.metricsServerExited():
 			doneCh <- errors.New("metrics server exited unexpectedly")
 		case <-cdp.lifecycleConfig.lifecycleServerExited():
+			// Initiate graceful shutdown of Envoy, kill if error
+			if err := proxy.Quit(); err != nil {
+				cdp.logger.Error("failed to stop proxy", "error", err)
+				if err := proxy.Kill(); err != nil {
+					cdp.logger.Error("failed to kill proxy", "error", err)
+				}
+			}
 			doneCh <- errors.New("proxy lifecycle maangement server exited unexpectedly")
 		}
 	}()
