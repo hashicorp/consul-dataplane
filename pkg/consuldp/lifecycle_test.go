@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,11 +28,11 @@ func TestLifecycleServerClosed(t *testing.T) {
 			AdminBindPort:    envoyAdminPort,
 		},
 	}
-	m := NewLifecycleConfig(&cfg)
+	m := NewLifecycleConfig(&cfg, &mockProxy{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	_ = m.startLifecycleManager(ctx, &bootstrap.BootstrapConfig{})
+	_ = m.startLifecycleManager(ctx)
 	require.Equal(t, m.running, true)
 	cancel()
 	require.Eventually(t, func() bool {
@@ -101,20 +100,15 @@ func TestLifecycleServerEnabled(t *testing.T) {
 					GracefulPort:           c.gracefulPort,
 				},
 			}
-			m := NewLifecycleConfig(&cfg)
+			m := NewLifecycleConfig(&cfg, &mockProxy{})
 
 			require.NotNil(t, m)
-			require.NotNil(t, m.client)
+			require.NotNil(t, m.proxy)
 			require.NotNil(t, m.errorExitCh)
-			require.IsType(t, &http.Client{}, m.client)
-			require.Greater(t, m.client.(*http.Client).Timeout, time.Duration(0))
-
-			// Mock requests to Envoy so that admin API responses can be controlled
-			m.client = &mockClient{}
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			err := m.startLifecycleManager(ctx, &bootstrap.BootstrapConfig{})
+			err := m.startLifecycleManager(ctx)
 			require.NoError(t, err)
 
 			// Have consul-dataplane's lifecycle server start on an open port
@@ -151,8 +145,15 @@ func TestLifecycleServerEnabled(t *testing.T) {
 
 			resp, err := http.Get(url)
 
-			// TODO: use mock client to check expected requests to envoyAdminAddr and envoyAdminPort?
-			// m.client.Expect(address, port)
+			// Use mock client to check expected method calls to proxy manager
+			if c.shutdownDrainListeners {
+				require.Equal(t, 1, m.proxy.(*mockProxy).drainCalled, "Proxy.Drain() not called as expected")
+			} else {
+				require.Equal(t, 0, m.proxy.(*mockProxy).drainCalled, "Proxy.Drain() called unexpectedly")
+			}
+
+			require.Equal(t, 1, m.proxy.(*mockProxy).quitCalled, "Proxy.Quit() not called as expected")
+			require.Equal(t, 0, m.proxy.(*mockProxy).killCalled, "Proxy.Kill() called unexpectedly")
 
 			require.NoError(t, err)
 			require.NotNil(t, resp)
@@ -162,4 +163,30 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			require.NotNil(t, body)
 		})
 	}
+}
+
+type mockProxy struct {
+	runCalled   int
+	drainCalled int
+	quitCalled  int
+	killCalled  int
+}
+
+func (p *mockProxy) Run(ctx context.Context) error {
+	p.runCalled++
+	return nil
+}
+
+func (p *mockProxy) Drain() error {
+	p.drainCalled++
+	return nil
+}
+
+func (p *mockProxy) Quit() error {
+	p.quitCalled++
+	return nil
+}
+func (p *mockProxy) Kill() error {
+	p.killCalled++
+	return nil
 }

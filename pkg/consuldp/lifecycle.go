@@ -13,7 +13,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
+	"github.com/hashicorp/consul-dataplane/pkg/envoy"
 )
 
 const (
@@ -31,18 +31,14 @@ const (
 type lifecycleConfig struct {
 	logger hclog.Logger
 
-	envoyAdminAddr     string
-	envoyAdminBindPort int
-	envoyDrainTime     int
-
 	// consuldp proxy lifecycle management config
 	shutdownDrainListeners bool
 	shutdownGracePeriod    int
 	gracefulPort           int
 	gracefulShutdownPath   string
 
-	// client that will dial the managed Envoy proxy
-	client httpClient
+	// manager for controlling the Envoy proxy process
+	proxy envoy.ProxyManager
 
 	// consuldp proxy lifecycle management server
 	lifecycleServer *http.Server
@@ -53,27 +49,21 @@ type lifecycleConfig struct {
 	mu          sync.Mutex
 }
 
-func NewLifecycleConfig(cfg *Config) *lifecycleConfig {
+func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig {
 	return &lifecycleConfig{
-		envoyAdminAddr:     cfg.Envoy.AdminBindAddress,
-		envoyAdminBindPort: cfg.Envoy.AdminBindPort,
-		envoyDrainTime:     cfg.Envoy.EnvoyDrainTime,
-
 		shutdownDrainListeners: cfg.Envoy.ShutdownDrainListeners,
 		shutdownGracePeriod:    cfg.Envoy.ShutdownGracePeriod,
 		gracefulPort:           cfg.Envoy.GracefulPort,
 		gracefulShutdownPath:   cfg.Envoy.GracefulShutdownPath,
 
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		proxy: proxy,
 
 		errorExitCh: make(chan struct{}, 1),
 		mu:          sync.Mutex{},
 	}
 }
 
-func (m *lifecycleConfig) startLifecycleManager(ctx context.Context, bcfg *bootstrap.BootstrapConfig) error {
+func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.running {
@@ -157,9 +147,6 @@ func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
 // gracefulShutdown blocks until shutdownGracePeriod seconds have elapsed, and, if
 // configured, will drain inbound connections to Envoy listeners during that time.
 func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Request) {
-	envoyDrainListenersUrl := fmt.Sprintf("http://%s:%v/drain_listeners?inboundonly&graceful", m.envoyAdminAddr, m.envoyAdminBindPort)
-	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", m.envoyAdminAddr, m.envoyAdminBindPort)
-
 	m.logger.Info("initiating shutdown")
 
 	// Create a context that  will signal a cancel at the specified duration.
@@ -181,11 +168,7 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 		// configured, but still allow outbound traffic until gracefulShutdownPeriod
 		// has elapsed to facilitate a graceful application shutdown.
 		if m.shutdownDrainListeners {
-			// TODO: move this logic into Proxy.Drain()
-			_, err := m.client.Post(envoyDrainListenersUrl, "text/plain", nil)
-			if err != nil {
-				m.logger.Error("envoy: failed to initiate listener drain", "error", err)
-			}
+			m.proxy.Drain()
 		}
 
 		// Block until context timeout has elapsed
@@ -193,12 +176,7 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 
 		// Finish graceful shutdown, quit Envoy proxy
 		m.logger.Info("shutdown grace period timeout reached")
-
-		// TODO: move this logic into Proxy.Quit()
-		_, err := m.client.Post(envoyShutdownUrl, "text/plain", nil)
-		if err != nil {
-			m.logger.Error("envoy: failed to quit", "error", err)
-		}
+		m.proxy.Quit()
 	}()
 
 	// Wait for context timeout to elapse
