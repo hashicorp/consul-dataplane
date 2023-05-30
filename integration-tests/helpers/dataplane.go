@@ -42,6 +42,7 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-telemetry-use-central-config",
 		"-telemetry-prom-scrape-path", "/metrics",
 		"-telemetry-prom-service-metrics-url", cfg.ServiceMetricsURL,
+		// TODO: proxy lifecycle shutdown args
 	}
 	return args
 }

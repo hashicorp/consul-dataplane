@@ -98,6 +98,7 @@ func (s *Suite) RunContainer(t *testing.T, name string, captureLogs bool, req Co
 
 	require.NoError(t, container.StartLogProducer(ctx))
 
+	// TODO: Handle this more gracefully if container was terminated out of band
 	t.Cleanup(func() {
 		if err := container.StopLogProducer(); err != nil {
 			t.Logf("failed to stop log producer: %v\n", err)

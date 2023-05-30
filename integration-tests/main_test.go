@@ -4,6 +4,7 @@
 package integrationtests
 
 import (
+	// "context"
 	"flag"
 	"fmt"
 	"net"
@@ -332,7 +333,8 @@ func TestIntegration(t *testing.T) {
 		backendPod.MappedPorts[upstreamLocalBindPort],
 	)
 
-	// TODO: Send SIGTERM to start graceful shutdown of frontend service
+	// Send SIGTERM to start graceful shutdown of frontend service
+	// frontendPod.Container.Terminate(context.Background())
 
 	// Expect outgoing connections through sidecar are allowed until shutdown
 	// grace period has elapsed.
