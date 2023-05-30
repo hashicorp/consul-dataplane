@@ -97,6 +97,10 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context, bcfg *boots
 	if m.gracefulShutdownPath != "" {
 		cdpLifecycleShutdownPath = m.gracefulShutdownPath
 	}
+
+	// Set config to allow introspection of default path for testing
+	m.gracefulShutdownPath = cdpLifecycleShutdownPath
+
 	fmt.Printf("setting graceful shutdown path: %s\n", cdpLifecycleShutdownPath)
 	mux.HandleFunc(cdpLifecycleShutdownPath, m.gracefulShutdown)
 
