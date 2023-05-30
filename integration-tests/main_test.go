@@ -116,14 +116,15 @@ func TestIntegration(t *testing.T) {
 
 	server.RegisterSyntheticNode(t)
 
+	backendPod := RunPod(t, suite, "backend", []nat.Port{
+		EnvoyAdminPort,
+		upstreamLocalBindPort,
+		metricsPort,
+	})
+
 	server.RegisterService(t, &api.AgentService{
 		Service: "backend",
 		Port:    8080,
-	})
-
-	backendPod := RunPod(t, suite, "backend", []nat.Port{
-		EnvoyAdminPort,
-		metricsPort,
 	})
 
 	server.RegisterService(t, &api.AgentService{
@@ -176,6 +177,7 @@ func TestIntegration(t *testing.T) {
 		Address: frontendPod.ContainerIP,
 		Proxy: &api.AgentServiceConnectProxyConfig{
 			DestinationServiceName: "frontend",
+			LocalServicePort:       8080,
 			Upstreams: []api.Upstream{
 				{
 					DestinationType:  api.UpstreamDestTypeService,
@@ -187,6 +189,8 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
+	RunService(t, suite, frontendPod, "frontend")
+
 	RunDataplane(t, frontendPod, suite, DataplaneConfig{
 		Addresses:         server.Container.ContainerIP,
 		ServiceNodeName:   SyntheticNodeName,
@@ -196,6 +200,17 @@ func TestIntegration(t *testing.T) {
 		DNSBindPort:       dnsUDPPort.Port(),
 		ServiceMetricsURL: "http://localhost:8080",
 	})
+
+	// Intentions are configured as default deny in helpers/server.go
+	ExpectNoHTTPAccess(t,
+		frontendPod.HostIP,
+		frontendPod.MappedPorts[upstreamLocalBindPort],
+	)
+
+	ExpectNoHTTPAccess(t,
+		backendPod.HostIP,
+		backendPod.MappedPorts[upstreamLocalBindPort],
+	)
 
 	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
 		Kind: api.ServiceIntentions,
@@ -269,4 +284,73 @@ func TestIntegration(t *testing.T) {
 			return strings.Contains(output, "{\"custom_field_path\":\"/clusters\"}")
 		}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
 	}
+
+	// Overwrite deny intetion and allow two-way connections to prepare for
+	// testing graceful shutdown
+	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
+		Kind: api.ServiceIntentions,
+		Name: "backend",
+		Sources: []*api.SourceIntention{
+			{
+				Name: "frontend",
+				Type: api.IntentionSourceConsul,
+				Permissions: []*api.IntentionPermission{
+					{
+						Action: api.IntentionActionAllow,
+						HTTP: &api.IntentionHTTPPermission{
+							PathPrefix: "/",
+							Methods:    []string{http.MethodGet},
+						},
+					},
+				},
+			},
+		},
+	})
+	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
+		Kind: api.ServiceIntentions,
+		Name: "frontend",
+		Sources: []*api.SourceIntention{
+			{
+				Name: "backend",
+				Type: api.IntentionSourceConsul,
+				Permissions: []*api.IntentionPermission{
+					{
+						Action: api.IntentionActionAllow,
+						HTTP: &api.IntentionHTTPPermission{
+							PathPrefix: "/",
+							Methods:    []string{http.MethodGet},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	// Ensure frontend upstream on backend service is working
+	ExpectHTTPAccess(t,
+		backendPod.HostIP,
+		backendPod.MappedPorts[upstreamLocalBindPort],
+	)
+
+	// TODO: Send SIGTERM to start graceful shutdown of frontend service
+
+	// Expect outgoing connections through sidecar are allowed until shutdown
+	// grace period has elapsed.
+	ExpectHTTPAccess(t,
+		frontendPod.HostIP,
+		frontendPod.MappedPorts[upstreamLocalBindPort],
+	)
+
+	// TODO: Expect inbound connections to the frontend service
+	// are rejected while it is shutting down.
+	// ExpectNoHTTPAccess(t,
+	// 	backendPod.HostIP,
+	// 	backendPod.MappedPorts[upstreamLocalBindPort],
+	// )
+
+	// TODO: Wait until shutdown grace period has elapsed, but still within
+	// pod termination grace period.
+
+	// TODO: Check that outbound connections from the frontendPod are rejected
+	// after the shutdown grace period has elapsed.
 }
