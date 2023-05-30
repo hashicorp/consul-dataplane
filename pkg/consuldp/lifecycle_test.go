@@ -4,16 +4,12 @@
 package consuldp
 
 import (
-	// "bytes"
 	"context"
-	// "errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
-	// "strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -27,16 +23,13 @@ var (
 )
 
 func TestLifecycleServerClosed(t *testing.T) {
-	m := &lifecycleConfig{
-		mu:                 sync.Mutex{},
-		envoyAdminAddr:     envoyAdminAddr,
-		envoyAdminBindPort: envoyAdminPort,
-		doneCh:             make(chan struct{}, 1),
-
-		client: &http.Client{
-			Timeout: 10 * time.Second,
+	cfg := Config{
+		Envoy: &EnvoyConfig{
+			AdminBindAddress: envoyAdminAddr,
+			AdminBindPort:    envoyAdminPort,
 		},
 	}
+	m := NewLifecycleConfig(&cfg)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -98,25 +91,21 @@ func TestLifecycleServerEnabled(t *testing.T) {
 		log.Printf("config = %v", c)
 
 		t.Run(name, func(t *testing.T) {
-			m := &lifecycleConfig{
-				envoyAdminAddr:         envoyAdminAddr,
-				envoyAdminBindPort:     envoyAdminPort,
-				shutdownDrainListeners: c.shutdownDrainListeners,
-				shutdownGracePeriod:    c.shutdownGracePeriod,
-				gracefulShutdownPath:   c.gracefulShutdownPath,
-				gracefulPort:           c.gracefulPort,
-
-				client: &http.Client{
-					Timeout: 10 * time.Second,
+			cfg := Config{
+				Envoy: &EnvoyConfig{
+					AdminBindAddress:       envoyAdminAddr,
+					AdminBindPort:          envoyAdminPort,
+					ShutdownDrainListeners: c.shutdownDrainListeners,
+					ShutdownGracePeriod:    c.shutdownGracePeriod,
+					GracefulShutdownPath:   c.gracefulShutdownPath,
+					GracefulPort:           c.gracefulPort,
 				},
-
-				doneCh: make(chan struct{}, 1),
-				mu:     sync.Mutex{},
 			}
+			m := NewLifecycleConfig(&cfg)
 
 			require.NotNil(t, m)
 			require.NotNil(t, m.client)
-			require.NotNil(t, m.doneCh)
+			require.NotNil(t, m.errorExitCh)
 			require.IsType(t, &http.Client{}, m.client)
 			require.Greater(t, m.client.(*http.Client).Timeout, time.Duration(0))
 
@@ -132,7 +121,6 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			// and figure out what port was used so we can make requests to it.
 			// Conveniently, this seems to wait until the server is ready for requests.
 			portCh := make(chan int, 1)
-			// m.lifecycleServer.Addr = "127.0.0.1:0"
 			m.lifecycleServer.BaseContext = func(l net.Listener) context.Context {
 				portCh <- l.Addr().(*net.TCPAddr).Port
 				return context.Background()
@@ -163,7 +151,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 
 			resp, err := http.Get(url)
 
-			// TODO: use mock client to check envoyAdminAddr and envoyAdminPort?
+			// TODO: use mock client to check expected requests to envoyAdminAddr and envoyAdminPort?
 			// m.client.Expect(address, port)
 
 			require.NoError(t, err)
