@@ -48,9 +48,9 @@ type lifecycleConfig struct {
 	lifecycleServer *http.Server
 
 	// consuldp proxy lifecycle server control
-	doneCh  chan struct{}
-	running bool
-	mu      sync.Mutex
+	errorExitCh chan struct{}
+	running     bool
+	mu          sync.Mutex
 }
 
 func NewLifecycleConfig(cfg *Config) *lifecycleConfig {
@@ -68,8 +68,8 @@ func NewLifecycleConfig(cfg *Config) *lifecycleConfig {
 			Timeout: 10 * time.Second,
 		},
 
-		doneCh: make(chan struct{}, 1),
-		mu:     sync.Mutex{},
+		errorExitCh: make(chan struct{}, 1),
+		mu:          sync.Mutex{},
 	}
 }
 
@@ -128,7 +128,7 @@ func (m *lifecycleConfig) startLifecycleServer() {
 	err := m.lifecycleServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		m.logger.Error("failed to serve proxy lifecycle managerments requests", "error", err)
-		close(m.doneCh)
+		close(m.errorExitCh)
 	}
 }
 
@@ -136,8 +136,6 @@ func (m *lifecycleConfig) startLifecycleServer() {
 func (m *lifecycleConfig) stopLifecycleServer() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	defer close(m.doneCh)
 	m.running = false
 
 	if m.lifecycleServer != nil {
@@ -145,15 +143,16 @@ func (m *lifecycleConfig) stopLifecycleServer() {
 		err := m.lifecycleServer.Close()
 		if err != nil {
 			m.logger.Warn("error while closing lifecycle server", "error", err)
+			close(m.errorExitCh)
 		}
 	}
 }
 
 // lifecycleServerExited is used to signal that the lifecycle server
 // recieved a signal to initiate shutdown.
-// func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
-// 	return m.doneCh
-// }
+func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
+	return m.errorExitCh
+}
 
 // gracefulShutdown blocks until shutdownGracePeriod seconds have elapsed, and, if
 // configured, will drain inbound connections to Envoy listeners during that time.
