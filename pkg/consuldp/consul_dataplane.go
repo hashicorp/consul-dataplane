@@ -305,3 +305,7 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 		ExtraArgs:       extraArgs,
 	}
 }
+
+func (cdp *ConsulDataplane) GracefulShutdown() {
+	cdp.lifecycleConfig.gracefulShutdown()
+}

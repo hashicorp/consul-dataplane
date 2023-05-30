@@ -263,18 +263,23 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	signal.NotifyContext(ctx, syscall.SIGINT)
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigCh, syscall.SIGTERM)
 
 	go func() {
+		// Block waiting for SIGTERM
 		<-sigCh
-		cancel()
+
+		// Trigger graceful shutdown before canceling parent context
+		consuldpInstance.GracefulShutdown()
 	}()
 
 	err = consuldpInstance.Run(ctx)
 	if err != nil {
-		cancel()
 		log.Fatal(err)
 	}
 }
