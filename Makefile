@@ -110,7 +110,7 @@ else
 	$(error Cannot generate changelog without LAST_RELEASE_GIT_TAG)
 endif
 
-INTEGRATION_TESTS_SERVER_IMAGE    ?= hashicorppreview/consul:1.14-dev
+INTEGRATION_TESTS_SERVER_IMAGE    ?= hashicorppreview/consul:1.15-dev
 INTEGRATION_TESTS_DATAPLANE_IMAGE ?= $(PRODUCT_NAME)/release-default:$(VERSION)
 
 .PHONY: expand-integration-tests-output-dir
