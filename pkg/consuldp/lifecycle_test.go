@@ -56,6 +56,8 @@ func TestLifecycleServerEnabled(t *testing.T) {
 		gracefulShutdownPath   string
 		gracefulPort           int
 	}{
+		// TODO: testing the actual Envoy behavior here such as how open or new
+		// connections are handled should happpen in integration or acceptance tests
 		"connection draining disabled without grace period": {
 			// All inbound and outbound connections are terminated immediately.
 		},
@@ -155,15 +157,13 @@ func TestLifecycleServerEnabled(t *testing.T) {
 				require.Equal(t, m.gracefulShutdownPath, c.gracefulShutdownPath, "failed to set lifecycle server graceful shutdown HTTP endpoint path")
 			}
 
-			// TODO: open long-timeout connection and watch for response
-
 			// Check lifecycle server graceful shutdown path configuration
 			url := fmt.Sprintf("http://127.0.0.1:%d%s", port, m.gracefulShutdownPath)
 			log.Println(fmt.Sprintf("sending request to %s", url))
 
 			resp, err := http.Get(url)
 
-			// TODO: use mock client to check envoyAdminAddr and envoyAdminPort
+			// TODO: use mock client to check envoyAdminAddr and envoyAdminPort?
 			// m.client.Expect(address, port)
 
 			require.NoError(t, err)
