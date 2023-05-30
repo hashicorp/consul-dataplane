@@ -168,7 +168,11 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 		// configured, but still allow outbound traffic until gracefulShutdownPeriod
 		// has elapsed to facilitate a graceful application shutdown.
 		if m.shutdownDrainListeners {
-			m.proxy.Drain()
+			err := m.proxy.Drain()
+			if err != nil {
+				m.logger.Warn("error while draining Envoy listeners", "error", err)
+				close(m.errorExitCh)
+			}
 		}
 
 		// Block until context timeout has elapsed
@@ -176,7 +180,11 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 
 		// Finish graceful shutdown, quit Envoy proxy
 		m.logger.Info("shutdown grace period timeout reached")
-		m.proxy.Quit()
+		err := m.proxy.Quit()
+		if err != nil {
+			m.logger.Warn("error while shutting down Envoy", "error", err)
+			close(m.errorExitCh)
+		}
 	}()
 
 	// Wait for context timeout to elapse
