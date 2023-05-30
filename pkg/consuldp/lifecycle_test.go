@@ -134,9 +134,9 @@ func TestLifecycleServerEnabled(t *testing.T) {
 
 			// Check lifecycle server graceful port configuration
 			if c.gracefulPort != 0 {
-				require.Equal(t, port, c.gracefulPort, "failed to set lifecycle server port")
+				require.Equal(t, c.gracefulPort, port, "failed to set lifecycle server port")
 			} else {
-				require.Equal(t, port, 20300, "failed to figure out default lifecycle server port")
+				require.Equal(t, 20300, port, "failed to figure out default lifecycle server port")
 			}
 			log.Printf("port = %v\n", port)
 
