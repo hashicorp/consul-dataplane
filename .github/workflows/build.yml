@@ -296,9 +296,7 @@ jobs:
     steps:
       - name: Set docker dev tag
         run: |
-          major_minor_version=$(echo "${{ env.version }}" | cut -d "-" -f 1)
-          dev_tag=$(echo "${{ env.version }}" | cut -d "-" -f 2)
-          version="$major_minor_version${{ matrix.fips }}$dev_tag"
+          version="${{ env.version }}"
           echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
 
       - name: Set image tarball
