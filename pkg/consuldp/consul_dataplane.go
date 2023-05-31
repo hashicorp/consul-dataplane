@@ -306,6 +306,12 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 	}
 }
 
-func (cdp *ConsulDataplane) GracefulShutdown() {
-	cdp.lifecycleConfig.gracefulShutdown()
+func (cdp *ConsulDataplane) GracefulShutdown(cancel context.CancelFunc) {
+	// If proxy lifecycle manager has not been initialized, cancel parent context and
+	// proceed to exit rather than attempting graceful shutdown
+	if cdp.lifecycleConfig != nil {
+		cdp.lifecycleConfig.gracefulShutdown()
+	} else {
+		cancel()
+	}
 }
