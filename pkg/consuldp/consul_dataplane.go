@@ -281,20 +281,16 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 	// extra args. Prioritize values set in that way over passthrough or defaults
 	// from consul-dataplane.
 	for envoyArg, cdpEnvoyValue := range envoyArgs {
-		setEnvoyArg := true
-
 		for _, v := range extraArgs {
 			// If found in extraArgs, skip setting value from consul-dataplane Envoy
 			// config
 			if v == envoyArg {
-				setEnvoyArg = false
+				break
 			}
 		}
 
 		// If not found, append value from consul-dataplane Envoy config to extraArgs
-		if setEnvoyArg {
-			extraArgs = append(extraArgs, fmt.Sprintf("%s %v", envoyArg, cdpEnvoyValue))
-		}
+		extraArgs = append(extraArgs, fmt.Sprintf("%s %v", envoyArg, cdpEnvoyValue))
 	}
 
 	return envoy.ProxyConfig{
