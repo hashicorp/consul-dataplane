@@ -1,0 +1,3 @@
+```release-note:bug
+Reverts #104 fix that caused a downstream error for Ingress/Mesh/Terminating GWs
+```
