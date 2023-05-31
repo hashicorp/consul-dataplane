@@ -4,7 +4,7 @@
 package integrationtests
 
 import (
-	// "context"
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
@@ -192,7 +193,7 @@ func TestIntegration(t *testing.T) {
 
 	RunService(t, suite, frontendPod, "frontend")
 
-	RunDataplane(t, frontendPod, suite, DataplaneConfig{
+	frontendDataplane := RunDataplane(t, frontendPod, suite, DataplaneConfig{
 		Addresses:              server.Container.ContainerIP,
 		ServiceNodeName:        SyntheticNodeName,
 		ProxyServiceID:         "frontend-sidecar",
@@ -200,8 +201,8 @@ func TestIntegration(t *testing.T) {
 		LoginBearerToken:       authMethod.GenerateToken(t, "frontend"),
 		DNSBindPort:            dnsUDPPort.Port(),
 		ServiceMetricsURL:      "http://localhost:8080",
-		ShutdownGracePeriod:    "30",
-		ShutdownDrainListeners: "1",
+		ShutdownGracePeriod:    "10",
+		ShutdownDrainListeners: true,
 	})
 
 	// Intentions are configured as default deny in helpers/server.go
@@ -335,8 +336,23 @@ func TestIntegration(t *testing.T) {
 		backendPod.MappedPorts[upstreamLocalBindPort],
 	)
 
-	// Send SIGTERM to start graceful shutdown of frontend service
-	// frontendPod.Container.Terminate(context.Background())
+	// Send SIGTERM to dataplane to start graceful shutdown
+	containerID := frontendDataplane.Container.GetContainerID()
+	cli, err := client.NewClientWithOpts()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error initializing docker client: %s\n", err)
+		os.Exit(1)
+	}
+	err = cli.ContainerKill(context.Background(), containerID, "SIGTERM")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error killing docker container %s: %s\n", containerID, err)
+		os.Exit(1)
+	}
+	// TODO: It may be preferrable to use ContainerStop to set a longer
+	// StopTimeout to avoid issues with cleanup, but importing the
+	// docker/docker/container package for StopOptions has dependency issues.
+	// https://pkg.go.dev/github.com/docker/docker/client#Client.ContainerStop
+	// err = cli.ContainerStop(context.Background(), containerID, container.StopOptions{})
 
 	// Expect outgoing connections through sidecar are allowed until shutdown
 	// grace period has elapsed.
@@ -345,8 +361,8 @@ func TestIntegration(t *testing.T) {
 		frontendPod.MappedPorts[upstreamLocalBindPort],
 	)
 
-	// Expect inbound connections to the frontend service
-	// are rejected while it is shutting down.
+	// Expect inbound connections to the frontend service are rejected while it
+	// is shutting down if listener draining is configured.
 	ExpectNoHTTPAccess(t,
 		backendPod.HostIP,
 		backendPod.MappedPorts[upstreamLocalBindPort],

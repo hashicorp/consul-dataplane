@@ -24,7 +24,7 @@ type DataplaneConfig struct {
 	DNSBindPort            string
 	ServiceMetricsURL      string
 	ShutdownGracePeriod    string
-	ShutdownDrainListeners string
+	ShutdownDrainListeners bool
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -50,8 +50,8 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		args = append(args, "-shutdown-grace-period", cfg.ShutdownGracePeriod)
 	}
 
-	if cfg.ShutdownDrainListeners != "" {
-		args = append(args, "-shutdown-drain-listeners", cfg.ShutdownDrainListeners)
+	if cfg.ShutdownDrainListeners {
+		args = append(args, "-shutdown-drain-listeners")
 	}
 
 	return args
@@ -81,6 +81,8 @@ func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Co
 			pod.MappedPorts[EnvoyAdminPort],
 		)
 
+		// TODO: This will fail because the integration test now performs a
+		// graceful shutdown of Envoy before reaching this point.
 		rsp, err := httpClient.Get(url)
 		if err != nil {
 			t.Logf("failed to dump Envoy config: %v\n", err)
