@@ -44,9 +44,16 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-telemetry-use-central-config",
 		"-telemetry-prom-scrape-path", "/metrics",
 		"-telemetry-prom-service-metrics-url", cfg.ServiceMetricsURL,
-		"-shutdown-grace-period", cfg.ShutdownGracePeriod,
-		"-shutdown-drain-listeners", cfg.ShutdownDrainListeners,
 	}
+
+	if cfg.ShutdownGracePeriod != "" {
+		args = append(args, "-shutdown-grace-period", cfg.ShutdownGracePeriod)
+	}
+
+	if cfg.ShutdownDrainListeners != "" {
+		args = append(args, "-shutdown-drain-listeners", cfg.ShutdownDrainListeners)
+	}
+
 	return args
 }
 
