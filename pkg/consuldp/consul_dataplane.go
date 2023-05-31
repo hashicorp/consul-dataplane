@@ -273,7 +273,7 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 
 	envoyArgs := map[string]interface{}{
 		"--concurrency":    cdp.cfg.Envoy.EnvoyConcurrency,
-		"--drain-time-s":   cdp.cfg.Envoy.EnvoyDrainTime,
+		"--drain-time-s":   cdp.cfg.Envoy.EnvoyDrainTimeSeconds,
 		"--drain-strategy": cdp.cfg.Envoy.EnvoyDrainStrategy,
 	}
 

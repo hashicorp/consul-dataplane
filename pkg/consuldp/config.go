@@ -278,7 +278,7 @@ type EnvoyConfig struct {
 	// requests, send HTTP2 GOAWAY, and terminate connections on request completion
 	// (after the delayed close period).
 	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-drain-time-s
-	EnvoyDrainTime int
+	EnvoyDrainTimeSeconds int
 	// EnvoyDrainStrategy is the behaviour of Envoy during the drain sequence.
 	// Determines whether all open connections should be encouraged to drain
 	// immediately or to increase the percentage gradually as the drain time elapses.
