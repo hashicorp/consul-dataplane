@@ -16,13 +16,15 @@ import (
 var EnvoyAdminPort = TCP(30000)
 
 type DataplaneConfig struct {
-	Addresses         string
-	ServiceNodeName   string
-	ProxyServiceID    string
-	LoginAuthMethod   string
-	LoginBearerToken  string
-	DNSBindPort       string
-	ServiceMetricsURL string
+	Addresses              string
+	ServiceNodeName        string
+	ProxyServiceID         string
+	LoginAuthMethod        string
+	LoginBearerToken       string
+	DNSBindPort            string
+	ServiceMetricsURL      string
+	ShutdownGracePeriod    string
+	ShutdownDrainListeners string
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -42,7 +44,8 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-telemetry-use-central-config",
 		"-telemetry-prom-scrape-path", "/metrics",
 		"-telemetry-prom-service-metrics-url", cfg.ServiceMetricsURL,
-		// TODO: proxy lifecycle shutdown args
+		"-shutdown-grace-period", cfg.ShutdownGracePeriod,
+		"-shutdown-drain-listeners", cfg.ShutdownDrainListeners,
 	}
 	return args
 }
