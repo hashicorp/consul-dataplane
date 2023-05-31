@@ -259,7 +259,7 @@ jobs:
               exit 1
             fi
             echo "Test PASSED"
-          version: ${{ env.version }}${{ matrix.fips }}
+          version: ${{ env.version }}
           target: release-ubi
           arch: ${{ matrix.arch }}
           tags: |
@@ -297,7 +297,7 @@ jobs:
       - name: Set docker dev tag
         run: |
           version="${{ env.version }}"
-          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
+          echo "dev_tag=${version%.*}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
 
       - name: Set image tarball
         run: |
