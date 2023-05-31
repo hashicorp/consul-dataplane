@@ -193,13 +193,15 @@ func TestIntegration(t *testing.T) {
 	RunService(t, suite, frontendPod, "frontend")
 
 	RunDataplane(t, frontendPod, suite, DataplaneConfig{
-		Addresses:         server.Container.ContainerIP,
-		ServiceNodeName:   SyntheticNodeName,
-		ProxyServiceID:    "frontend-sidecar",
-		LoginAuthMethod:   authMethod.Name,
-		LoginBearerToken:  authMethod.GenerateToken(t, "frontend"),
-		DNSBindPort:       dnsUDPPort.Port(),
-		ServiceMetricsURL: "http://localhost:8080",
+		Addresses:              server.Container.ContainerIP,
+		ServiceNodeName:        SyntheticNodeName,
+		ProxyServiceID:         "frontend-sidecar",
+		LoginAuthMethod:        authMethod.Name,
+		LoginBearerToken:       authMethod.GenerateToken(t, "frontend"),
+		DNSBindPort:            dnsUDPPort.Port(),
+		ServiceMetricsURL:      "http://localhost:8080",
+		ShutdownGracePeriod:    "30",
+		ShutdownDrainListeners: "1",
 	})
 
 	// Intentions are configured as default deny in helpers/server.go
@@ -343,16 +345,10 @@ func TestIntegration(t *testing.T) {
 		frontendPod.MappedPorts[upstreamLocalBindPort],
 	)
 
-	// TODO: Expect inbound connections to the frontend service
+	// Expect inbound connections to the frontend service
 	// are rejected while it is shutting down.
-	// ExpectNoHTTPAccess(t,
-	// 	backendPod.HostIP,
-	// 	backendPod.MappedPorts[upstreamLocalBindPort],
-	// )
-
-	// TODO: Wait until shutdown grace period has elapsed, but still within
-	// pod termination grace period.
-
-	// TODO: Check that outbound connections from the frontendPod are rejected
-	// after the shutdown grace period has elapsed.
+	ExpectNoHTTPAccess(t,
+		backendPod.HostIP,
+		backendPod.MappedPorts[upstreamLocalBindPort],
+	)
 }
