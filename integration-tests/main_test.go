@@ -338,7 +338,9 @@ func TestIntegration(t *testing.T) {
 
 	// Send SIGTERM to dataplane to start graceful shutdown
 	containerID := frontendDataplane.Container.GetContainerID()
-	cli, err := client.NewClientWithOpts()
+	cli, err := client.NewClientWithOpts(
+		client.WithAPIVersionNegotiation(),
+	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error initializing docker client: %s\n", err)
 		os.Exit(1)

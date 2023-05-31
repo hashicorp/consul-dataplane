@@ -35,8 +35,6 @@ jobs:
       - run: go test ./... -p 1 # disable parallelism to avoid port conflicts from default metrics and lifecycle server configuration
   integration-tests:
     name: integration-tests
-    env:
-      DOCKER_API_VERSION: 1.41
     needs:
       - get-go-version
     runs-on: ubuntu-latest
