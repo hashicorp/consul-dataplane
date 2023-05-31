@@ -225,7 +225,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		case <-cdp.xdsServerExited():
 			// Initiate graceful shutdown of Envoy, kill if error
 			if err := proxy.Quit(); err != nil {
-				cdp.logger.Error("failed to stop proxy", "error", err)
+				cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", err)
 				if err := proxy.Kill(); err != nil {
 					cdp.logger.Error("failed to kill proxy", "error", err)
 				}
@@ -241,7 +241,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 					cdp.logger.Error("failed to kill proxy", "error", err)
 				}
 			}
-			doneCh <- errors.New("proxy lifecycle maangement server exited unexpectedly")
+			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
 		}
 	}()
 	return <-doneCh
@@ -277,7 +277,7 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 		"--drain-strategy": cdp.cfg.Envoy.EnvoyDrainStrategy,
 	}
 
-	// Users could set the Envoy concurrency, drain time, or drain strategy as an
+	// Users could set the Envoy concurrency, drain time, or drain strategy as
 	// extra args. Prioritize values set in that way over passthrough or defaults
 	// from consul-dataplane.
 	for envoyArg, cdpEnvoyValue := range envoyArgs {
