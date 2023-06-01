@@ -362,7 +362,7 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 	}
 
 	// Updating loglevel value if --log-level is present in extra args
-	newExtraArgs, valOfLoggerInExtraArgs := RemoveArgAndGetValue(p.cfg.ExtraArgs, "--log-level")
+	newExtraArgs, valOfLoggerInExtraArgs := removeArgAndGetValue(p.cfg.ExtraArgs, "--log-level")
 
 	if len(valOfLoggerInExtraArgs) > 0 {
 		logLevel = valOfLoggerInExtraArgs
@@ -387,9 +387,9 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 	return cmd
 }
 
-// RemoveArgAndGetValue Function to get new args after removing given key
+// removeArgAndGetValue Function to get new args after removing given key
 // and also returns the value of key
-func RemoveArgAndGetValue(stringAr []string, key string) ([]string, string) {
+func removeArgAndGetValue(stringAr []string, key string) ([]string, string) {
 	for index, value := range stringAr {
 		if value == key {
 			return append(stringAr[:index], stringAr[index+2:]...), stringAr[index+1]
