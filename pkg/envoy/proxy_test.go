@@ -152,6 +152,7 @@ func TestProxy_OverridingLoggerAndExtraArgs(t *testing.T) {
 
 	// Test checks we are starting proxy with only one argument of log-level
 	// When log-level is present in both ProxyConfig and ExtraArgs
+	// We override the log-level with that of ExtraArgs
 	outputPath := testOutputPath()
 	t.Cleanup(func() { _ = os.Remove(outputPath) })
 
