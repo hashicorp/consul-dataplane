@@ -1,3 +1,9 @@
+## 1.1.2 (June 1, 2023)
+
+BUG FIXES:
+
+* Reverts #104 fix that caused a downstream error for Ingress/Mesh/Terminating GWs [[GH-131](https://github.com/hashicorp/consul-dataplane/pull/131)]
+
 ## 1.1.1 (May 31, 2023)
 
 SECURITY:
