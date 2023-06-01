@@ -228,7 +228,7 @@ jobs:
           redhat_tag: quay.io/redhat-isv-containers/631f805e0d15f623c5996c2e:${{env.version}}-ubi
 
   build-docker-ubi-dockerhub:
-    name: Docker ${{ matrix.arch }} UBI build for DockerHub
+    name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
     needs:
       - get-product-version
       - build-linux
@@ -247,7 +247,7 @@ jobs:
       - name: Set docker dev tag
         run: |
           version="${{ env.version }}"
-          echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
+          echo "dev_tag=${version%.*}${{ matrix.fips }}-dev" >> $GITHUB_ENV
 
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
