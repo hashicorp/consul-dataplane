@@ -1,3 +1,23 @@
+## 1.1.2 (June 1, 2023)
+
+BUG FIXES:
+
+* Reverts #104 fix that caused a downstream error for Ingress/Mesh/Terminating GWs [[GH-131](https://github.com/hashicorp/consul-dataplane/pull/131)]
+
+## 1.0.3 (June 1, 2023)
+
+SECURITY:
+
+* Update to UBI base image to 9.2. [[GH-125](https://github.com/hashicorp/consul-dataplane/pull/125)]
+
+IMPROVEMENTS:
+
+* Update bootstrap configuration to rename envoy_hcp_metrics_bind_socket_dir to envoy_telemetry_collector_bind_socket_dir to remove HCP naming references. [[GH-122](https://github.com/hashicorp/consul-dataplane/pull/122)]
+
+BUG FIXES:
+
+* Reverts #104 fix that caused a downstream error for Ingress/Mesh/Terminating GWs [[GH-131](https://github.com/hashicorp/consul-dataplane/pull/131)]
+
 ## 1.1.1 (May 31, 2023)
 
 SECURITY:
