@@ -390,9 +390,10 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 // removeArgAndGetValue Function to get new args after removing given key
 // and also returns the value of key
 func removeArgAndGetValue(stringAr []string, key string) ([]string, string) {
-	for index, value := range stringAr {
-		if value == key {
-			return append(stringAr[:index], stringAr[index+2:]...), stringAr[index+1]
+	for index, item := range stringAr {
+		if item == key {
+			valueToReturn := stringAr[index+1]
+			return append(stringAr[:index], stringAr[index+2:]...), valueToReturn
 		}
 	}
 	return stringAr, ""
