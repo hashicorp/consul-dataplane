@@ -289,7 +289,7 @@ func TestIntegration(t *testing.T) {
 		}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
 	}
 
-	// Overwrite deny intetion and allow two-way connections to prepare for
+	// Overwrite deny intention and allow two-way connections to prepare for
 	// testing graceful shutdown
 	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
 		Kind: api.ServiceIntentions,
