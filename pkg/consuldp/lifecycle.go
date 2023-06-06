@@ -145,7 +145,9 @@ func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
 }
 
 func (m *lifecycleConfig) gracefulShutdownHandler(rw http.ResponseWriter, _ *http.Request) {
-	m.gracefulShutdown()
+	// Kick off graceful shutdown in a separate goroutine to avoid blocking
+	// sending an HTTP response
+	go m.gracefulShutdown()
 
 	// Return HTTP 200 Success
 	rw.WriteHeader(http.StatusOK)
