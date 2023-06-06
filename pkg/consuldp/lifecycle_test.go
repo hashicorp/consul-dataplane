@@ -43,10 +43,10 @@ func TestLifecycleServerClosed(t *testing.T) {
 
 func TestLifecycleServerEnabled(t *testing.T) {
 	cases := map[string]struct {
-		shutdownDrainListeners     bool
-		shutdownGracePeriodSeconds int
-		gracefulShutdownPath       string
-		gracefulPort               int
+		shutdownDrainListenersEnabled bool
+		shutdownGracePeriodSeconds    int
+		gracefulShutdownPath          string
+		gracefulPort                  int
 	}{
 		// TODO: testing the actual Envoy behavior here such as how open or new
 		// connections are handled should happpen in integration or acceptance tests
@@ -58,7 +58,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			// connections, GOAWAY to inbound HTTP2, and terminate connections on
 			// request completion. Outbound connections should start being rejected
 			// immediately.
-			shutdownDrainListeners: true,
+			shutdownDrainListenersEnabled: true,
 		},
 		"connection draining disabled with grace period": {
 			// This should immediately terminate any open inbound connections.
@@ -73,13 +73,13 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			// Outbound connections should be allowed until the grace period has
 			// elapsed, then any remaining open connections should be closed and new
 			// outbound connections should start being rejected until pod termination.
-			shutdownDrainListeners:     true,
-			shutdownGracePeriodSeconds: 5,
+			shutdownDrainListenersEnabled: true,
+			shutdownGracePeriodSeconds:    5,
 		},
 		"custom graceful shutdown path and port": {
-			shutdownDrainListeners:     true,
-			shutdownGracePeriodSeconds: 5,
-			gracefulShutdownPath:       "/quit-nicely",
+			shutdownDrainListenersEnabled: true,
+			shutdownGracePeriodSeconds:    5,
+			gracefulShutdownPath:          "/quit-nicely",
 			// TODO: should this be random or use freeport? logic disallows passing
 			// zero value explicitly
 			gracefulPort: 23108,
@@ -92,12 +92,12 @@ func TestLifecycleServerEnabled(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg := Config{
 				Envoy: &EnvoyConfig{
-					AdminBindAddress:           envoyAdminAddr,
-					AdminBindPort:              envoyAdminPort,
-					ShutdownDrainListeners:     c.shutdownDrainListeners,
-					ShutdownGracePeriodSeconds: c.shutdownGracePeriodSeconds,
-					GracefulShutdownPath:       c.gracefulShutdownPath,
-					GracefulPort:               c.gracefulPort,
+					AdminBindAddress:              envoyAdminAddr,
+					AdminBindPort:                 envoyAdminPort,
+					ShutdownDrainListenersEnabled: c.shutdownDrainListenersEnabled,
+					ShutdownGracePeriodSeconds:    c.shutdownGracePeriodSeconds,
+					GracefulShutdownPath:          c.gracefulShutdownPath,
+					GracefulPort:                  c.gracefulPort,
 				},
 			}
 			m := NewLifecycleConfig(&cfg, &mockProxy{})
@@ -149,7 +149,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			resp, err := http.Get(url)
 
 			// Use mock client to check expected method calls to proxy manager
-			if c.shutdownDrainListeners {
+			if c.shutdownDrainListenersEnabled {
 				require.Equal(t, 1, m.proxy.(*mockProxy).drainCalled, "Proxy.Drain() not called as expected")
 			} else {
 				require.Equal(t, 0, m.proxy.(*mockProxy).drainCalled, "Proxy.Drain() called unexpectedly")
