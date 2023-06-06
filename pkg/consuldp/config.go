@@ -276,8 +276,8 @@ type EnvoyConfig struct {
 	EnvoyConcurrency int
 	// ShutdownDrainListeners configures whether to wait for all proxy listeners to drain before terminating the proxy container.
 	ShutdownDrainListeners bool
-	// ShutdownGracePeriod is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
-	ShutdownGracePeriod int
+	// ShutdownGracePeriodSeconds is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
+	ShutdownGracePeriodSeconds int
 	// GracefulShutdownPath is the path on which the HTTP endpoint to initiate a graceful shutdown of Envoy is served
 	GracefulShutdownPath string
 	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
