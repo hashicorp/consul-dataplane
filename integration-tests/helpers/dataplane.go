@@ -5,7 +5,6 @@ package helpers
 
 import (
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -77,35 +76,6 @@ func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Co
 			testcontainers.VolumeMount(volume.Name, "/data"),
 		},
 		WaitingFor: wait.ForLog("starting main dispatch loop"), // https://github.com/envoyproxy/envoy/blob/ce49966ecb5f2d530117a29ae60b88198746fd74/source/server/server.cc#L906-L907
-	})
-
-	t.Cleanup(func() {
-		// TODO: decide if it's worth exposing Proxy.ConfigDump on a
-		// consul-dataplane endpoint to consolidate this logic.
-
-		url := fmt.Sprintf(
-			"http://%s:%d/config_dump?include_eds",
-			pod.HostIP,
-			pod.MappedPorts[EnvoyAdminPort],
-		)
-
-		// This may fail if the Envoy proxy has already exited.
-		rsp, err := httpClient.Get(url)
-		if err != nil {
-			t.Logf("failed to dump Envoy config: %v\n", err)
-			return
-		}
-		defer rsp.Body.Close()
-
-		config, err := io.ReadAll(rsp.Body)
-		if err != nil {
-			t.Logf("failed to dump Envoy config: %v\n", err)
-			return
-		}
-		suite.CaptureArtifact(
-			fmt.Sprintf("%s-envoy-config.json", cfg.ProxyServiceID),
-			config,
-		)
 	})
 
 	return container
