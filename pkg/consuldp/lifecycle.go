@@ -32,10 +32,10 @@ type lifecycleConfig struct {
 	logger hclog.Logger
 
 	// consuldp proxy lifecycle management config
-	shutdownDrainListeners bool
-	shutdownGracePeriod    int
-	gracefulPort           int
-	gracefulShutdownPath   string
+	shutdownDrainListeners     bool
+	shutdownGracePeriodSeconds int
+	gracefulPort               int
+	gracefulShutdownPath       string
 
 	// manager for controlling the Envoy proxy process
 	proxy envoy.ProxyManager
@@ -51,10 +51,10 @@ type lifecycleConfig struct {
 
 func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig {
 	return &lifecycleConfig{
-		shutdownDrainListeners: cfg.Envoy.ShutdownDrainListeners,
-		shutdownGracePeriod:    cfg.Envoy.ShutdownGracePeriod,
-		gracefulPort:           cfg.Envoy.GracefulPort,
-		gracefulShutdownPath:   cfg.Envoy.GracefulShutdownPath,
+		shutdownDrainListeners:     cfg.Envoy.ShutdownDrainListeners,
+		shutdownGracePeriodSeconds: cfg.Envoy.ShutdownGracePeriodSeconds,
+		gracefulPort:               cfg.Envoy.GracefulPort,
+		gracefulShutdownPath:       cfg.Envoy.GracefulShutdownPath,
 
 		proxy: proxy,
 
@@ -144,18 +144,18 @@ func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
 	return m.errorExitCh
 }
 
-// gracefulShutdown blocks until shutdownGracePeriod seconds have elapsed, and, if
+// gracefulShutdown blocks until shutdownGracePeriodSeconds seconds have elapsed, and, if
 // configured, will drain inbound connections to Envoy listeners during that time.
 func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Request) {
 	m.logger.Info("initiating shutdown")
 
 	// Create a context that  will signal a cancel at the specified duration.
 	// TODO: should this use lifecycleManager ctx instead of context.Background?
-	timeout := time.Duration(m.shutdownGracePeriod) * time.Second
+	timeout := time.Duration(m.shutdownGracePeriodSeconds) * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriod))
+	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriodSeconds))
 
 	var wg sync.WaitGroup
 	wg.Add(1)
