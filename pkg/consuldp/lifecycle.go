@@ -82,7 +82,7 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 	mux := http.NewServeMux()
 
 	// Determine what HTTP endpoint paths to configure for the proxy lifecycle
-	// management server bind port is. These can be set as flags.
+	// management server. These can be set as flags.
 	cdpLifecycleShutdownPath := defaultLifecycleShutdownPath
 	if m.gracefulShutdownPath != "" {
 		cdpLifecycleShutdownPath = m.gracefulShutdownPath
@@ -117,7 +117,7 @@ func (m *lifecycleConfig) startLifecycleServer() {
 	m.logger.Info("starting proxy lifecycle management server", "address", m.lifecycleServer.Addr)
 	err := m.lifecycleServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		m.logger.Error("failed to serve proxy lifecycle managerments requests", "error", err)
+		m.logger.Error("failed to serve proxy lifecycle management requests", "error", err)
 		close(m.errorExitCh)
 	}
 }
