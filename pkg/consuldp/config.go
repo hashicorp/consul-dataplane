@@ -284,7 +284,7 @@ type EnvoyConfig struct {
 	// immediately or to increase the percentage gradually as the drain time elapses.
 	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-drain-strategy
 	EnvoyDrainStrategy string
-	// ShutdownDrainListenersEnabled configures whether to start draining proxy listeners before terminating the proxy container. Drain time defaults to the value of ShutdownGracePeriod, but may be set explicitly with EnvoyDrainTime.
+	// ShutdownDrainListenersEnabled configures whether to start draining proxy listeners before terminating the proxy container. Drain time defaults to the value of ShutdownGracePeriodSeconds, but may be set explicitly with EnvoyDrainTimeSeconds.
 	ShutdownDrainListenersEnabled bool
 	// ShutdownGracePeriodSeconds is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
 	ShutdownGracePeriodSeconds int

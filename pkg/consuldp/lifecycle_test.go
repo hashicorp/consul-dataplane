@@ -43,10 +43,10 @@ func TestLifecycleServerClosed(t *testing.T) {
 
 func TestLifecycleServerEnabled(t *testing.T) {
 	cases := map[string]struct {
-		shutdownDrainListeners bool
-		shutdownGracePeriod    int
-		gracefulShutdownPath   string
-		gracefulPort           int
+		shutdownDrainListeners     bool
+		shutdownGracePeriodSeconds int
+		gracefulShutdownPath       string
+		gracefulPort               int
 	}{
 		// TODO: testing the actual Envoy behavior here such as how open or new
 		// connections are handled should happpen in integration or acceptance tests
@@ -64,7 +64,7 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			// This should immediately terminate any open inbound connections.
 			// Outbound connections should be allowed until the grace period has
 			// elapsed.
-			shutdownGracePeriod: 5,
+			shutdownGracePeriodSeconds: 5,
 		},
 		"connection draining enabled with grace period": {
 			// This should immediately send "Connection: close" to inbound HTTP1
@@ -73,13 +73,13 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			// Outbound connections should be allowed until the grace period has
 			// elapsed, then any remaining open connections should be closed and new
 			// outbound connections should start being rejected until pod termination.
-			shutdownDrainListeners: true,
-			shutdownGracePeriod:    5,
+			shutdownDrainListeners:     true,
+			shutdownGracePeriodSeconds: 5,
 		},
 		"custom graceful shutdown path and port": {
-			shutdownDrainListeners: true,
-			shutdownGracePeriod:    5,
-			gracefulShutdownPath:   "/quit-nicely",
+			shutdownDrainListeners:     true,
+			shutdownGracePeriodSeconds: 5,
+			gracefulShutdownPath:       "/quit-nicely",
 			// TODO: should this be random or use freeport? logic disallows passing
 			// zero value explicitly
 			gracefulPort: 23108,
@@ -92,12 +92,12 @@ func TestLifecycleServerEnabled(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			cfg := Config{
 				Envoy: &EnvoyConfig{
-					AdminBindAddress:       envoyAdminAddr,
-					AdminBindPort:          envoyAdminPort,
-					ShutdownDrainListeners: c.shutdownDrainListeners,
-					ShutdownGracePeriod:    c.shutdownGracePeriod,
-					GracefulShutdownPath:   c.gracefulShutdownPath,
-					GracefulPort:           c.gracefulPort,
+					AdminBindAddress:           envoyAdminAddr,
+					AdminBindPort:              envoyAdminPort,
+					ShutdownDrainListeners:     c.shutdownDrainListeners,
+					ShutdownGracePeriodSeconds: c.shutdownGracePeriodSeconds,
+					GracefulShutdownPath:       c.gracefulShutdownPath,
+					GracefulPort:               c.gracefulPort,
 				},
 			}
 			m := NewLifecycleConfig(&cfg, &mockProxy{})
