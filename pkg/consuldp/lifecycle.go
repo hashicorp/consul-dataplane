@@ -91,7 +91,7 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 	// Set config to allow introspection of default path for testing
 	m.gracefulShutdownPath = cdpLifecycleShutdownPath
 
-	fmt.Printf("setting graceful shutdown path: %s\n", cdpLifecycleShutdownPath)
+	m.logger.Info(fmt.Sprintf("setting graceful shutdown path: %s\n", cdpLifecycleShutdownPath))
 	mux.HandleFunc(cdpLifecycleShutdownPath, m.gracefulShutdown)
 
 	// Determine what the proxy lifecycle management server bind port is. It can be
