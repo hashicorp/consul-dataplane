@@ -37,6 +37,8 @@ type lifecycleConfig struct {
 	gracefulPort                  int
 	gracefulShutdownPath          string
 
+	dumpEnvoyConfigOnExitEnabled bool
+
 	// manager for controlling the Envoy proxy process
 	proxy envoy.ProxyManager
 
@@ -55,6 +57,7 @@ func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig 
 		shutdownGracePeriodSeconds:    cfg.Envoy.ShutdownGracePeriodSeconds,
 		gracefulPort:                  cfg.Envoy.GracefulPort,
 		gracefulShutdownPath:          cfg.Envoy.GracefulShutdownPath,
+		dumpEnvoyConfigOnExitEnabled:  cfg.Envoy.DumpEnvoyConfigOnExitEnabled,
 
 		proxy: proxy,
 
@@ -163,6 +166,15 @@ func (m *lifecycleConfig) gracefulShutdown() {
 	timeout := time.Duration(m.shutdownGracePeriodSeconds) * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	if m.dumpEnvoyConfigOnExitEnabled {
+		m.logger.Info("dumping Envoy config to disk")
+		err := m.proxy.DumpConfig()
+		if err != nil {
+			m.logger.Warn("error while attempting to dump Envoy config to disk", "error", err)
+			close(m.errorExitCh)
+		}
+	}
 
 	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriodSeconds))
 

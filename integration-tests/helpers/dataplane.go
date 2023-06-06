@@ -25,6 +25,7 @@ type DataplaneConfig struct {
 	ServiceMetricsURL             string
 	ShutdownGracePeriodSeconds    string
 	ShutdownDrainListenersEnabled bool
+	DumpEnvoyConfigOnExitEnabled  bool
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -54,6 +55,10 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		args = append(args, "-shutdown-drain-listeners")
 	}
 
+	if cfg.DumpEnvoyConfigOnExitEnabled {
+		args = append(args, "-dump-envoy-config-on-exit")
+	}
+
 	return args
 }
 
@@ -75,14 +80,16 @@ func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Co
 	})
 
 	t.Cleanup(func() {
+		// TODO: decide if it's worth exposing Proxy.ConfigDump on a
+		// consul-dataplane endpoint to consolidate this logic.
+
 		url := fmt.Sprintf(
 			"http://%s:%d/config_dump?include_eds",
 			pod.HostIP,
 			pod.MappedPorts[EnvoyAdminPort],
 		)
 
-		// TODO: This will fail because the integration test now performs a
-		// graceful shutdown of Envoy before reaching this point.
+		// This may fail if the Envoy proxy has already exited.
 		rsp, err := httpClient.Get(url)
 		if err != nil {
 			t.Logf("failed to dump Envoy config: %v\n", err)

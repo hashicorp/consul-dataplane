@@ -151,13 +151,14 @@ func TestIntegration(t *testing.T) {
 	RunService(t, suite, backendPod, "backend")
 
 	backendDataplane := RunDataplane(t, backendPod, suite, DataplaneConfig{
-		Addresses:         server.Container.ContainerIP,
-		ServiceNodeName:   SyntheticNodeName,
-		ProxyServiceID:    "backend-sidecar",
-		LoginAuthMethod:   authMethod.Name,
-		LoginBearerToken:  authMethod.GenerateToken(t, "backend"),
-		DNSBindPort:       dnsUDPPort.Port(),
-		ServiceMetricsURL: "http://localhost:8080",
+		Addresses:                    server.Container.ContainerIP,
+		ServiceNodeName:              SyntheticNodeName,
+		ProxyServiceID:               "backend-sidecar",
+		LoginAuthMethod:              authMethod.Name,
+		LoginBearerToken:             authMethod.GenerateToken(t, "backend"),
+		DNSBindPort:                  dnsUDPPort.Port(),
+		ServiceMetricsURL:            "http://localhost:8080",
+		DumpEnvoyConfigOnExitEnabled: true,
 	})
 
 	frontendPod := RunPod(t, suite, "frontend", []nat.Port{
@@ -203,6 +204,7 @@ func TestIntegration(t *testing.T) {
 		ServiceMetricsURL:             "http://localhost:8080",
 		ShutdownGracePeriodSeconds:    "10",
 		ShutdownDrainListenersEnabled: true,
+		DumpEnvoyConfigOnExitEnabled:  true,
 	})
 
 	// Intentions are configured as default deny in helpers/server.go

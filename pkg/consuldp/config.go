@@ -295,6 +295,8 @@ type EnvoyConfig struct {
 	GracefulShutdownPath string
 	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
 	GracefulPort int
+	// DumpEnvoyConfigOnExitEnabled configures whether to call Envoy's /config_dump endpoint during consul-dataplane controlled shutdown.
+	DumpEnvoyConfigOnExitEnabled bool
 	// ExtraArgs are the extra arguments passed to envoy at startup of the proxy
 	ExtraArgs []string
 }
