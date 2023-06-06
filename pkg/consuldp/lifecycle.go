@@ -32,10 +32,10 @@ type lifecycleConfig struct {
 	logger hclog.Logger
 
 	// consuldp proxy lifecycle management config
-	shutdownDrainListeners     bool
-	shutdownGracePeriodSeconds int
-	gracefulPort               int
-	gracefulShutdownPath       string
+	shutdownDrainListenersEnabled bool
+	shutdownGracePeriodSeconds    int
+	gracefulPort                  int
+	gracefulShutdownPath          string
 
 	// manager for controlling the Envoy proxy process
 	proxy envoy.ProxyManager
@@ -51,10 +51,10 @@ type lifecycleConfig struct {
 
 func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig {
 	return &lifecycleConfig{
-		shutdownDrainListeners:     cfg.Envoy.ShutdownDrainListeners,
-		shutdownGracePeriodSeconds: cfg.Envoy.ShutdownGracePeriodSeconds,
-		gracefulPort:               cfg.Envoy.GracefulPort,
-		gracefulShutdownPath:       cfg.Envoy.GracefulShutdownPath,
+		shutdownDrainListenersEnabled: cfg.Envoy.ShutdownDrainListenersEnabled,
+		shutdownGracePeriodSeconds:    cfg.Envoy.ShutdownGracePeriodSeconds,
+		gracefulPort:                  cfg.Envoy.GracefulPort,
+		gracefulShutdownPath:          cfg.Envoy.GracefulShutdownPath,
 
 		proxy: proxy,
 
@@ -163,11 +163,11 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 	go func() {
 		defer wg.Done()
 
-		// If shutdownDrainListeners enabled, initiatie graceful shutdown of Envoy.
+		// If shutdownDrainListenersEnabled, initiatie graceful shutdown of Envoy.
 		// We want to start draining connections from inbound listeners if
 		// configured, but still allow outbound traffic until gracefulShutdownPeriod
 		// has elapsed to facilitate a graceful application shutdown.
-		if m.shutdownDrainListeners {
+		if m.shutdownDrainListenersEnabled {
 			err := m.proxy.Drain()
 			if err != nil {
 				m.logger.Warn("error while draining Envoy listeners", "error", err)
