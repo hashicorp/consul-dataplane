@@ -16,15 +16,15 @@ import (
 var EnvoyAdminPort = TCP(30000)
 
 type DataplaneConfig struct {
-	Addresses              string
-	ServiceNodeName        string
-	ProxyServiceID         string
-	LoginAuthMethod        string
-	LoginBearerToken       string
-	DNSBindPort            string
-	ServiceMetricsURL      string
-	ShutdownGracePeriod    string
-	ShutdownDrainListeners bool
+	Addresses                  string
+	ServiceNodeName            string
+	ProxyServiceID             string
+	LoginAuthMethod            string
+	LoginBearerToken           string
+	DNSBindPort                string
+	ServiceMetricsURL          string
+	ShutdownGracePeriodSeconds string
+	ShutdownDrainListeners     bool
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -46,8 +46,8 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-telemetry-prom-service-metrics-url", cfg.ServiceMetricsURL,
 	}
 
-	if cfg.ShutdownGracePeriod != "" {
-		args = append(args, "-shutdown-grace-period", cfg.ShutdownGracePeriod)
+	if cfg.ShutdownGracePeriodSeconds != "" {
+		args = append(args, "-shutdown-grace-period-seconds", cfg.ShutdownGracePeriodSeconds)
 	}
 
 	if cfg.ShutdownDrainListeners {
