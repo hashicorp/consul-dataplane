@@ -16,15 +16,15 @@ import (
 var EnvoyAdminPort = TCP(30000)
 
 type DataplaneConfig struct {
-	Addresses                  string
-	ServiceNodeName            string
-	ProxyServiceID             string
-	LoginAuthMethod            string
-	LoginBearerToken           string
-	DNSBindPort                string
-	ServiceMetricsURL          string
-	ShutdownGracePeriodSeconds string
-	ShutdownDrainListeners     bool
+	Addresses                     string
+	ServiceNodeName               string
+	ProxyServiceID                string
+	LoginAuthMethod               string
+	LoginBearerToken              string
+	DNSBindPort                   string
+	ServiceMetricsURL             string
+	ShutdownGracePeriodSeconds    string
+	ShutdownDrainListenersEnabled bool
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -50,7 +50,7 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		args = append(args, "-shutdown-grace-period-seconds", cfg.ShutdownGracePeriodSeconds)
 	}
 
-	if cfg.ShutdownDrainListeners {
+	if cfg.ShutdownDrainListenersEnabled {
 		args = append(args, "-shutdown-drain-listeners")
 	}
 
