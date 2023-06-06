@@ -74,10 +74,10 @@ var (
 	consulDNSBindAddr string
 	consulDNSPort     int
 
-	shutdownDrainListeners     bool
-	shutdownGracePeriodSeconds int
-	gracefulShutdownPath       string
-	gracefulPort               int
+	shutdownDrainListenersEnabled bool
+	shutdownGracePeriodSeconds    int
+	gracefulShutdownPath          string
+	gracefulPort                  int
 )
 
 func init() {
@@ -147,7 +147,7 @@ func init() {
 
 	// Default is false because it will generally be configured appropriately by Helm
 	// configuration or pod annotation.
-	BoolVar(&shutdownDrainListeners, "shutdown-drain-listeners", false, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
+	BoolVar(&shutdownDrainListenersEnabled, "shutdown-drain-listeners", false, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
 	// Default is 0 because it will generally be configured appropriately by Helm
 	// configuration or pod annotation.
 	IntVar(&shutdownGracePeriodSeconds, "shutdown-grace-period-seconds", 0, "DP_SHUTDOWN_GRACE_PERIOD_SECONDS", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
@@ -230,16 +230,16 @@ func main() {
 			},
 		},
 		Envoy: &consuldp.EnvoyConfig{
-			AdminBindAddress:           adminBindAddr,
-			AdminBindPort:              adminBindPort,
-			ReadyBindAddress:           readyBindAddr,
-			ReadyBindPort:              readyBindPort,
-			EnvoyConcurrency:           envoyConcurrency,
-			ShutdownDrainListeners:     shutdownDrainListeners,
-			ShutdownGracePeriodSeconds: shutdownGracePeriodSeconds,
-			GracefulShutdownPath:       gracefulShutdownPath,
-			GracefulPort:               gracefulPort,
-			ExtraArgs:                  flag.Args(),
+			AdminBindAddress:              adminBindAddr,
+			AdminBindPort:                 adminBindPort,
+			ReadyBindAddress:              readyBindAddr,
+			ReadyBindPort:                 readyBindPort,
+			EnvoyConcurrency:              envoyConcurrency,
+			ShutdownDrainListenersEnabled: shutdownDrainListenersEnabled,
+			ShutdownGracePeriodSeconds:    shutdownGracePeriodSeconds,
+			GracefulShutdownPath:          gracefulShutdownPath,
+			GracefulPort:                  gracefulPort,
+			ExtraArgs:                     flag.Args(),
 		},
 		XDSServer: &consuldp.XDSServer{
 			BindAddress: xdsBindAddr,
