@@ -34,7 +34,7 @@ func TestProxy(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, p.Run(context.Background()))
-	t.Cleanup(func() { _ = p.Stop() })
+	t.Cleanup(func() { _ = p.Kill() })
 
 	// Read the output written by fake-envoy. It might take a while, so poll the
 	// file for a couple of seconds.
@@ -67,8 +67,8 @@ func TestProxy(t *testing.T) {
 	// Check the process is still running.
 	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
 
-	// Ensure Stop kills and reaps the process.
-	require.NoError(t, p.Stop())
+	// Ensure Kill kills and reaps the process.
+	require.NoError(t, p.Kill())
 
 	require.Eventually(t, func() bool {
 		return p.cmd.Process.Signal(syscall.Signal(0)) == os.ErrProcessDone
@@ -87,7 +87,7 @@ func TestProxy_Crash(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, p.Run(context.Background()))
-	t.Cleanup(func() { _ = p.Stop() })
+	t.Cleanup(func() { _ = p.Kill() })
 
 	// Check the process is running.
 	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
@@ -101,7 +101,7 @@ func TestProxy_Crash(t *testing.T) {
 		t.Fatal("timeout waiting for Exited channel to be closed")
 	}
 
-	require.Equal(t, stateStopped, p.getState())
+	require.Equal(t, stateExited, p.getState())
 }
 
 func TestProxy_ContextDone(t *testing.T) {
@@ -117,7 +117,7 @@ func TestProxy_ContextDone(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	require.NoError(t, p.Run(ctx))
-	t.Cleanup(func() { _ = p.Stop() })
+	t.Cleanup(func() { _ = p.Kill() })
 
 	// Check the process is running.
 	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
@@ -131,7 +131,7 @@ func TestProxy_ContextDone(t *testing.T) {
 		t.Fatal("timeout waiting for Exited channel to be closed")
 	}
 
-	require.Equal(t, stateStopped, p.getState())
+	require.Equal(t, stateExited, p.getState())
 }
 
 func testOutputPath() string {
