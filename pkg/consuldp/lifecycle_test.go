@@ -209,3 +209,7 @@ func (p *mockProxy) Kill() error {
 	p.killCalled++
 	return nil
 }
+
+func (p *mockProxy) DumpConfig() error {
+	return nil
+}
