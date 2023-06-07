@@ -173,13 +173,13 @@ func validateFlags() {
 	}
 }
 
-func main() {
+func run() error {
 	flag.Parse()
 
 	if printVersion {
 		fmt.Printf("Consul Dataplane v%s\n", version.GetHumanVersion())
 		fmt.Printf("Revision %s\n", version.GitCommit)
-		return
+		return nil
 	}
 
 	readServiceIDFromFile()
@@ -265,7 +265,7 @@ func main() {
 
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -281,7 +281,11 @@ func main() {
 		consuldpInstance.GracefulShutdown(cancel)
 	}()
 
-	err = consuldpInstance.Run(ctx)
+	return consuldpInstance.Run(ctx)
+}
+
+func main() {
+	err := run()
 	if err != nil {
 		log.Fatal(err)
 	}
