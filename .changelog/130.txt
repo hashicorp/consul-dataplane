@@ -1,0 +1,3 @@
+```release-note:feature
+Catch SIGTERM and SIGINT to initate graceful shutdown in accordance with proxy lifecycle management configuration.
+```

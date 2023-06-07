@@ -90,6 +90,10 @@ func TestLifecycleServerEnabled(t *testing.T) {
 		log.Printf("config = %v", c)
 
 		t.Run(name, func(t *testing.T) {
+			// Add a small margin of error for assertions checking expected
+			// behavior within the shutdown grace period window.
+			shutdownTimeout := time.Duration((c.shutdownGracePeriodSeconds + 5)) * time.Second
+
 			cfg := Config{
 				Envoy: &EnvoyConfig{
 					AdminBindAddress:              envoyAdminAddr,
@@ -148,15 +152,27 @@ func TestLifecycleServerEnabled(t *testing.T) {
 
 			resp, err := http.Get(url)
 
-			// Use mock client to check expected method calls to proxy manager
+			// HTTP handler is not blocking, so need to wait and check mock
+			// client for expected method calls to proxy manager within
+			// expected shutdown grace period plus a small margin of error.
 			if c.shutdownDrainListenersEnabled {
-				require.Equal(t, 1, m.proxy.(*mockProxy).drainCalled, "Proxy.Drain() not called as expected")
+				require.Eventually(t, func() bool {
+					return m.proxy.(*mockProxy).drainCalled == 1
+				}, shutdownTimeout, time.Second, "Proxy.Drain() not called as expected")
 			} else {
-				require.Equal(t, 0, m.proxy.(*mockProxy).drainCalled, "Proxy.Drain() called unexpectedly")
+				require.Never(t, func() bool {
+					return m.proxy.(*mockProxy).drainCalled == 1
+				}, shutdownTimeout, time.Second, "Proxy.Drain() called unexpectedly")
 			}
 
-			require.Equal(t, 1, m.proxy.(*mockProxy).quitCalled, "Proxy.Quit() not called as expected")
-			require.Equal(t, 0, m.proxy.(*mockProxy).killCalled, "Proxy.Kill() called unexpectedly")
+			require.Eventually(t, func() bool {
+				return m.proxy.(*mockProxy).quitCalled == 1
+			}, shutdownTimeout, time.Second, "Proxy.Quit() not called as expected")
+
+			// Expect that proxy is not forcefully killed as part of graceful shutdown.
+			require.Never(t, func() bool {
+				return m.proxy.(*mockProxy).killCalled == 1
+			}, shutdownTimeout, time.Second, "Proxy.Kill() called unexpectedly")
 
 			require.NoError(t, err)
 			require.NotNil(t, resp)
@@ -191,5 +207,9 @@ func (p *mockProxy) Quit() error {
 }
 func (p *mockProxy) Kill() error {
 	p.killCalled++
+	return nil
+}
+
+func (p *mockProxy) DumpConfig() error {
 	return nil
 }
