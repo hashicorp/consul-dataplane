@@ -37,6 +37,8 @@ type lifecycleConfig struct {
 	gracefulPort                  int
 	gracefulShutdownPath          string
 
+	dumpEnvoyConfigOnExitEnabled bool
+
 	// manager for controlling the Envoy proxy process
 	proxy envoy.ProxyManager
 
@@ -55,6 +57,7 @@ func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig 
 		shutdownGracePeriodSeconds:    cfg.Envoy.ShutdownGracePeriodSeconds,
 		gracefulPort:                  cfg.Envoy.GracefulPort,
 		gracefulShutdownPath:          cfg.Envoy.GracefulShutdownPath,
+		dumpEnvoyConfigOnExitEnabled:  cfg.Envoy.DumpEnvoyConfigOnExitEnabled,
 
 		proxy: proxy,
 
@@ -92,7 +95,7 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 	m.gracefulShutdownPath = cdpLifecycleShutdownPath
 
 	m.logger.Info(fmt.Sprintf("setting graceful shutdown path: %s\n", cdpLifecycleShutdownPath))
-	mux.HandleFunc(cdpLifecycleShutdownPath, m.gracefulShutdown)
+	mux.HandleFunc(cdpLifecycleShutdownPath, m.gracefulShutdownHandler)
 
 	// Determine what the proxy lifecycle management server bind port is. It can be
 	// set as a flag.
@@ -144,9 +147,18 @@ func (m *lifecycleConfig) lifecycleServerExited() <-chan struct{} {
 	return m.errorExitCh
 }
 
-// gracefulShutdown blocks until shutdownGracePeriodSeconds seconds have elapsed, and, if
+func (m *lifecycleConfig) gracefulShutdownHandler(rw http.ResponseWriter, _ *http.Request) {
+	// Kick off graceful shutdown in a separate goroutine to avoid blocking
+	// sending an HTTP response
+	go m.gracefulShutdown()
+
+	// Return HTTP 200 Success
+	rw.WriteHeader(http.StatusOK)
+}
+
+// gracefulShutdown blocks until shutdownGracePeriod seconds have elapsed, and, if
 // configured, will drain inbound connections to Envoy listeners during that time.
-func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Request) {
+func (m *lifecycleConfig) gracefulShutdown() {
 	m.logger.Info("initiating shutdown")
 
 	// Create a context that  will signal a cancel at the specified duration.
@@ -154,6 +166,15 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 	timeout := time.Duration(m.shutdownGracePeriodSeconds) * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	if m.dumpEnvoyConfigOnExitEnabled {
+		m.logger.Info("dumping Envoy config to disk")
+		err := m.proxy.DumpConfig()
+		if err != nil {
+			m.logger.Warn("error while attempting to dump Envoy config to disk", "error", err)
+			close(m.errorExitCh)
+		}
+	}
 
 	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriodSeconds))
 
@@ -189,7 +210,4 @@ func (m *lifecycleConfig) gracefulShutdown(rw http.ResponseWriter, _ *http.Reque
 
 	// Wait for context timeout to elapse
 	wg.Wait()
-
-	// Return HTTP 200 Success
-	rw.WriteHeader(http.StatusOK)
 }
