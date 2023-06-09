@@ -1,3 +1,16 @@
+## 1.2.0-rc1 (June 12, 2023)
+
+SECURITY:
+
+* Update to Envoy 1.26.2 within the Dockerfile. [[GH-142](https://github.com/hashicorp/consul-dataplane/pull/142)]
+* Update to Go 1.20.4 and Envoy 1.26.1 within the Dockerfile. [[GH-97](https://github.com/hashicorp/consul-dataplane/pull/97)]
+
+FEATURES:
+
+* Add -shutdown-drain-listeners, -shutdown-grace-period, -graceful-shutdown-path and -graceful-port flags to configure proxy lifecycle management settings for the Envoy container. [[GH-100](https://github.com/hashicorp/consul-dataplane/pull/100)]
+* Add HTTP server with configurable port and endpoint path for initiating graceful shutdown. [[GH-115](https://github.com/hashicorp/consul-dataplane/pull/115)]
+* Catch SIGTERM and SIGINT to initate graceful shutdown in accordance with proxy lifecycle management configuration. [[GH-130](https://github.com/hashicorp/consul-dataplane/pull/130)]
+
 ## 1.1.2 (June 1, 2023)
 
 BUG FIXES:
