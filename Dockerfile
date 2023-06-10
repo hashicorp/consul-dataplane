@@ -51,6 +51,9 @@ USER 100
 
 ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 
+# Duplicate target for FIPS CRT
+FROM release-default AS release-default-fips
+
 # Red Hat UBI-based image
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
@@ -89,6 +92,9 @@ COPY LICENSE /licenses/copyright.txt
 
 USER 100
 ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
+
+# Duplicate target for FIPS CRT
+FROM release-ubi AS release-ubi-fips
 
 # ===================================
 #
