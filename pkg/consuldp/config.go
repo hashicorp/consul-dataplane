@@ -291,10 +291,14 @@ type EnvoyConfig struct {
 	ShutdownDrainListenersEnabled bool
 	// ShutdownGracePeriodSeconds is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
 	ShutdownGracePeriodSeconds int
-	// GracefulShutdownPath is the path on which the HTTP endpoint to initiate a graceful shutdown of Envoy is served
+	// GracefulShutdownPath is the path on which the HTTP endpoint to initiate a graceful shutdown of Envoy is served.
 	GracefulShutdownPath string
 	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
 	GracefulPort int
+	// GracefulEnabled is if the graceful features are enabled. This flag is needed to maintain backwards compatibility
+	// with older versions of consul-k8s.
+	GracefulEnabled bool
+
 	// DumpEnvoyConfigOnExitEnabled configures whether to call Envoy's /config_dump endpoint during consul-dataplane controlled shutdown.
 	DumpEnvoyConfigOnExitEnabled bool
 	// ExtraArgs are the extra arguments passed to envoy at startup of the proxy

@@ -80,6 +80,7 @@ var (
 	shutdownGracePeriodSeconds    int
 	gracefulShutdownPath          string
 	gracefulPort                  int
+	gracefulEnabled               bool
 
 	dumpEnvoyConfigOnExitEnabled bool
 )
@@ -158,7 +159,9 @@ func init() {
 	// configuration or pod annotation.
 	IntVar(&shutdownGracePeriodSeconds, "shutdown-grace-period-seconds", 0, "DP_SHUTDOWN_GRACE_PERIOD_SECONDS", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
 	StringVar(&gracefulShutdownPath, "graceful-shutdown-path", "/graceful_shutdown", "DP_GRACEFUL_SHUTDOWN_PATH", "An HTTP path to serve the graceful shutdown endpoint.")
-	IntVar(&gracefulPort, "graceful-port", 20300, "DP_GRACEFUL_PORT", "A port to serve HTTP endpoints for graceful shutdown.")
+	IntVar(&gracefulPort, "graceful-port", 20600, "DP_GRACEFUL_PORT", "A port to serve HTTP endpoints for graceful shutdown.")
+
+	BoolVar(&gracefulEnabled, "enable-graceful", false, "DP_ENABLE_GRACEFUL", "Enable graceful shutdown features.")
 
 	// Default is false, may be useful for debugging unexpected termination.
 	BoolVar(&dumpEnvoyConfigOnExitEnabled, "dump-envoy-config-on-exit", false, "DP_DUMP_ENVOY_CONFIG_ON_EXIT", "Call the Envoy /config_dump endpoint during consul-dataplane controlled shutdown.")
@@ -250,6 +253,7 @@ func run() error {
 			ShutdownGracePeriodSeconds:    shutdownGracePeriodSeconds,
 			GracefulShutdownPath:          gracefulShutdownPath,
 			GracefulPort:                  gracefulPort,
+			GracefulEnabled:               gracefulEnabled,
 			DumpEnvoyConfigOnExitEnabled:  dumpEnvoyConfigOnExitEnabled,
 			ExtraArgs:                     flag.Args(),
 		},

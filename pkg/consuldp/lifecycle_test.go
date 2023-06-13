@@ -38,7 +38,6 @@ func TestLifecycleServerClosed(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return !m.running
 	}, time.Second*2, time.Second)
-
 }
 
 func TestLifecycleServerEnabled(t *testing.T) {

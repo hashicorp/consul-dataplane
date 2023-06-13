@@ -212,10 +212,13 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
-	cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
-	err = cdp.lifecycleConfig.startLifecycleManager(ctx)
-	if err != nil {
-		return err
+	// Graceful features are disabled by default
+	if cdp.cfg.Envoy.GracefulEnabled {
+		cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
+		err = cdp.lifecycleConfig.startLifecycleManager(ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	doneCh := make(chan error)
@@ -238,13 +241,15 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			doneCh <- errors.New("metrics server exited unexpectedly")
 		case <-cdp.lifecycleConfig.lifecycleServerExited():
 			// Initiate graceful shutdown of Envoy, kill if error
-			if err := proxy.Quit(); err != nil {
-				cdp.logger.Error("failed to stop proxy", "error", err)
-				if err := proxy.Kill(); err != nil {
-					cdp.logger.Error("failed to kill proxy", "error", err)
+			if cdp.cfg.Envoy.GracefulEnabled {
+				if err := proxy.Quit(); err != nil {
+					cdp.logger.Error("failed to stop proxy", "error", err)
+					if err := proxy.Kill(); err != nil {
+						cdp.logger.Error("failed to kill proxy", "error", err)
+					}
 				}
+				doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
 			}
-			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
 		}
 	}()
 	return <-doneCh

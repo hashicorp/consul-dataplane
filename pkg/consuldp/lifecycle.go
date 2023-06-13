@@ -19,7 +19,7 @@ import (
 const (
 	// defaultLifecycleBindPort is the port which will serve the proxy lifecycle HTTP
 	// endpoints on the loopback interface.
-	defaultLifecycleBindPort = "20300"
+	defaultLifecycleBindPort = "20600"
 	cdpLifecycleBindAddr     = "127.0.0.1"
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 
@@ -36,6 +36,7 @@ type lifecycleConfig struct {
 	shutdownGracePeriodSeconds    int
 	gracefulPort                  int
 	gracefulShutdownPath          string
+	gracefulEnabled               bool
 
 	dumpEnvoyConfigOnExitEnabled bool
 
@@ -58,6 +59,7 @@ func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig 
 		gracefulPort:                  cfg.Envoy.GracefulPort,
 		gracefulShutdownPath:          cfg.Envoy.GracefulShutdownPath,
 		dumpEnvoyConfigOnExitEnabled:  cfg.Envoy.DumpEnvoyConfigOnExitEnabled,
+		gracefulEnabled:               cfg.Envoy.GracefulEnabled,
 
 		proxy: proxy,
 
