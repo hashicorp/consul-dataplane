@@ -409,6 +409,13 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 		logLevel = "info"
 	}
 
+	// Updating loglevel value if --log-level is present in extra args
+	newExtraArgs, valOfLoggerInExtraArgs := removeArgAndGetValue(p.cfg.ExtraArgs, "--log-level")
+
+	if len(valOfLoggerInExtraArgs) > 0 {
+		logLevel = valOfLoggerInExtraArgs
+	}
+
 	args := append(
 		[]string{
 			"--config-path", cfgPath,
@@ -418,7 +425,7 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 			// TODO(NET-713): support hot restarts.
 			"--disable-hot-restart",
 		},
-		p.cfg.ExtraArgs...,
+		newExtraArgs...,
 	)
 
 	cmd := exec.CommandContext(ctx, p.cfg.ExecutablePath, args...)
@@ -426,4 +433,16 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 	cmd.Stderr = p.cfg.EnvoyErrorStream
 
 	return cmd
+}
+
+// removeArgAndGetValue Function to get new args after removing given key
+// and also returns the value of key
+func removeArgAndGetValue(stringAr []string, key string) ([]string, string) {
+	for index, item := range stringAr {
+		if item == key {
+			valueToReturn := stringAr[index+1]
+			return append(stringAr[:index], stringAr[index+2:]...), valueToReturn
+		}
+	}
+	return stringAr, ""
 }
