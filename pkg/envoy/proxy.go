@@ -41,7 +41,6 @@ type ProxyManager interface {
 	Drain() error
 	Quit() error
 	Kill() error
-	DumpConfig() error
 }
 
 // Proxy manages an Envoy proxy process.
@@ -154,14 +153,6 @@ func (p *Proxy) Run(ctx context.Context) error {
 
 	// Run the Envoy process.
 	p.cmd = p.buildCommand(ctx, configPath)
-
-	// Start Envoy in its own process group to avoid directly receiving
-	// SIGTERM intended for consul-dataplane, let proxy manager handle
-	// graceful shutdown if configured.
-	p.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
 		// Clean up the pipe if we weren't able to run Envoy.
@@ -278,45 +269,6 @@ func (p *Proxy) Kill() error {
 	default:
 		return errors.New("proxy must be running to be killed")
 	}
-}
-
-// Dump Envoy config to disk.
-func (p *Proxy) DumpConfig() error {
-	switch p.getState() {
-	case stateExited:
-		return errors.New("proxy must be running to dump config")
-	case stateStopped:
-		return errors.New("proxy must be running to dump config")
-	case stateDraining:
-		return p.dumpConfig()
-	case stateRunning:
-		return p.dumpConfig()
-	default:
-		return errors.New("proxy must be running to dump config")
-	}
-}
-
-func (p *Proxy) dumpConfig() error {
-	envoyConfigDumpUrl := fmt.Sprintf("http://%s:%v/config_dump?include_eds", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-
-	rsp, err := p.client.Get(envoyConfigDumpUrl)
-	if err != nil {
-		p.cfg.Logger.Error("envoy: failed to dump config", "error", err)
-		return err
-	}
-	defer rsp.Body.Close()
-
-	config, err := io.ReadAll(rsp.Body)
-	if err != nil {
-		p.cfg.Logger.Error("envoy: failed to dump config", "error", err)
-		return err
-	}
-
-	if _, err := p.cfg.EnvoyOutputStream.Write(config); err != nil {
-		p.cfg.Logger.Error("envoy: failed to write config to output stream", "error", err)
-	}
-
-	return err
 }
 
 // Exited returns a channel that is closed when the Envoy process exits. It can

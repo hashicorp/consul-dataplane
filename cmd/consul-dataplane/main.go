@@ -80,8 +80,6 @@ var (
 	shutdownGracePeriodSeconds    int
 	gracefulShutdownPath          string
 	gracefulPort                  int
-
-	dumpEnvoyConfigOnExitEnabled bool
 )
 
 func init() {
@@ -159,9 +157,6 @@ func init() {
 	IntVar(&shutdownGracePeriodSeconds, "shutdown-grace-period-seconds", 0, "DP_SHUTDOWN_GRACE_PERIOD_SECONDS", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
 	StringVar(&gracefulShutdownPath, "graceful-shutdown-path", "/graceful_shutdown", "DP_GRACEFUL_SHUTDOWN_PATH", "An HTTP path to serve the graceful shutdown endpoint.")
 	IntVar(&gracefulPort, "graceful-port", 20300, "DP_GRACEFUL_PORT", "A port to serve HTTP endpoints for graceful shutdown.")
-
-	// Default is false, may be useful for debugging unexpected termination.
-	BoolVar(&dumpEnvoyConfigOnExitEnabled, "dump-envoy-config-on-exit", false, "DP_DUMP_ENVOY_CONFIG_ON_EXIT", "Call the Envoy /config_dump endpoint during consul-dataplane controlled shutdown.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -173,13 +168,13 @@ func validateFlags() {
 	}
 }
 
-func run() error {
+func main() {
 	flag.Parse()
 
 	if printVersion {
 		fmt.Printf("Consul Dataplane v%s\n", version.GetHumanVersion())
 		fmt.Printf("Revision %s\n", version.GitCommit)
-		return nil
+		return
 	}
 
 	readServiceIDFromFile()
@@ -250,7 +245,6 @@ func run() error {
 			ShutdownGracePeriodSeconds:    shutdownGracePeriodSeconds,
 			GracefulShutdownPath:          gracefulShutdownPath,
 			GracefulPort:                  gracefulPort,
-			DumpEnvoyConfigOnExitEnabled:  dumpEnvoyConfigOnExitEnabled,
 			ExtraArgs:                     flag.Args(),
 		},
 		XDSServer: &consuldp.XDSServer{
@@ -265,28 +259,22 @@ func run() error {
 
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		// Block waiting for SIGTERM
 		<-sigCh
-
-		consuldpInstance.GracefulShutdown(cancel)
+		cancel()
 	}()
 
-	return consuldpInstance.Run(ctx)
-}
-
-func main() {
-	err := run()
+	err = consuldpInstance.Run(ctx)
 	if err != nil {
+		cancel()
 		log.Fatal(err)
 	}
 }
