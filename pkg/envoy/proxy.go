@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,9 +24,7 @@ type state uint32
 const (
 	stateInitial state = iota
 	stateRunning
-	stateDraining
 	stateStopped
-	stateExited
 )
 
 const (
@@ -35,24 +32,12 @@ const (
 	logFormatJSON  = `{"@timestamp":"%Y-%m-%dT%T.%fZ%z","@module":"envoy.%n","@level":"%l","@message":"%j","thread":%t}`
 )
 
-// ProxyManager is an interface for managing an Envoy proxy process.
-type ProxyManager interface {
-	Run(ctx context.Context) error
-	Drain() error
-	Quit() error
-	Kill() error
-	DumpConfig() error
-}
-
 // Proxy manages an Envoy proxy process.
 //
 // TODO(NET-118): properly handle the Envoy process lifecycle, including
 // restarting crashed processes.
 type Proxy struct {
 	cfg ProxyConfig
-
-	// client that will dial the managed Envoy proxy
-	client *http.Client
 
 	state    state
 	cmd      *exec.Cmd
@@ -65,16 +50,6 @@ type ProxyConfig struct {
 	//
 	// Defaults to whichever executable called envoy is found on $PATH.
 	ExecutablePath string
-
-	// AdminAddr is the hostname or IP address of the Envoy admin interface.
-	//
-	// Defaults to 127.0.0.1
-	AdminAddr string
-
-	// AdminBindPort is the port of the Envoy admin interface.
-	//
-	// Defaults to 19000
-	AdminBindPort int
 
 	// ExtraArgs are additional arguments that will be passed to Envoy.
 	ExtraArgs []string
@@ -125,12 +100,7 @@ func NewProxy(cfg ProxyConfig) (*Proxy, error) {
 		cfg.EnvoyErrorStream = os.Stderr
 	}
 	return &Proxy{
-		cfg: cfg,
-
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
-
+		cfg:      cfg,
 		exitedCh: make(chan struct{}),
 	}, nil
 }
@@ -154,14 +124,6 @@ func (p *Proxy) Run(ctx context.Context) error {
 
 	// Run the Envoy process.
 	p.cmd = p.buildCommand(ctx, configPath)
-
-	// Start Envoy in its own process group to avoid directly receiving
-	// SIGTERM intended for consul-dataplane, let proxy manager handle
-	// graceful shutdown if configured.
-	p.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
-
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
 		// Clean up the pipe if we weren't able to run Envoy.
@@ -177,7 +139,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 	go func() {
 		err := p.cmd.Wait()
 		p.cfg.Logger.Info("envoy process exited", "error", err)
-		p.transitionState(stateRunning, stateExited)
+		p.transitionState(stateRunning, stateStopped)
 		if err := cleanup(); err != nil {
 			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
 		}
@@ -187,136 +149,22 @@ func (p *Proxy) Run(ctx context.Context) error {
 	return nil
 }
 
-// Start draining inbound connections to the Envoy proxy process.
-//
-// Note: the caller is responsible for ensuring Drain is not called concurrently
-// with Run, as this is thread-unsafe.
-func (p *Proxy) Drain() error {
-	envoyDrainListenersUrl := fmt.Sprintf("http://%s:%v/drain_listeners?inboundonly&graceful", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-	switch p.getState() {
-	case stateExited:
-		// Nothing to do!
-		return nil
-	case stateStopped:
-		// Nothing to do!
-		return nil
-	case stateDraining:
-		// Nothing to do!
-		return nil
-	case stateRunning:
-		// Start draining inbound connections.
-		p.cfg.Logger.Debug("draining inbound connections to proxy")
-		p.transitionState(stateRunning, stateDraining)
-		_, err := p.client.Post(envoyDrainListenersUrl, "text/plain", nil)
-		if err != nil {
-			p.cfg.Logger.Error("envoy: failed to initiate listener drain", "error", err)
-		}
-		return err
-	default:
-		return errors.New("proxy must be running to drain connections")
-	}
-}
-
-// Gracefully stop the Envoy proxy process.
-//
-// Note: the caller is responsible for ensuring Quit is not called concurrently
-// with Run, as this is thread-unsafe.
-func (p *Proxy) Quit() error {
-	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-
-	switch p.getState() {
-	case stateExited:
-		// Nothing to do!
-		return nil
-	case stateStopped:
-		// Nothing to do!
-		return nil
-	case stateDraining:
-		// Gracefully stop the process after draining connections.
-		p.cfg.Logger.Debug("stopping proxy connection draining, starting graceful shutdown of Envoy proxy")
-		p.transitionState(stateDraining, stateStopped)
-		_, err := p.client.Post(envoyShutdownUrl, "text/plain", nil)
-		if err != nil {
-			p.cfg.Logger.Error("envoy: failed to quit", "error", err)
-		}
-		return err
-	case stateRunning:
-		// Gracefully stop the process.
-		p.cfg.Logger.Debug("starting graceful shutdown of Envoy proxy")
-		p.transitionState(stateRunning, stateStopped)
-		_, err := p.client.Post(envoyShutdownUrl, "text/plain", nil)
-		if err != nil {
-			p.cfg.Logger.Error("envoy: failed to quit", "error", err)
-		}
-		return err
-	default:
-		return errors.New("proxy must be running to be stopped")
-	}
-}
-
-// Forcefully kill the Envoy proxy process.
+// Stop the Envoy proxy process.
 //
 // Note: the caller is responsible for ensuring Stop is not called concurrently
 // with Run, as this is thread-unsafe.
-func (p *Proxy) Kill() error {
+func (p *Proxy) Stop() error {
 	switch p.getState() {
-	case stateExited:
+	case stateStopped:
 		// Nothing to do!
 		return nil
-	case stateStopped:
-		// Kill the process, may have failed to gracefully stop.
-		p.cfg.Logger.Debug("killing Envoy proxy process")
-		return p.cmd.Process.Kill()
-	case stateDraining:
-		// Kill the process, may have failed to gracefully stop.
-		p.cfg.Logger.Debug("killing Envoy proxy process")
-		return p.cmd.Process.Kill()
 	case stateRunning:
 		// Kill the process.
-		p.cfg.Logger.Debug("killing Envoy proxy process")
+		p.cfg.Logger.Debug("stopping envoy")
 		return p.cmd.Process.Kill()
 	default:
-		return errors.New("proxy must be running to be killed")
+		return errors.New("proxy must be running to be stopped")
 	}
-}
-
-// Dump Envoy config to disk.
-func (p *Proxy) DumpConfig() error {
-	switch p.getState() {
-	case stateExited:
-		return errors.New("proxy must be running to dump config")
-	case stateStopped:
-		return errors.New("proxy must be running to dump config")
-	case stateDraining:
-		return p.dumpConfig()
-	case stateRunning:
-		return p.dumpConfig()
-	default:
-		return errors.New("proxy must be running to dump config")
-	}
-}
-
-func (p *Proxy) dumpConfig() error {
-	envoyConfigDumpUrl := fmt.Sprintf("http://%s:%v/config_dump?include_eds", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-
-	rsp, err := p.client.Get(envoyConfigDumpUrl)
-	if err != nil {
-		p.cfg.Logger.Error("envoy: failed to dump config", "error", err)
-		return err
-	}
-	defer rsp.Body.Close()
-
-	config, err := io.ReadAll(rsp.Body)
-	if err != nil {
-		p.cfg.Logger.Error("envoy: failed to dump config", "error", err)
-		return err
-	}
-
-	if _, err := p.cfg.EnvoyOutputStream.Write(config); err != nil {
-		p.cfg.Logger.Error("envoy: failed to write config to output stream", "error", err)
-	}
-
-	return err
 }
 
 // Exited returns a channel that is closed when the Envoy process exits. It can

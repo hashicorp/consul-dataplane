@@ -62,26 +62,17 @@ var (
 	promScrapePath        string
 	promMergePort         int
 
-	adminBindAddr         string
-	adminBindPort         int
-	readyBindAddr         string
-	readyBindPort         int
-	envoyConcurrency      int
-	envoyDrainTimeSeconds int
-	envoyDrainStrategy    string
+	adminBindAddr    string
+	adminBindPort    int
+	readyBindAddr    string
+	readyBindPort    int
+	envoyConcurrency int
 
 	xdsBindAddr string
 	xdsBindPort int
 
 	consulDNSBindAddr string
 	consulDNSPort     int
-
-	shutdownDrainListenersEnabled bool
-	shutdownGracePeriodSeconds    int
-	gracefulShutdownPath          string
-	gracefulPort                  int
-
-	dumpEnvoyConfigOnExitEnabled bool
 )
 
 func init() {
@@ -135,8 +126,6 @@ func init() {
 	StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "DP_ENVOY_READY_BIND_ADDRESS", "The address on which Envoy's readiness probe is available.")
 	IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "DP_ENVOY_READY_BIND_PORT", "The port on which Envoy's readiness probe is available.")
 	IntVar(&envoyConcurrency, "envoy-concurrency", 2, "DP_ENVOY_CONCURRENCY", "The number of worker threads that Envoy uses.")
-	IntVar(&envoyDrainTimeSeconds, "envoy-drain-time-seconds", 30, "DP_ENVOY_DRAIN_TIME", "The time in seconds for which Envoy will drain connections.")
-	StringVar(&envoyDrainStrategy, "envoy-drain-strategy", "immediate", "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
 
 	StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
 	IntVar(&xdsBindPort, "xds-bind-port", 0, "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
@@ -150,18 +139,6 @@ func init() {
 
 	StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns proxy.")
 	IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
-
-	// Default is false because it will generally be configured appropriately by Helm
-	// configuration or pod annotation.
-	BoolVar(&shutdownDrainListenersEnabled, "shutdown-drain-listeners", false, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
-	// Default is 0 because it will generally be configured appropriately by Helm
-	// configuration or pod annotation.
-	IntVar(&shutdownGracePeriodSeconds, "shutdown-grace-period-seconds", 0, "DP_SHUTDOWN_GRACE_PERIOD_SECONDS", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
-	StringVar(&gracefulShutdownPath, "graceful-shutdown-path", "/graceful_shutdown", "DP_GRACEFUL_SHUTDOWN_PATH", "An HTTP path to serve the graceful shutdown endpoint.")
-	IntVar(&gracefulPort, "graceful-port", 20300, "DP_GRACEFUL_PORT", "A port to serve HTTP endpoints for graceful shutdown.")
-
-	// Default is false, may be useful for debugging unexpected termination.
-	BoolVar(&dumpEnvoyConfigOnExitEnabled, "dump-envoy-config-on-exit", false, "DP_DUMP_ENVOY_CONFIG_ON_EXIT", "Call the Envoy /config_dump endpoint during consul-dataplane controlled shutdown.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -173,13 +150,13 @@ func validateFlags() {
 	}
 }
 
-func run() error {
+func main() {
 	flag.Parse()
 
 	if printVersion {
 		fmt.Printf("Consul Dataplane v%s\n", version.GetHumanVersion())
 		fmt.Printf("Revision %s\n", version.GitCommit)
-		return nil
+		return
 	}
 
 	readServiceIDFromFile()
@@ -239,19 +216,12 @@ func run() error {
 			},
 		},
 		Envoy: &consuldp.EnvoyConfig{
-			AdminBindAddress:              adminBindAddr,
-			AdminBindPort:                 adminBindPort,
-			ReadyBindAddress:              readyBindAddr,
-			ReadyBindPort:                 readyBindPort,
-			EnvoyConcurrency:              envoyConcurrency,
-			EnvoyDrainTimeSeconds:         envoyDrainTimeSeconds,
-			EnvoyDrainStrategy:            envoyDrainStrategy,
-			ShutdownDrainListenersEnabled: shutdownDrainListenersEnabled,
-			ShutdownGracePeriodSeconds:    shutdownGracePeriodSeconds,
-			GracefulShutdownPath:          gracefulShutdownPath,
-			GracefulPort:                  gracefulPort,
-			DumpEnvoyConfigOnExitEnabled:  dumpEnvoyConfigOnExitEnabled,
-			ExtraArgs:                     flag.Args(),
+			AdminBindAddress: adminBindAddr,
+			AdminBindPort:    adminBindPort,
+			ReadyBindAddress: readyBindAddr,
+			ReadyBindPort:    readyBindPort,
+			EnvoyConcurrency: envoyConcurrency,
+			ExtraArgs:        flag.Args(),
 		},
 		XDSServer: &consuldp.XDSServer{
 			BindAddress: xdsBindAddr,
@@ -265,28 +235,22 @@ func run() error {
 
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		// Block waiting for SIGTERM
 		<-sigCh
-
-		consuldpInstance.GracefulShutdown(cancel)
+		cancel()
 	}()
 
-	return consuldpInstance.Run(ctx)
-}
-
-func main() {
-	err := run()
+	err = consuldpInstance.Run(ctx)
 	if err != nil {
+		cancel()
 		log.Fatal(err)
 	}
 }

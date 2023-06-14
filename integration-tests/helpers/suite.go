@@ -204,17 +204,11 @@ func (s *Suite) Volume(t *testing.T) *Volume {
 		require.NoError(t, err)
 
 		t.Cleanup(func() {
-			s.mu.Lock()
-			defer s.mu.Unlock()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 
-			if s.volume != nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-
-				if err := docker.VolumeRemove(ctx, v.Name, true); err != nil {
-					t.Logf("failed to remove volume: %v", err)
-				}
-				s.volume = nil
+			if err := docker.VolumeRemove(ctx, v.Name, true); err != nil {
+				t.Logf("failed to remove volume: %v", err)
 			}
 		})
 
