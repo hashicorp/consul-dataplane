@@ -1,3 +1,0 @@
-```release-note:feature
-Add HTTP server with configurable port and endpoint path for initiating graceful shutdown.
-```

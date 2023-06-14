@@ -62,13 +62,11 @@ var (
 	promScrapePath        string
 	promMergePort         int
 
-	adminBindAddr         string
-	adminBindPort         int
-	readyBindAddr         string
-	readyBindPort         int
-	envoyConcurrency      int
-	envoyDrainTimeSeconds int
-	envoyDrainStrategy    string
+	adminBindAddr    string
+	adminBindPort    int
+	readyBindAddr    string
+	readyBindPort    int
+	envoyConcurrency int
 
 	xdsBindAddr string
 	xdsBindPort int
@@ -133,8 +131,6 @@ func init() {
 	StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "DP_ENVOY_READY_BIND_ADDRESS", "The address on which Envoy's readiness probe is available.")
 	IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "DP_ENVOY_READY_BIND_PORT", "The port on which Envoy's readiness probe is available.")
 	IntVar(&envoyConcurrency, "envoy-concurrency", 2, "DP_ENVOY_CONCURRENCY", "The number of worker threads that Envoy uses.")
-	IntVar(&envoyDrainTimeSeconds, "envoy-drain-time-seconds", 30, "DP_ENVOY_DRAIN_TIME", "The time in seconds for which Envoy will drain connections.")
-	StringVar(&envoyDrainStrategy, "envoy-drain-strategy", "immediate", "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
 
 	StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
 	IntVar(&xdsBindPort, "xds-bind-port", 0, "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
@@ -239,8 +235,6 @@ func main() {
 			ReadyBindAddress:              readyBindAddr,
 			ReadyBindPort:                 readyBindPort,
 			EnvoyConcurrency:              envoyConcurrency,
-			EnvoyDrainTimeSeconds:         envoyDrainTimeSeconds,
-			EnvoyDrainStrategy:            envoyDrainStrategy,
 			ShutdownDrainListenersEnabled: shutdownDrainListenersEnabled,
 			ShutdownGracePeriodSeconds:    shutdownGracePeriodSeconds,
 			GracefulShutdownPath:          gracefulShutdownPath,

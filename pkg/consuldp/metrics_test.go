@@ -223,12 +223,6 @@ func (c *mockClient) Get(url string) (*http.Response, error) {
 	}, nil
 }
 
-func (c *mockClient) Post(url string, contentType string, body io.Reader) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: http.StatusOK,
-	}, nil
-}
-
 func makeFakeMetric(url string) string {
 	return fmt.Sprintf(`fake_metric{url="%s"} 1\n`, url)
 }
