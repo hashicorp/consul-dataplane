@@ -1,0 +1,3 @@
+```release-note:security
+Update go-discover to 214571b6a5309addf3db7775f4ee8cf4d264fd5f within the Dockerfile. 
+```
