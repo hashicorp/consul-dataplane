@@ -332,3 +332,55 @@ jobs:
       - name: Check for failures
         if: ${{ steps.run-tests.outcome != 'success' }}
         run: exit 1
+
+  fips-integration-tests:
+    name: FIPS Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
+    needs:
+      - build-docker-default
+      - build-docker-ubi-dockerhub
+      - get-product-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        server:
+          - version: v1.16.0-dev.fips1402
+            image: hashicorppreview/consul-enterprise-fips:1.16-dev.fips1402
+          - version: v1.17.0-dev.fips1402
+            image: hashicorppreview/consul-enterprise-fips:1.17-dev.fips1402
+        dataplane:
+          - image_suffix: "dev.fips1402"
+            docker_target: "release-fips-default"
+          - image_suffix: "dev-ubi.fips1402"
+            docker_target: "release-fips-ubi"
+    env:
+      repo: ${{ github.event.repository.name }}
+      version: ${{ needs.get-product-version.outputs.product-version }}.fips1402
+    steps:
+      - name: Set docker dev tag
+        run: |
+          version="${{ env.version }}"
+          echo "dev_tag=${version%.*}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
+
+      - name: Set image tarball
+        run: |
+          echo "image_tarball=${{env.repo}}_${{ matrix.dataplane.docker_target }}_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
+      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+        with:
+          name: ${{env.image_tarball}}
+      - run: docker load --input ${{env.image_tarball}}
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        with:
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
+      - id: run-tests
+        run: cd integration-tests && go test -v -output-dir=./output -dataplane-image=hashicorppreview/${{env.repo}}-fips:${{env.dev_tag}}-${{github.sha}} -server-image=${{matrix.server.image}} -server-version=${{matrix.server.version}}
+        continue-on-error: true
+      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        continue-on-error: true
+        with:
+          name: consul-${{matrix.server.version}}-integration-tests-output
+          path: integration-tests/output/
+          if-no-files-found: 'error'
+      - name: Check for failures
+        if: ${{ steps.run-tests.outcome != 'success' }}
+        run: exit 1
