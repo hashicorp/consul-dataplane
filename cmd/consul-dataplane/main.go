@@ -12,171 +12,115 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
 )
 
 var (
-	printVersion bool
-
-	addresses           string
-	grpcPort            int
-	serverWatchDisabled bool
-
-	tlsDisabled           bool
-	tlsCACertsPath        string
-	tlsServerName         string
-	tlsCertFile           string
-	tlsKeyFile            string
-	tlsInsecureSkipVerify bool
-
-	logLevel string
-	logJSON  bool
-
-	nodeName      string
-	nodeID        string
-	serviceID     string
-	serviceIDPath string
-	namespace     string
-	partition     string
-
-	credentialType       string
-	token                string
-	loginAuthMethod      string
-	loginNamespace       string
-	loginPartition       string
-	loginDatacenter      string
-	loginBearerToken     string
-	loginBearerTokenPath string
-	loginMeta            map[string]string
-
-	useCentralTelemetryConfig bool
-
-	promRetentionTime     time.Duration
-	promCACertsPath       string
-	promKeyFile           string
-	promCertFile          string
-	promServiceMetricsURL string
-	promScrapePath        string
-	promMergePort         int
-
-	adminBindAddr         string
-	adminBindPort         int
-	readyBindAddr         string
-	readyBindPort         int
-	envoyConcurrency      int
-	envoyDrainTimeSeconds int
-	envoyDrainStrategy    string
-
-	xdsBindAddr string
-	xdsBindPort int
-
-	consulDNSBindAddr string
-	consulDNSPort     int
-
-	shutdownDrainListenersEnabled bool
-	shutdownGracePeriodSeconds    int
-	gracefulShutdownPath          string
-	gracefulPort                  int
-
-	dumpEnvoyConfigOnExitEnabled bool
+	flagOpts *FlagOpts
 )
 
 func init() {
-	flag.BoolVar(&printVersion, "version", false, "Prints the current version of consul-dataplane.")
+	flagOpts = &FlagOpts{}
+	flag.BoolVar(&flagOpts.printVersion, "version", false, "Prints the current version of consul-dataplane.")
 
-	StringVar(&addresses, "addresses", "", "DP_CONSUL_ADDRESSES", "Consul server gRPC addresses. Value can be:\n"+
+	StringVar(&flagOpts.addresses, "addresses", "", "DP_CONSUL_ADDRESSES", "Consul server gRPC addresses. Value can be:\n"+
 		"1. A DNS name that resolves to server addresses or the DNS name of a load balancer in front of the Consul servers; OR\n"+
 		"2. An executable command in the format, 'exec=<executable with optional args>'. The executable\n"+
 		"	a) on success - should exit 0 and print to stdout whitespace delimited IP (v4/v6) addresses\n"+
 		"	b) on failure - exit with a non-zero code and optionally print an error message of up to 1024 bytes to stderr.\n"+
 		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.\n")
 
-	IntVar(&grpcPort, "grpc-port", 8502, "DP_CONSUL_GRPC_PORT", "The Consul server gRPC port to which consul-dataplane connects.")
+	IntVar(&flagOpts.grpcPort, "grpc-port", DefaultGRPCPort, "DP_CONSUL_GRPC_PORT", "The Consul server gRPC port to which consul-dataplane connects.")
 
-	BoolVar(&serverWatchDisabled, "server-watch-disabled", false, "DP_SERVER_WATCH_DISABLED", "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
+	BoolVar(&flagOpts.serverWatchDisabled, "server-watch-disabled", DefaultServerWatchDisabled, "DP_SERVER_WATCH_DISABLED", "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
 
-	StringVar(&logLevel, "log-level", "info", "DP_LOG_LEVEL", "Log level of the messages to print. "+
+	StringVar(&flagOpts.logLevel, "log-level", DefaultLogLevel, "DP_LOG_LEVEL", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
-	BoolVar(&logJSON, "log-json", false, "DP_LOG_JSON", "Enables log messages in JSON format.")
+	BoolVar(&flagOpts.logJSON, "log-json", DefaultLogJSON, "DP_LOG_JSON", "Enables log messages in JSON format.")
 
-	StringVar(&nodeName, "service-node-name", "", "DP_SERVICE_NODE_NAME", "The name of the Consul node to which the proxy service instance is registered.")
-	StringVar(&nodeID, "service-node-id", "", "DP_SERVICE_NODE_ID", "The ID of the Consul node to which the proxy service instance is registered.")
-	StringVar(&serviceID, "proxy-service-id", "", "DP_PROXY_SERVICE_ID", "The proxy service instance's ID.")
-	StringVar(&serviceIDPath, "proxy-service-id-path", "", "DP_PROXY_SERVICE_ID_PATH", "The path to a file containing the proxy service instance's ID.")
-	StringVar(&namespace, "service-namespace", "", "DP_SERVICE_NAMESPACE", "The Consul Enterprise namespace in which the proxy service instance is registered.")
-	StringVar(&partition, "service-partition", "", "DP_SERVICE_PARTITION", "The Consul Enterprise partition in which the proxy service instance is registered.")
+	StringVar(&flagOpts.nodeName, "service-node-name", "", "DP_SERVICE_NODE_NAME", "The name of the Consul node to which the proxy service instance is registered.")
+	StringVar(&flagOpts.nodeID, "service-node-id", "", "DP_SERVICE_NODE_ID", "The ID of the Consul node to which the proxy service instance is registered.")
+	StringVar(&flagOpts.serviceID, "proxy-service-id", "", "DP_PROXY_SERVICE_ID", "The proxy service instance's ID.")
+	StringVar(&flagOpts.serviceIDPath, "proxy-service-id-path", "", "DP_PROXY_SERVICE_ID_PATH", "The path to a file containing the proxy service instance's ID.")
+	StringVar(&flagOpts.namespace, "service-namespace", "", "DP_SERVICE_NAMESPACE", "The Consul Enterprise namespace in which the proxy service instance is registered.")
+	StringVar(&flagOpts.partition, "service-partition", "", "DP_SERVICE_PARTITION", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
-	StringVar(&credentialType, "credential-type", "", "DP_CREDENTIAL_TYPE", "The type of credentials, either static or login, used to authenticate with Consul servers.")
-	StringVar(&token, "static-token", "", "DP_CREDENTIAL_STATIC_TOKEN", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
-	StringVar(&loginAuthMethod, "login-auth-method", "", "DP_CREDENTIAL_LOGIN_AUTH_METHOD", "The auth method used to log in.")
-	StringVar(&loginNamespace, "login-namespace", "", "DP_CREDENTIAL_LOGIN_NAMESPACE", "The Consul Enterprise namespace containing the auth method.")
-	StringVar(&loginPartition, "login-partition", "", "DP_CREDENTIAL_LOGIN_PARTITION", "The Consul Enterprise partition containing the auth method.")
-	StringVar(&loginDatacenter, "login-datacenter", "", "DP_CREDENTIAL_LOGIN_DATACENTER", "The datacenter containing the auth method.")
-	StringVar(&loginBearerToken, "login-bearer-token", "", "DP_CREDENTIAL_LOGIN_BEARER_TOKEN", "The bearer token presented to the auth method.")
-	StringVar(&loginBearerTokenPath, "login-bearer-token-path", "", "DP_CREDENTIAL_LOGIN_BEARER_TOKEN_PATH", "The path to a file containing the bearer token presented to the auth method.")
-	MapVar((*FlagMapValue)(&loginMeta), "login-meta", "DP_CREDENTIAL_LOGIN_META", `A set of key/value pairs to attach to the ACL token. Each pair is formatted as "<key>=<value>". This flag may be passed multiple times.`)
+	StringVar(&flagOpts.credentialType, "credential-type", "", "DP_CREDENTIAL_TYPE", "The type of credentials, either static or login, used to authenticate with Consul servers.")
+	StringVar(&flagOpts.token, "static-token", "", "DP_CREDENTIAL_STATIC_TOKEN", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
+	StringVar(&flagOpts.loginAuthMethod, "login-auth-method", "", "DP_CREDENTIAL_LOGIN_AUTH_METHOD", "The auth method used to log in.")
+	StringVar(&flagOpts.loginNamespace, "login-namespace", "", "DP_CREDENTIAL_LOGIN_NAMESPACE", "The Consul Enterprise namespace containing the auth method.")
+	StringVar(&flagOpts.loginPartition, "login-partition", "", "DP_CREDENTIAL_LOGIN_PARTITION", "The Consul Enterprise partition containing the auth method.")
+	StringVar(&flagOpts.loginDatacenter, "login-datacenter", "", "DP_CREDENTIAL_LOGIN_DATACENTER", "The datacenter containing the auth method.")
+	StringVar(&flagOpts.loginBearerToken, "login-bearer-token", "", "DP_CREDENTIAL_LOGIN_BEARER_TOKEN", "The bearer token presented to the auth method.")
+	StringVar(&flagOpts.loginBearerTokenPath, "login-bearer-token-path", "", "DP_CREDENTIAL_LOGIN_BEARER_TOKEN_PATH", "The path to a file containing the bearer token presented to the auth method.")
+	MapVar((*FlagMapValue)(&flagOpts.loginMeta), "login-meta", "DP_CREDENTIAL_LOGIN_META", `A set of key/value pairs to attach to the ACL token. Each pair is formatted as "<key>=<value>". This flag may be passed multiple times.`)
 
-	BoolVar(&useCentralTelemetryConfig, "telemetry-use-central-config", true, "DP_TELEMETRY_USE_CENTRAL_CONFIG", "Controls whether the proxy applies the central telemetry configuration.")
+	BoolVar(&flagOpts.useCentralTelemetryConfig, "telemetry-use-central-config", DefaultUseCentralTelemetryConfig, "DP_TELEMETRY_USE_CENTRAL_CONFIG", "Controls whether the proxy applies the central telemetry configuration.")
 
-	DurationVar(&promRetentionTime, "telemetry-prom-retention-time", 60*time.Second, "DP_TELEMETRY_PROM_RETENTION_TIME", "The duration for prometheus metrics aggregation.")
-	StringVar(&promCACertsPath, "telemetry-prom-ca-certs-path", "", "DP_TELEMETRY_PROM_CA_CERTS_PATH", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
-	StringVar(&promKeyFile, "telemetry-prom-key-file", "", "DP_TELEMETRY_PROM_KEY_FILE", "The path to the client private key used to serve Prometheus metrics.")
-	StringVar(&promCertFile, "telemetry-prom-cert-file", "", "DP_TELEMETRY_PROM_CERT_FILE", "The path to the client certificate used to serve Prometheus metrics.")
-	StringVar(&promServiceMetricsURL, "telemetry-prom-service-metrics-url", "", "DP_TELEMETRY_PROM_SERVICE_METRICS_URL", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
-	StringVar(&promScrapePath, "telemetry-prom-scrape-path", "/metrics", "DP_TELEMETRY_PROM_SCRAPE_PATH", "The URL path where Envoy serves Prometheus metrics.")
-	IntVar(&promMergePort, "telemetry-prom-merge-port", 20100, "DP_TELEMETRY_PROM_MERGE_PORT", "The port to serve merged Prometheus metrics.")
+	DurationVar(&flagOpts.promRetentionTime, "telemetry-prom-retention-time", DefaultPromRetentionTime, "DP_TELEMETRY_PROM_RETENTION_TIME", "The duration for prometheus metrics aggregation.")
+	StringVar(&flagOpts.promCACertsPath, "telemetry-prom-ca-certs-path", "", "DP_TELEMETRY_PROM_CA_CERTS_PATH", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
+	StringVar(&flagOpts.promKeyFile, "telemetry-prom-key-file", "", "DP_TELEMETRY_PROM_KEY_FILE", "The path to the client private key used to serve Prometheus metrics.")
+	StringVar(&flagOpts.promCertFile, "telemetry-prom-cert-file", "", "DP_TELEMETRY_PROM_CERT_FILE", "The path to the client certificate used to serve Prometheus metrics.")
+	StringVar(&flagOpts.promServiceMetricsURL, "telemetry-prom-service-metrics-url", "", "DP_TELEMETRY_PROM_SERVICE_METRICS_URL", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
+	StringVar(&flagOpts.promScrapePath, "telemetry-prom-scrape-path", DefaultPromScrapePath, "DP_TELEMETRY_PROM_SCRAPE_PATH", "The URL path where Envoy serves Prometheus metrics.")
+	IntVar(&flagOpts.promMergePort, "telemetry-prom-merge-port", DefaultPromMergePort, "DP_TELEMETRY_PROM_MERGE_PORT", "The port to serve merged Prometheus metrics.")
 
-	StringVar(&adminBindAddr, "envoy-admin-bind-address", "127.0.0.1", "DP_ENVOY_ADMIN_BIND_ADDRESS", "The address on which the Envoy admin server is available.")
-	IntVar(&adminBindPort, "envoy-admin-bind-port", 19000, "DP_ENVOY_ADMIN_BIND_PORT", "The port on which the Envoy admin server is available.")
-	StringVar(&readyBindAddr, "envoy-ready-bind-address", "", "DP_ENVOY_READY_BIND_ADDRESS", "The address on which Envoy's readiness probe is available.")
-	IntVar(&readyBindPort, "envoy-ready-bind-port", 0, "DP_ENVOY_READY_BIND_PORT", "The port on which Envoy's readiness probe is available.")
-	IntVar(&envoyConcurrency, "envoy-concurrency", 2, "DP_ENVOY_CONCURRENCY", "The number of worker threads that Envoy uses.")
-	IntVar(&envoyDrainTimeSeconds, "envoy-drain-time-seconds", 30, "DP_ENVOY_DRAIN_TIME", "The time in seconds for which Envoy will drain connections.")
-	StringVar(&envoyDrainStrategy, "envoy-drain-strategy", "immediate", "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
+	StringVar(&flagOpts.adminBindAddr, "envoy-admin-bind-address", DefaultEnvoyAdminBindAddr, "DP_ENVOY_ADMIN_BIND_ADDRESS", "The address on which the Envoy admin server is available.")
+	IntVar(&flagOpts.adminBindPort, "envoy-admin-bind-port", DefaultEnvoyAdminBindPort, "DP_ENVOY_ADMIN_BIND_PORT", "The port on which the Envoy admin server is available.")
+	StringVar(&flagOpts.readyBindAddr, "envoy-ready-bind-address", "", "DP_ENVOY_READY_BIND_ADDRESS", "The address on which Envoy's readiness probe is available.")
+	IntVar(&flagOpts.readyBindPort, "envoy-ready-bind-port", DefaultEnvoyReadyBindPort, "DP_ENVOY_READY_BIND_PORT", "The port on which Envoy's readiness probe is available.")
+	IntVar(&flagOpts.envoyConcurrency, "envoy-concurrency", DefaultEnvoyConcurrency, "DP_ENVOY_CONCURRENCY", "The number of worker threads that Envoy uses.")
+	IntVar(&flagOpts.envoyDrainTimeSeconds, "envoy-drain-time-seconds", DefaultEnvoyDrainTimeSeconds, "DP_ENVOY_DRAIN_TIME", "The time in seconds for which Envoy will drain connections.")
+	StringVar(&flagOpts.envoyDrainStrategy, "envoy-drain-strategy", DefaultEnvoyDrainStrategy, "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
 
-	StringVar(&xdsBindAddr, "xds-bind-addr", "127.0.0.1", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
-	IntVar(&xdsBindPort, "xds-bind-port", 0, "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
+	StringVar(&flagOpts.xdsBindAddr, "xds-bind-addr", DefaultXDSBindAddr, "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
+	IntVar(&flagOpts.xdsBindPort, "xds-bind-port", DefaultXDSBindPort, "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
 
-	BoolVar(&tlsDisabled, "tls-disabled", false, "DP_TLS_DISABLED", "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
-	StringVar(&tlsCACertsPath, "ca-certs", "", "DP_CA_CERTS", "The path to a file or directory containing CA certificates used to verify the server's certificate.")
-	StringVar(&tlsCertFile, "tls-cert", "", "DP_TLS_CERT", "The path to a client certificate file. This is required if tls.grpc.verify_incoming is enabled on the server.")
-	StringVar(&tlsKeyFile, "tls-key", "", "DP_TLS_KEY", "The path to a client private key file. This is required if tls.grpc.verify_incoming is enabled on the server.")
-	StringVar(&tlsServerName, "tls-server-name", "", "DP_TLS_SERVER_NAME", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
-	BoolVar(&tlsInsecureSkipVerify, "tls-insecure-skip-verify", false, "DP_TLS_INSECURE_SKIP_VERIFY", "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
+	BoolVar(&flagOpts.tlsDisabled, "tls-disabled", DefaultTLSDisabled, "DP_TLS_DISABLED", "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
+	StringVar(&flagOpts.tlsCACertsPath, "ca-certs", "", "DP_CA_CERTS", "The path to a file or directory containing CA certificates used to verify the server's certificate.")
+	StringVar(&flagOpts.tlsCertFile, "tls-cert", "", "DP_TLS_CERT", "The path to a client certificate file. This is required if tls.grpc.verify_incoming is enabled on the server.")
+	StringVar(&flagOpts.tlsKeyFile, "tls-key", "", "DP_TLS_KEY", "The path to a client private key file. This is required if tls.grpc.verify_incoming is enabled on the server.")
+	StringVar(&flagOpts.tlsServerName, "tls-server-name", "", "DP_TLS_SERVER_NAME", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
+	BoolVar(&flagOpts.tlsInsecureSkipVerify, "tls-insecure-skip-verify", DefaultTLSInsecureSkipVerify, "DP_TLS_INSECURE_SKIP_VERIFY", "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
 
-	StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns proxy.")
-	IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
+	StringVar(&flagOpts.consulDNSBindAddr, "consul-dns-bind-addr", DefaultDNSBindAddr, "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns proxy.")
+	IntVar(&flagOpts.consulDNSPort, "consul-dns-bind-port", DefaultDNSBindPort, "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
 
 	// Default is false because it will generally be configured appropriately by Helm
 	// configuration or pod annotation.
-	BoolVar(&shutdownDrainListenersEnabled, "shutdown-drain-listeners", false, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
+	BoolVar(&flagOpts.shutdownDrainListenersEnabled, "shutdown-drain-listeners", DefaultEnvoyShutdownDrainListenersEnabled, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
 	// Default is 0 because it will generally be configured appropriately by Helm
 	// configuration or pod annotation.
-	IntVar(&shutdownGracePeriodSeconds, "shutdown-grace-period-seconds", 0, "DP_SHUTDOWN_GRACE_PERIOD_SECONDS", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
-	StringVar(&gracefulShutdownPath, "graceful-shutdown-path", "/graceful_shutdown", "DP_GRACEFUL_SHUTDOWN_PATH", "An HTTP path to serve the graceful shutdown endpoint.")
-	IntVar(&gracefulPort, "graceful-port", 20300, "DP_GRACEFUL_PORT", "A port to serve HTTP endpoints for graceful shutdown.")
+	IntVar(&flagOpts.shutdownGracePeriodSeconds, "shutdown-grace-period-seconds", DefaultEnvoyShutdownGracePeriodSeconds, "DP_SHUTDOWN_GRACE_PERIOD_SECONDS", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
+	StringVar(&flagOpts.gracefulShutdownPath, "graceful-shutdown-path", DefaultGracefulShutdownPath, "DP_GRACEFUL_SHUTDOWN_PATH", "An HTTP path to serve the graceful shutdown endpoint.")
+	IntVar(&flagOpts.gracefulPort, "graceful-port", DefaultGracefulPort, "DP_GRACEFUL_PORT", "A port to serve HTTP endpoints for graceful shutdown.")
 
 	// Default is false, may be useful for debugging unexpected termination.
-	BoolVar(&dumpEnvoyConfigOnExitEnabled, "dump-envoy-config-on-exit", false, "DP_DUMP_ENVOY_CONFIG_ON_EXIT", "Call the Envoy /config_dump endpoint during consul-dataplane controlled shutdown.")
+	BoolVar(&flagOpts.dumpEnvoyConfigOnExitEnabled, "dump-envoy-config-on-exit", DefaultDumpEnvoyConfigOnExitEnabled, "DP_DUMP_ENVOY_CONFIG_ON_EXIT", "Call the Envoy /config_dump endpoint during consul-dataplane controlled shutdown.")
+
+	StringVar(&flagOpts.configFile, "config-file", "", "DP_CONFIG_FILE", "The json config file for configuring consul data plane")
 }
 
 // validateFlags performs semantic validation of the flag values
 func validateFlags() {
-	switch strings.ToUpper(logLevel) {
+	switch strings.ToUpper(flagOpts.logLevel) {
 	case "TRACE", "DEBUG", "INFO", "WARN", "ERROR":
 	default:
 		log.Fatal("invalid log level. valid values - TRACE, DEBUG, INFO, WARN, ERROR")
+	}
+
+	if flagOpts.configFile != "" && !strings.HasSuffix(flagOpts.configFile, ".json") {
+		log.Fatal("invalid config file format. Should be a json file")
 	}
 }
 
 func run() error {
 	flag.Parse()
 
-	if printVersion {
+	if flagOpts.printVersion {
 		fmt.Printf("Consul Dataplane v%s\n", version.GetHumanVersion())
 		fmt.Printf("Revision %s\n", version.GitCommit)
 		return nil
@@ -185,82 +129,9 @@ func run() error {
 	readServiceIDFromFile()
 	validateFlags()
 
-	consuldpCfg := &consuldp.Config{
-		Consul: &consuldp.ConsulConfig{
-			Addresses: addresses,
-			GRPCPort:  grpcPort,
-			Credentials: &consuldp.CredentialsConfig{
-				Type: consuldp.CredentialsType(credentialType),
-				Static: consuldp.StaticCredentialsConfig{
-					Token: token,
-				},
-				Login: consuldp.LoginCredentialsConfig{
-					AuthMethod:      loginAuthMethod,
-					Namespace:       loginNamespace,
-					Partition:       loginPartition,
-					Datacenter:      loginDatacenter,
-					BearerToken:     loginBearerToken,
-					BearerTokenPath: loginBearerTokenPath,
-					Meta:            loginMeta,
-				},
-			},
-			ServerWatchDisabled: serverWatchDisabled,
-			TLS: &consuldp.TLSConfig{
-				Disabled:           tlsDisabled,
-				CACertsPath:        tlsCACertsPath,
-				ServerName:         tlsServerName,
-				CertFile:           tlsCertFile,
-				KeyFile:            tlsKeyFile,
-				InsecureSkipVerify: tlsInsecureSkipVerify,
-			},
-		},
-		Service: &consuldp.ServiceConfig{
-			NodeName:  nodeName,
-			NodeID:    nodeID,
-			ServiceID: serviceID,
-			Namespace: namespace,
-			Partition: partition,
-		},
-		Logging: &consuldp.LoggingConfig{
-			Name:     "consul-dataplane",
-			LogLevel: strings.ToUpper(logLevel),
-			LogJSON:  logJSON,
-		},
-		Telemetry: &consuldp.TelemetryConfig{
-			UseCentralConfig: useCentralTelemetryConfig,
-			Prometheus: consuldp.PrometheusTelemetryConfig{
-				RetentionTime:     promRetentionTime,
-				CACertsPath:       promCACertsPath,
-				KeyFile:           promKeyFile,
-				CertFile:          promCertFile,
-				ServiceMetricsURL: promServiceMetricsURL,
-				ScrapePath:        promScrapePath,
-				MergePort:         promMergePort,
-			},
-		},
-		Envoy: &consuldp.EnvoyConfig{
-			AdminBindAddress:              adminBindAddr,
-			AdminBindPort:                 adminBindPort,
-			ReadyBindAddress:              readyBindAddr,
-			ReadyBindPort:                 readyBindPort,
-			EnvoyConcurrency:              envoyConcurrency,
-			EnvoyDrainTimeSeconds:         envoyDrainTimeSeconds,
-			EnvoyDrainStrategy:            envoyDrainStrategy,
-			ShutdownDrainListenersEnabled: shutdownDrainListenersEnabled,
-			ShutdownGracePeriodSeconds:    shutdownGracePeriodSeconds,
-			GracefulShutdownPath:          gracefulShutdownPath,
-			GracefulPort:                  gracefulPort,
-			DumpEnvoyConfigOnExitEnabled:  dumpEnvoyConfigOnExitEnabled,
-			ExtraArgs:                     flag.Args(),
-		},
-		XDSServer: &consuldp.XDSServer{
-			BindAddress: xdsBindAddr,
-			BindPort:    xdsBindPort,
-		},
-		DNSServer: &consuldp.DNSServerConfig{
-			BindAddr: consulDNSBindAddr,
-			Port:     consulDNSPort,
-		},
+	consuldpCfg, err := flagOpts.buildDataplaneConfig()
+	if err != nil {
+		return err
 	}
 
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
@@ -298,11 +169,11 @@ func main() {
 // because this option only really makes sense as a CLI flag (and we handle
 // all flag parsing here).
 func readServiceIDFromFile() {
-	if serviceID == "" && serviceIDPath != "" {
-		id, err := os.ReadFile(serviceIDPath)
+	if flagOpts.serviceID == "" && flagOpts.serviceIDPath != "" {
+		id, err := os.ReadFile(flagOpts.serviceIDPath)
 		if err != nil {
 			log.Fatalf("failed to read given -proxy-service-id-path: %v", err)
 		}
-		serviceID = string(id)
+		flagOpts.serviceID = string(id)
 	}
 }
