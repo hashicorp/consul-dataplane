@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"dario.cat/mergo"
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 )
 
@@ -142,11 +143,16 @@ func (f *FlagOpts) buildDataplaneConfig(extraArgs []string) (*consuldp.Config, e
 			return nil, err
 		}
 
-		mergeConfigs(consulDPDefaultFlags, consulDPFileBasedFlags)
+		consulDPDefaultFlags, err = mergeConfigs(consulDPDefaultFlags, consulDPFileBasedFlags)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	consulDPCLIFlags := &f.dataplaneConfig
-	mergeConfigs(consulDPDefaultFlags, consulDPCLIFlags)
+	consulDPDefaultFlags, err = mergeConfigs(consulDPDefaultFlags, f.dataplaneConfig)
+	if err != nil {
+		return nil, err
+	}
 
 	consuldpRuntimeConfig, err := constructRuntimeConfig(consulDPDefaultFlags, extraArgs)
 	if err != nil {
@@ -157,23 +163,23 @@ func (f *FlagOpts) buildDataplaneConfig(extraArgs []string) (*consuldp.Config, e
 }
 
 // Constructs a config based on the values present in the config json file
-func (f *FlagOpts) buildConfigFromFile() (*DataplaneConfigFlags, error) {
-	var cfg *DataplaneConfigFlags
+func (f *FlagOpts) buildConfigFromFile() (DataplaneConfigFlags, error) {
+	var cfg DataplaneConfigFlags
 	data, err := os.ReadFile(f.configFile)
 	if err != nil {
-		return nil, err
+		return DataplaneConfigFlags{}, err
 	}
 
 	err = json.Unmarshal(data, &cfg)
 	if err != nil {
-		return nil, err
+		return DataplaneConfigFlags{}, err
 	}
 
 	return cfg, nil
 }
 
 // Constructs a config with the default values
-func buildDefaultConsulDPFlags() (*DataplaneConfigFlags, error) {
+func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 	data := `
 	{
 		"consul": {
@@ -220,10 +226,10 @@ func buildDefaultConsulDPFlags() (*DataplaneConfigFlags, error) {
 		}
 	}`
 
-	var defaultCfgFlags *DataplaneConfigFlags
+	var defaultCfgFlags DataplaneConfigFlags
 	err := json.Unmarshal([]byte(data), &defaultCfgFlags)
 	if err != nil {
-		return nil, err
+		return DataplaneConfigFlags{}, err
 	}
 
 	return defaultCfgFlags, nil
@@ -231,11 +237,7 @@ func buildDefaultConsulDPFlags() (*DataplaneConfigFlags, error) {
 
 // constructRuntimeConfig constructs the final config needed for dataplane to start
 // itself after substituting all the user provided inputs
-func constructRuntimeConfig(cfg *DataplaneConfigFlags, extraArgs []string) (*consuldp.Config, error) {
-	if cfg == nil {
-		return &consuldp.Config{}, nil
-	}
-
+func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*consuldp.Config, error) {
 	return &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
 			Addresses:           stringVal(cfg.Consul.Addresses),
@@ -312,4 +314,13 @@ func constructRuntimeConfig(cfg *DataplaneConfigFlags, extraArgs []string) (*con
 			Port:     intVal(cfg.DNSServer.BindPort),
 		},
 	}, nil
+}
+
+func mergeConfigs(c1, c2 DataplaneConfigFlags) (DataplaneConfigFlags, error) {
+	err := mergo.Merge(&c1, c2, mergo.WithOverride, mergo.WithoutDereference)
+	if err != nil {
+		return DataplaneConfigFlags{}, err
+	}
+
+	return c1, nil
 }

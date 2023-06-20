@@ -13,7 +13,7 @@ type Duration struct {
 	Duration time.Duration
 }
 
-func (duration *Duration) UnmarshalJSON(b []byte) error {
+func (d *Duration) UnmarshalJSON(b []byte) error {
 	var unmarshalledJson interface{}
 
 	err := json.Unmarshal(b, &unmarshalledJson)
@@ -23,9 +23,9 @@ func (duration *Duration) UnmarshalJSON(b []byte) error {
 
 	switch value := unmarshalledJson.(type) {
 	case float64:
-		duration.Duration = time.Duration(value)
+		d.Duration = time.Duration(value)
 	case string:
-		duration.Duration, err = time.ParseDuration(value)
+		d.Duration, err = time.ParseDuration(value)
 		if err != nil {
 			return err
 		}
