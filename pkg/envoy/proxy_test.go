@@ -166,7 +166,7 @@ func TestProxy_OverridingLoggerAndExtraArgs(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, p.Run(context.Background()))
-	t.Cleanup(func() { _ = p.Kill() })
+	t.Cleanup(func() { _ = p.Stop() })
 
 	// Read the output written by fake-envoy. It might take a while, so poll the
 	// file for a couple of second
@@ -203,7 +203,7 @@ func TestProxy_OverridingLoggerAndExtraArgs(t *testing.T) {
 	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
 
 	// Ensure Stop kills and reaps the process.
-	require.NoError(t, p.Kill())
+	require.NoError(t, p.Stop())
 
 	require.Eventually(t, func() bool {
 		return p.cmd.Process.Signal(syscall.Signal(0)) == os.ErrProcessDone
@@ -229,7 +229,7 @@ func TestProxy_EnvoyExtraArgs(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, p.Run(context.Background()))
-	t.Cleanup(func() { _ = p.Kill() })
+	t.Cleanup(func() { _ = p.Stop() })
 
 	// Read the output written by fake-envoy. It might take a while, so poll the
 	// file for a couple of second
@@ -266,7 +266,7 @@ func TestProxy_EnvoyExtraArgs(t *testing.T) {
 	require.NoError(t, p.cmd.Process.Signal(syscall.Signal(0)))
 
 	// Ensure Stop kills and reaps the process.
-	require.NoError(t, p.Kill())
+	require.NoError(t, p.Stop())
 
 	require.Eventually(t, func() bool {
 		return p.cmd.Process.Signal(syscall.Signal(0)) == os.ErrProcessDone
