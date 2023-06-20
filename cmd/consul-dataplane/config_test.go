@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -15,7 +16,7 @@ import (
 func TestConfigGeneration(t *testing.T) {
 	type testCase struct {
 		desc            string
-		flagOpts        func() *FlagOpts
+		flagOpts        func() (*FlagOpts, error)
 		writeConfigFile func() error
 		assertConfig    func(cfg *consuldp.Config, f *FlagOpts) bool
 		cleanup         func()
@@ -25,14 +26,14 @@ func TestConfigGeneration(t *testing.T) {
 	testCases := []testCase{
 		{
 			desc: "able to generate config properly when the config file input is empty",
-			flagOpts: func() *FlagOpts {
+			flagOpts: func() (*FlagOpts, error) {
 				return generateFlagOpts()
 			},
 			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
 				expectedCfg := &consuldp.Config{
 					Consul: &consuldp.ConsulConfig{
-						Addresses:           flagOpts.addresses,
-						GRPCPort:            flagOpts.grpcPort,
+						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
+						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
 						ServerWatchDisabled: true,
 						Credentials: &consuldp.CredentialsConfig{
 							Type: "static",
@@ -40,7 +41,6 @@ func TestConfigGeneration(t *testing.T) {
 								Token: "test-token-123",
 							},
 							Login: consuldp.LoginCredentialsConfig{
-								Meta:        make(map[string]string),
 								AuthMethod:  "test-iam-auth",
 								BearerToken: "bearer-login",
 							},
@@ -62,7 +62,7 @@ func TestConfigGeneration(t *testing.T) {
 						Partition: "default",
 					},
 					Logging: &consuldp.LoggingConfig{
-						Name:     "consul-dataplane",
+						Name:     DefaultLogName,
 						LogJSON:  true,
 						LogLevel: "WARN",
 					},
@@ -85,7 +85,6 @@ func TestConfigGeneration(t *testing.T) {
 						GracefulShutdownPath:          "/graceful_shutdown",
 						EnvoyDrainTimeSeconds:         30,
 						GracefulPort:                  20300,
-						ExtraArgs:                     []string{},
 					},
 					Telemetry: &consuldp.TelemetryConfig{
 						UseCentralConfig: true,
@@ -106,28 +105,31 @@ func TestConfigGeneration(t *testing.T) {
 		},
 		{
 			desc: "able to override all the config fields with CLI flags",
-			flagOpts: func() *FlagOpts {
-				opts := generateFlagOpts()
-				opts.loginBearerTokenPath = "/consul/bearertokenpath/"
-				opts.loginDatacenter = "dc100"
-				opts.loginMeta = map[string]string{
+			flagOpts: func() (*FlagOpts, error) {
+				opts, err := generateFlagOpts()
+				if err != nil {
+					return nil, err
+				}
+				opts.dataplaneConfig.Consul.Credentials.Login.BearerTokenPath = strReference("/consul/bearertokenpath/")
+				opts.dataplaneConfig.Consul.Credentials.Login.Datacenter = strReference("dc100")
+				opts.dataplaneConfig.Consul.Credentials.Login.Meta = map[string]string{
 					"key-1": "value-1",
 					"key-2": "value-2",
 				}
-				opts.loginNamespace = "default"
-				opts.loginPartition = "default"
+				opts.dataplaneConfig.Consul.Credentials.Login.Namespace = strReference("default")
+				opts.dataplaneConfig.Consul.Credentials.Login.Partition = strReference("default")
 
-				opts.logJSON = false
-				opts.consulDNSBindAddr = "127.0.0.2"
-				opts.xdsBindPort = 6060
-				opts.dumpEnvoyConfigOnExitEnabled = true
-				return opts
+				opts.dataplaneConfig.Logging.LogJSON = boolReference(false)
+				opts.dataplaneConfig.DNSServer.BindAddr = strReference("127.0.0.2")
+				opts.dataplaneConfig.XDSServer.BindPort = intReference(6060)
+				opts.dataplaneConfig.Envoy.DumpEnvoyConfigOnExitEnabled = boolReference(true)
+				return opts, nil
 			},
 			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
 				expectedCfg := &consuldp.Config{
 					Consul: &consuldp.ConsulConfig{
-						Addresses:           flagOpts.addresses,
-						GRPCPort:            flagOpts.grpcPort,
+						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
+						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
 						ServerWatchDisabled: true,
 						Credentials: &consuldp.CredentialsConfig{
 							Type: "static",
@@ -164,7 +166,7 @@ func TestConfigGeneration(t *testing.T) {
 						Partition: "default",
 					},
 					Logging: &consuldp.LoggingConfig{
-						Name:     "consul-dataplane",
+						Name:     DefaultLogName,
 						LogJSON:  false,
 						LogLevel: "WARN",
 					},
@@ -188,7 +190,6 @@ func TestConfigGeneration(t *testing.T) {
 						EnvoyDrainTimeSeconds:         30,
 						GracefulPort:                  20300,
 						DumpEnvoyConfigOnExitEnabled:  true,
-						ExtraArgs:                     []string{},
 					},
 					Telemetry: &consuldp.TelemetryConfig{
 						UseCentralConfig: true,
@@ -209,10 +210,10 @@ func TestConfigGeneration(t *testing.T) {
 		},
 		{
 			desc: "able to generate config properly when config file is given without flag inputs",
-			flagOpts: func() *FlagOpts {
+			flagOpts: func() (*FlagOpts, error) {
 				opts := &FlagOpts{}
 				opts.configFile = "test.json"
-				return opts
+				return opts, nil
 			},
 			writeConfigFile: func() error {
 				inputJson := `{
@@ -244,21 +245,59 @@ func TestConfigGeneration(t *testing.T) {
 				return nil
 			},
 			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
-				expectedCfg := buildDefaultConsulDPConfig()
-				expectedCfg.Consul.Addresses = "consul_server.dc1"
-				expectedCfg.Consul.GRPCPort = 8502
-				expectedCfg.Consul.ServerWatchDisabled = false
-				expectedCfg.Service.NodeName = "test-node-1"
-				expectedCfg.Service.ServiceID = "frontend-service-sidecar-proxy"
-				expectedCfg.Service.Namespace = "default"
-				expectedCfg.Service.Partition = "default"
-				expectedCfg.Envoy.AdminBindAddress = "127.0.0.1"
-				expectedCfg.Envoy.AdminBindPort = 19000
-				expectedCfg.Logging.LogJSON = false
-				expectedCfg.Logging.LogLevel = "INFO"
-				expectedCfg.Telemetry.UseCentralConfig = false
+				expectedCfg := &consuldp.Config{
+					Consul: &consuldp.ConsulConfig{
+						Addresses:           "consul_server.dc1",
+						GRPCPort:            8502,
+						ServerWatchDisabled: false,
+						Credentials: &consuldp.CredentialsConfig{
+							Static: consuldp.StaticCredentialsConfig{},
+							Login:  consuldp.LoginCredentialsConfig{},
+						},
+						TLS: &consuldp.TLSConfig{},
+					},
+					Service: &consuldp.ServiceConfig{
+						NodeName:  "test-node-1",
+						Namespace: "default",
+						ServiceID: "frontend-service-sidecar-proxy",
+						Partition: "default",
+					},
+					Logging: &consuldp.LoggingConfig{
+						Name:     DefaultLogName,
+						LogJSON:  false,
+						LogLevel: "INFO",
+					},
+					DNSServer: &consuldp.DNSServerConfig{
+						BindAddr: "127.0.0.1",
+						Port:     -1,
+					},
+					XDSServer: &consuldp.XDSServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    0,
+					},
+					Envoy: &consuldp.EnvoyConfig{
+						AdminBindAddress:              "127.0.0.1",
+						AdminBindPort:                 19000,
+						ReadyBindPort:                 0,
+						EnvoyConcurrency:              2,
+						EnvoyDrainStrategy:            "immediate",
+						ShutdownDrainListenersEnabled: false,
+						GracefulShutdownPath:          "/graceful_shutdown",
+						EnvoyDrainTimeSeconds:         30,
+						GracefulPort:                  20300,
+						DumpEnvoyConfigOnExitEnabled:  false,
+					},
+					Telemetry: &consuldp.TelemetryConfig{
+						UseCentralConfig: true,
+						Prometheus: consuldp.PrometheusTelemetryConfig{
+							RetentionTime: 60 * time.Second,
+							ScrapePath:    "/metrics",
+							MergePort:     20100,
+						},
+					},
+				}
 
-				return reflect.DeepEqual(cfg.Telemetry, expectedCfg.Telemetry)
+				return reflect.DeepEqual(cfg, expectedCfg)
 			},
 			cleanup: func() {
 				os.Remove("test.json")
@@ -267,14 +306,20 @@ func TestConfigGeneration(t *testing.T) {
 		},
 		{
 			desc: "test whether CLI flag values override the file values",
-			flagOpts: func() *FlagOpts {
-				opts := generateFlagOpts()
+			flagOpts: func() (*FlagOpts, error) {
+				opts, err := generateFlagOpts()
+				if err != nil {
+					return nil, err
+				}
 				opts.configFile = "test.json"
 
-				opts.logLevel = "info"
-				opts.logJSON = false
+				opts.dataplaneConfig.Logging.LogLevel = strReference("info")
+				opts.dataplaneConfig.Logging.LogJSON = boolReference(false)
+				opts.dataplaneConfig.Consul.Credentials.Login.Meta = map[string]string{
+					"key1": "value1",
+				}
 
-				return opts
+				return opts, nil
 			},
 			writeConfigFile: func() error {
 				inputJson := `{
@@ -308,8 +353,8 @@ func TestConfigGeneration(t *testing.T) {
 			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
 				expectedCfg := &consuldp.Config{
 					Consul: &consuldp.ConsulConfig{
-						Addresses:           flagOpts.addresses,
-						GRPCPort:            flagOpts.grpcPort,
+						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
+						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
 						ServerWatchDisabled: true,
 						Credentials: &consuldp.CredentialsConfig{
 							Type: "static",
@@ -317,16 +362,11 @@ func TestConfigGeneration(t *testing.T) {
 								Token: "test-token-123",
 							},
 							Login: consuldp.LoginCredentialsConfig{
+								AuthMethod:  "test-iam-auth",
+								BearerToken: "bearer-login",
 								Meta: map[string]string{
-									"key-1": "value-1",
-									"key-2": "value-2",
+									"key1": "value1",
 								},
-								AuthMethod:      "test-iam-auth",
-								BearerToken:     "bearer-login",
-								BearerTokenPath: "/consul/bearertokenpath/",
-								Namespace:       "default",
-								Partition:       "default",
-								Datacenter:      "dc100",
 							},
 						},
 						TLS: &consuldp.TLSConfig{
@@ -346,17 +386,17 @@ func TestConfigGeneration(t *testing.T) {
 						Partition: "default",
 					},
 					Logging: &consuldp.LoggingConfig{
-						Name:     "consul-dataplane",
-						LogJSON:  true,
+						Name:     DefaultLogName,
+						LogJSON:  false,
 						LogLevel: "INFO",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
-						BindAddr: "127.0.0.2",
+						BindAddr: "127.0.0.1",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
 						BindAddress: "127.0.1.0",
-						BindPort:    6060,
+						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
 						AdminBindAddress:              "127.0.1.0",
@@ -369,8 +409,7 @@ func TestConfigGeneration(t *testing.T) {
 						GracefulShutdownPath:          "/graceful_shutdown",
 						EnvoyDrainTimeSeconds:         30,
 						GracefulPort:                  20300,
-						DumpEnvoyConfigOnExitEnabled:  true,
-						ExtraArgs:                     []string{},
+						DumpEnvoyConfigOnExitEnabled:  false,
 					},
 					Telemetry: &consuldp.TelemetryConfig{
 						UseCentralConfig: true,
@@ -385,7 +424,7 @@ func TestConfigGeneration(t *testing.T) {
 					},
 				}
 
-				return reflect.DeepEqual(cfg.Telemetry, expectedCfg.Telemetry)
+				return reflect.DeepEqual(cfg, expectedCfg)
 			},
 			cleanup: func() {
 				os.Remove("test.json")
@@ -396,13 +435,18 @@ func TestConfigGeneration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			opts := tc.flagOpts()
+			if tc.cleanup != nil {
+				t.Cleanup(tc.cleanup)
+			}
+
+			opts, err := tc.flagOpts()
+			require.NoError(t, err)
 
 			if tc.writeConfigFile != nil {
 				require.NoError(t, tc.writeConfigFile())
 			}
 
-			cfg, err := opts.buildDataplaneConfig()
+			cfg, err := opts.buildDataplaneConfig(nil)
 
 			if tc.wantErr {
 				require.Error(t, err)
@@ -410,59 +454,94 @@ func TestConfigGeneration(t *testing.T) {
 				require.NoError(t, err)
 				require.True(t, tc.assertConfig(cfg, opts))
 			}
-
-			if tc.cleanup != nil {
-				tc.cleanup()
-			}
 		})
 	}
 }
 
-func generateFlagOpts() *FlagOpts {
-	return &FlagOpts{
-		addresses:           fmt.Sprintf("consul.address.server_%d", rand.Int()),
-		grpcPort:            rand.Int(),
-		serverWatchDisabled: true,
+func generateFlagOpts() (*FlagOpts, error) {
+	data := `
+	{
+		"consul": {
+			"addresses": "` + fmt.Sprintf("consul.address.server_%d", rand.Int()) + `",
+			"grpcPort": ` + fmt.Sprintf("%d", rand.Int()) + `,
+			"serverWatchDisabled": true,
+			"tls": {
+				"disabled": false,
+				"caCertsPath": "/consul/",
+				"certFile": "ca-cert.pem",
+				"keyFile": "key.pem",
+				"serverName": "tls-server-name",
+				"insecureSkipVerify": true
+			},
+			"credentials": {
+				"type": "static",
+				"static": {
+					"token": "test-token-123"
+				},
+				"login": {
+					"authMethod": "test-iam-auth",
+					"bearerToken": "bearer-login"
+				}
+			}
+		},
+		"service": {
+			"nodeName": "test-node-dc1",
+			"nodeID": "dc1.node.id",
+			"namespace": "default",
+			"serviceID": "node1.service1",
+			"partition": "default"
+		},
+		"logging": {
+			"logJSON": true,
+			"logLevel": "warn"
+		},
+		"telemetry": {
+			"useCentralConfig": true,
+			"prometheus": {
+				"retentionTime": "10s",
+				"scrapePath": "/metrics",
+				"mergePort": 12000,
+				"caCertsPath": "/consul/",
+				"certFile": "prom-ca-cert.pem",
+				"keyFile": "prom-key.pem"
+			}
+		},
+		"envoy": {
+			"adminBindAddress": "127.0.1.0",
+			"adminBindPort": 18000,
+			"readyBindAddress": "127.0.1.0",
+			"readyBindPort": 18003,
+			"concurrency": 4,
+			"drainStrategy": "test-strategy",
+			"shutdownDrainListenersEnabled": true
+		},
+		"xdsServer": {
+			"bindAddress": "127.0.1.0"
+		},
+		"dnsServer": {
+			"bindPort": 8604
+		}
+	}`
 
-		tlsDisabled:           false,
-		tlsCACertsPath:        "/consul/",
-		tlsCertFile:           "ca-cert.pem",
-		tlsKeyFile:            "key.pem",
-		tlsServerName:         "tls-server-name",
-		tlsInsecureSkipVerify: true,
-
-		logLevel: "warn",
-		logJSON:  true,
-
-		nodeName:      "test-node-dc1",
-		nodeID:        "dc1.node.id",
-		namespace:     "default",
-		serviceID:     "node1.service1",
-		serviceIDPath: "/consul/service-id",
-		partition:     "default",
-
-		credentialType:   "static",
-		token:            "test-token-123",
-		loginAuthMethod:  "test-iam-auth",
-		loginBearerToken: "bearer-login",
-
-		adminBindAddr:                 "127.0.1.0",
-		adminBindPort:                 18000,
-		readyBindAddr:                 "127.0.1.0",
-		readyBindPort:                 18003,
-		envoyConcurrency:              4,
-		envoyDrainStrategy:            "test-strategy",
-		shutdownDrainListenersEnabled: true,
-
-		xdsBindAddr:   "127.0.1.0",
-		consulDNSPort: 8604,
-
-		promMergePort: 12000,
-
-		useCentralTelemetryConfig: true,
-		promRetentionTime:         10 * time.Second,
-		promCACertsPath:           "/consul/",
-		promCertFile:              "prom-ca-cert.pem",
-		promKeyFile:               "prom-key.pem",
+	var configFlags *DataplaneConfigFlags
+	err := json.Unmarshal([]byte(data), &configFlags)
+	if err != nil {
+		return nil, err
 	}
+
+	return &FlagOpts{
+		dataplaneConfig: *configFlags,
+	}, nil
+}
+
+func strReference(s string) *string {
+	return &s
+}
+
+func boolReference(b bool) *bool {
+	return &b
+}
+
+func intReference(i int) *int {
+	return &i
 }

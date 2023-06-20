@@ -2,114 +2,125 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 )
 
 type FlagOpts struct {
+	dataplaneConfig DataplaneConfigFlags
+
 	printVersion bool
+	configFile   string
+}
 
-	addresses           string
-	grpcPort            int
-	serverWatchDisabled bool
+type DataplaneConfigFlags struct {
+	Consul    ConsulFlags    `json:"consul,omitempty"`
+	Service   ServiceFlags   `json:"service,omitempty"`
+	Logging   LogFlags       `json:"logging,omitempty"`
+	XDSServer XDSServerFlags `json:"xdsServer,omitempty"`
+	DNSServer DNSServerFlags `json:"dnsServer,omitempty"`
+	Telemetry TelemetryFlags `json:"telemetry,omitempty"`
+	Envoy     EnvoyFlags     `json:"envoy,omitempty"`
+}
 
-	tlsDisabled           bool
-	tlsCACertsPath        string
-	tlsServerName         string
-	tlsCertFile           string
-	tlsKeyFile            string
-	tlsInsecureSkipVerify bool
+type ConsulFlags struct {
+	Addresses           *string `json:"addresses,omitempty"`
+	GRPCPort            *int    `json:"grpcPort,omitempty"`
+	ServerWatchDisabled *bool   `json:"serverWatchDisabled,omitempty"`
 
-	logLevel string
-	logJSON  bool
+	TLS         TLSFlags         `json:"tls,omitempty"`
+	Credentials CredentialsFlags `json:"credentials,omitempty"`
+}
 
-	nodeName      string
-	nodeID        string
-	serviceID     string
-	serviceIDPath string
-	namespace     string
-	partition     string
+type TLSFlags struct {
+	Disabled           *bool   `json:"disabled,omitempty"`
+	CACertsPath        *string `json:"caCertsPath,omitempty"`
+	ServerName         *string `json:"serverName,omitempty"`
+	CertFile           *string `json:"certFile,omitempty"`
+	KeyFile            *string `json:"keyFile,omitempty"`
+	InsecureSkipVerify *bool   `json:"insecureSkipVerify,omitempty"`
+}
 
-	credentialType       string
-	token                string
-	loginAuthMethod      string
-	loginNamespace       string
-	loginPartition       string
-	loginDatacenter      string
-	loginBearerToken     string
-	loginBearerTokenPath string
-	loginMeta            map[string]string
+type CredentialsFlags struct {
+	Type   *string                `json:"type,omitempty"`
+	Static StaticCredentialsFlags `json:"static,omitempty"`
+	Login  LoginCredentialsFlags  `json:"login,omitempty"`
+}
 
-	useCentralTelemetryConfig bool
+type StaticCredentialsFlags struct {
+	Token *string `json:"token,omitempty"`
+}
 
-	promRetentionTime     time.Duration
-	promCACertsPath       string
-	promKeyFile           string
-	promCertFile          string
-	promServiceMetricsURL string
-	promScrapePath        string
-	promMergePort         int
+type LoginCredentialsFlags struct {
+	AuthMethod      *string           `json:"authMethod,omitempty"`
+	Namespace       *string           `json:"namespace,omitempty"`
+	Partition       *string           `json:"partition,omitempty"`
+	Datacenter      *string           `json:"datacenter,omitempty"`
+	BearerToken     *string           `json:"bearerToken,omitempty"`
+	BearerTokenPath *string           `json:"bearerTokenPath,omitempty"`
+	Meta            map[string]string `json:"meta,omitempty"`
+}
 
-	adminBindAddr         string
-	adminBindPort         int
-	readyBindAddr         string
-	readyBindPort         int
-	envoyConcurrency      int
-	envoyDrainTimeSeconds int
-	envoyDrainStrategy    string
+type ServiceFlags struct {
+	NodeName      *string `json:"nodeName,omitempty"`
+	NodeID        *string `json:"nodeID,omitempty"`
+	ServiceID     *string `json:"serviceID,omitempty"`
+	ServiceIDPath *string `json:"serviceIDPath,omitempty"`
+	Namespace     *string `json:"namespace,omitempty"`
+	Partition     *string `json:"partition,omitempty"`
+}
 
-	xdsBindAddr string
-	xdsBindPort int
+type XDSServerFlags struct {
+	BindAddr *string `json:"bindAddress,omitempty"`
+	BindPort *int    `json:"bindPort,omitempty"`
+}
 
-	consulDNSBindAddr string
-	consulDNSPort     int
+type DNSServerFlags struct {
+	BindAddr *string `json:"bindAddress,omitempty"`
+	BindPort *int    `json:"bindPort,omitempty"`
+}
 
-	shutdownDrainListenersEnabled bool
-	shutdownGracePeriodSeconds    int
-	gracefulShutdownPath          string
-	gracefulPort                  int
+type LogFlags struct {
+	Name     string
+	LogLevel *string `json:"logLevel,omitempty"`
+	LogJSON  *bool   `json:"logJSON,omitempty"`
+}
 
-	dumpEnvoyConfigOnExitEnabled bool
+type TelemetryFlags struct {
+	UseCentralConfig *bool                    `json:"useCentralConfig"`
+	Prometheus       PrometheusTelemetryFlags `json:"prometheus,omitempty"`
+}
 
-	configFile string
+type PrometheusTelemetryFlags struct {
+	RetentionTime     *Duration `json:"retentionTime,omitempty"`
+	CACertsPath       *string   `json:"caCertsPath,omitempty"`
+	KeyFile           *string   `json:"keyFile,omitempty"`
+	CertFile          *string   `json:"certFile,omitempty"`
+	ServiceMetricsURL *string   `json:"serviceMetricsURL,omitempty"`
+	ScrapePath        *string   `json:"scrapePath,omitempty"`
+	MergePort         *int      `json:"mergePort,omitempty"`
+}
+
+type EnvoyFlags struct {
+	AdminBindAddr    *string `json:"adminBindAddress,omitempty"`
+	AdminBindPort    *int    `json:"adminBindPort,omitempty"`
+	ReadyBindAddr    *string `json:"readyBindAddress,omitempty"`
+	ReadyBindPort    *int    `json:"readyBindPort,omitempty"`
+	Concurrency      *int    `json:"concurrency,omitempty"`
+	DrainTimeSeconds *int    `json:"drainTimeSeconds,omitempty"`
+	DrainStrategy    *string `json:"drainStrategy,omitempty"`
+
+	ShutdownDrainListenersEnabled *bool   `json:"shutdownDrainListenersEnabled,omitempty"`
+	ShutdownGracePeriodSeconds    *int    `json:"shutdownGracePeriodSeconds,omitempty"`
+	GracefulShutdownPath          *string `json:"gracefulShutdownPath,omitempty"`
+	GracefulPort                  *int    `json:"gracefulPort,omitempty"`
+	DumpEnvoyConfigOnExitEnabled  *bool   `json:"dumpEnvoyConfigOnExitEnabled,omitempty"`
 }
 
 const (
-	DefaultGRPCPort            = 8502
-	DefaultServerWatchDisabled = false
-
-	DefaultTLSDisabled           = false
-	DefaultTLSInsecureSkipVerify = false
-
-	DefaultDNSBindAddr = "127.0.0.1"
-	DefaultDNSBindPort = -1
-
-	DefaultXDSBindAddr = "127.0.0.1"
-	DefaultXDSBindPort = 0
-
-	DefaultLogLevel = "info"
-	DefaultLogJSON  = false
-
-	DefaultEnvoyAdminBindAddr                 = "127.0.0.1"
-	DefaultEnvoyAdminBindPort                 = 19000
-	DefaultEnvoyReadyBindPort                 = 0
-	DefaultEnvoyConcurrency                   = 2
-	DefaultEnvoyDrainTimeSeconds              = 30
-	DefaultEnvoyDrainStrategy                 = "immediate"
-	DefaultEnvoyShutdownDrainListenersEnabled = false
-	DefaultEnvoyShutdownGracePeriodSeconds    = 0
-	DefaultGracefulShutdownPath               = "/graceful_shutdown"
-	DefaultGracefulPort                       = 20300
-	DefaultDumpEnvoyConfigOnExitEnabled       = false
-
-	DefaultUseCentralTelemetryConfig = true
-	DefaultPromRetentionTime         = 60 * time.Second
-	DefaultPromScrapePath            = "/metrics"
-	DefaultPromMergePort             = 20100
+	DefaultLogName = "consul-dataplane"
 )
 
 // buildDataplaneConfig builds the necessary config needed for the
@@ -119,29 +130,35 @@ const (
 // Since values given via CLI flags take the most precedence, we finally
 // merge the config generated from the flags into the previously
 // generated/merged config
-func (f *FlagOpts) buildDataplaneConfig() (*consuldp.Config, error) {
-	var consuldpConfig, consuldpCfgFromFlags *consuldp.Config
-
-	consuldpConfig = buildDefaultConsulDPConfig()
-	consuldpCfgFromFlags = f.buildConfig()
+func (f *FlagOpts) buildDataplaneConfig(extraArgs []string) (*consuldp.Config, error) {
+	consulDPDefaultFlags, err := buildDefaultConsulDPFlags()
+	if err != nil {
+		return nil, err
+	}
 
 	if f.configFile != "" {
-		consuldpCfgFromFile, err := f.buildConfigFromFile()
+		consulDPFileBasedFlags, err := f.buildConfigFromFile()
 		if err != nil {
 			return nil, err
 		}
 
-		mergeConfigs(consuldpConfig, consuldpCfgFromFile)
+		mergeConfigs(consulDPDefaultFlags, consulDPFileBasedFlags)
 	}
 
-	mergeConfigs(consuldpConfig, consuldpCfgFromFlags)
+	consulDPCLIFlags := &f.dataplaneConfig
+	mergeConfigs(consulDPDefaultFlags, consulDPCLIFlags)
 
-	return consuldpConfig, nil
+	consuldpRuntimeConfig, err := constructRuntimeConfig(consulDPDefaultFlags, extraArgs)
+	if err != nil {
+		return nil, err
+	}
+
+	return consuldpRuntimeConfig, nil
 }
 
 // Constructs a config based on the values present in the config json file
-func (f *FlagOpts) buildConfigFromFile() (*consuldp.Config, error) {
-	var cfg *consuldp.Config
+func (f *FlagOpts) buildConfigFromFile() (*DataplaneConfigFlags, error) {
+	var cfg *DataplaneConfigFlags
 	data, err := os.ReadFile(f.configFile)
 	if err != nil {
 		return nil, err
@@ -155,140 +172,144 @@ func (f *FlagOpts) buildConfigFromFile() (*consuldp.Config, error) {
 	return cfg, nil
 }
 
-// Constructs a config based on the values given via the CLI flags
-func (f *FlagOpts) buildConfig() *consuldp.Config {
+// Constructs a config with the default values
+func buildDefaultConsulDPFlags() (*DataplaneConfigFlags, error) {
+	data := `
+	{
+		"consul": {
+			"grpcPort": 8502,
+			"serverWatchDisabled": false,
+			"tls": {
+				"disabled": false,
+				"insecureSkipVerify": false
+			}
+		},
+		"logging": {
+			"name": "consul-dataplane",
+			"logJSON": false,
+			"logLevel": "info"
+		},
+		"telemetry": {
+			"useCentralConfig": true,
+			"prometheus": {
+				"retentionTime": "60s",
+				"scrapePath": "/metrics",
+				"mergePort": 20100
+			}
+		},
+		"envoy": {
+			"adminBindAddress": "127.0.0.1",
+			"adminBindPort": 19000,
+			"readyBindPort": 0,
+			"concurrency": 2,
+			"drainTimeSeconds": 30,
+			"drainStrategy": "immediate",
+			"shutdownDrainListenersEnabled": false,
+			"shutdownGracePeriodSeconds": 0,
+			"gracefulShutdownPath": "/graceful_shutdown",
+			"gracefulPort": 20300,
+			"dumpEnvoyConfigOnExitEnabled": false
+		},
+		"xdsServer": {
+			"bindAddress": "127.0.0.1",
+			"bindPort": 0
+		},
+		"dnsServer": {
+			"bindAddress": "127.0.0.1",
+			"bindPort": -1
+		}
+	}`
+
+	var defaultCfgFlags *DataplaneConfigFlags
+	err := json.Unmarshal([]byte(data), &defaultCfgFlags)
+	if err != nil {
+		return nil, err
+	}
+
+	return defaultCfgFlags, nil
+}
+
+// constructRuntimeConfig constructs the final config needed for dataplane to start
+// itself after substituting all the user provided inputs
+func constructRuntimeConfig(cfg *DataplaneConfigFlags, extraArgs []string) (*consuldp.Config, error) {
+	if cfg == nil {
+		return &consuldp.Config{}, nil
+	}
+
 	return &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
-			Addresses: f.addresses,
-			GRPCPort:  f.grpcPort,
+			Addresses:           stringVal(cfg.Consul.Addresses),
+			GRPCPort:            intVal(cfg.Consul.GRPCPort),
+			ServerWatchDisabled: boolVal(cfg.Consul.ServerWatchDisabled),
 			Credentials: &consuldp.CredentialsConfig{
-				Type: consuldp.CredentialsType(f.credentialType),
+				Type: consuldp.CredentialsType(stringVal(cfg.Consul.Credentials.Type)),
 				Static: consuldp.StaticCredentialsConfig{
-					Token: f.token,
+					Token: stringVal(cfg.Consul.Credentials.Static.Token),
 				},
 				Login: consuldp.LoginCredentialsConfig{
-					AuthMethod:      f.loginAuthMethod,
-					Namespace:       f.loginNamespace,
-					Partition:       f.loginPartition,
-					Datacenter:      f.loginDatacenter,
-					BearerToken:     f.loginBearerToken,
-					BearerTokenPath: f.loginBearerTokenPath,
-					Meta:            f.loginMeta,
+					AuthMethod:      stringVal(cfg.Consul.Credentials.Login.AuthMethod),
+					Namespace:       stringVal(cfg.Consul.Credentials.Login.Namespace),
+					Partition:       stringVal(cfg.Consul.Credentials.Login.Partition),
+					Datacenter:      stringVal(cfg.Consul.Credentials.Login.Datacenter),
+					BearerToken:     stringVal(cfg.Consul.Credentials.Login.BearerToken),
+					BearerTokenPath: stringVal(cfg.Consul.Credentials.Login.BearerTokenPath),
+					Meta:            cfg.Consul.Credentials.Login.Meta,
 				},
 			},
-			ServerWatchDisabled: f.serverWatchDisabled,
 			TLS: &consuldp.TLSConfig{
-				Disabled:           f.tlsDisabled,
-				CACertsPath:        f.tlsCACertsPath,
-				ServerName:         f.tlsServerName,
-				CertFile:           f.tlsCertFile,
-				KeyFile:            f.tlsKeyFile,
-				InsecureSkipVerify: f.tlsInsecureSkipVerify,
+				Disabled:           boolVal(cfg.Consul.TLS.Disabled),
+				CACertsPath:        stringVal(cfg.Consul.TLS.CACertsPath),
+				CertFile:           stringVal(cfg.Consul.TLS.CertFile),
+				KeyFile:            stringVal(cfg.Consul.TLS.KeyFile),
+				ServerName:         stringVal(cfg.Consul.TLS.ServerName),
+				InsecureSkipVerify: boolVal(cfg.Consul.TLS.InsecureSkipVerify),
 			},
 		},
 		Service: &consuldp.ServiceConfig{
-			NodeName:  f.nodeName,
-			NodeID:    f.nodeID,
-			ServiceID: f.serviceID,
-			Namespace: f.namespace,
-			Partition: f.partition,
+			NodeName:  stringVal(cfg.Service.NodeName),
+			NodeID:    stringVal(cfg.Service.NodeID),
+			ServiceID: stringVal(cfg.Service.ServiceID),
+			Namespace: stringVal(cfg.Service.Namespace),
+			Partition: stringVal(cfg.Service.Partition),
 		},
 		Logging: &consuldp.LoggingConfig{
-			Name:     "consul-dataplane",
-			LogLevel: strings.ToUpper(f.logLevel),
-			LogJSON:  f.logJSON,
-		},
-		Telemetry: &consuldp.TelemetryConfig{
-			UseCentralConfig: f.useCentralTelemetryConfig,
-			Prometheus: consuldp.PrometheusTelemetryConfig{
-				RetentionTime:     f.promRetentionTime,
-				CACertsPath:       f.promCACertsPath,
-				KeyFile:           f.promKeyFile,
-				CertFile:          f.promCertFile,
-				ServiceMetricsURL: f.promServiceMetricsURL,
-				ScrapePath:        f.promScrapePath,
-				MergePort:         f.promMergePort,
-			},
+			Name:     DefaultLogName,
+			LogJSON:  boolVal(cfg.Logging.LogJSON),
+			LogLevel: strings.ToUpper(stringVal(cfg.Logging.LogLevel)),
 		},
 		Envoy: &consuldp.EnvoyConfig{
-			AdminBindAddress:              f.adminBindAddr,
-			AdminBindPort:                 f.adminBindPort,
-			ReadyBindAddress:              f.readyBindAddr,
-			ReadyBindPort:                 f.readyBindPort,
-			EnvoyConcurrency:              f.envoyConcurrency,
-			EnvoyDrainTimeSeconds:         f.envoyDrainTimeSeconds,
-			EnvoyDrainStrategy:            f.envoyDrainStrategy,
-			ShutdownDrainListenersEnabled: f.shutdownDrainListenersEnabled,
-			ShutdownGracePeriodSeconds:    f.shutdownGracePeriodSeconds,
-			GracefulShutdownPath:          f.gracefulShutdownPath,
-			GracefulPort:                  f.gracefulPort,
-			DumpEnvoyConfigOnExitEnabled:  f.dumpEnvoyConfigOnExitEnabled,
-			ExtraArgs:                     flag.Args(),
-		},
-		XDSServer: &consuldp.XDSServer{
-			BindAddress: f.xdsBindAddr,
-			BindPort:    f.xdsBindPort,
-		},
-		DNSServer: &consuldp.DNSServerConfig{
-			BindAddr: f.consulDNSBindAddr,
-			Port:     f.consulDNSPort,
-		},
-	}
-}
-
-// Constructs a config with the default values
-func buildDefaultConsulDPConfig() *consuldp.Config {
-	return &consuldp.Config{
-		Consul: &consuldp.ConsulConfig{
-			GRPCPort: DefaultGRPCPort,
-			Credentials: &consuldp.CredentialsConfig{
-				Type:   consuldp.CredentialsType(""),
-				Static: consuldp.StaticCredentialsConfig{},
-				Login: consuldp.LoginCredentialsConfig{
-					Meta: map[string]string{},
-				},
-			},
-			ServerWatchDisabled: DefaultServerWatchDisabled,
-			TLS: &consuldp.TLSConfig{
-				Disabled:           DefaultTLSDisabled,
-				InsecureSkipVerify: DefaultTLSInsecureSkipVerify,
-			},
-		},
-		Service: &consuldp.ServiceConfig{},
-		Logging: &consuldp.LoggingConfig{
-			Name:     "consul-dataplane",
-			LogLevel: strings.ToUpper(DefaultLogLevel),
-			LogJSON:  DefaultLogJSON,
+			AdminBindAddress:              stringVal(cfg.Envoy.AdminBindAddr),
+			AdminBindPort:                 intVal(cfg.Envoy.AdminBindPort),
+			ReadyBindAddress:              stringVal(cfg.Envoy.ReadyBindAddr),
+			ReadyBindPort:                 intVal(cfg.Envoy.ReadyBindPort),
+			EnvoyConcurrency:              intVal(cfg.Envoy.Concurrency),
+			EnvoyDrainTimeSeconds:         intVal(cfg.Envoy.DrainTimeSeconds),
+			EnvoyDrainStrategy:            stringVal(cfg.Envoy.DrainStrategy),
+			ShutdownDrainListenersEnabled: boolVal(cfg.Envoy.ShutdownDrainListenersEnabled),
+			DumpEnvoyConfigOnExitEnabled:  boolVal(cfg.Envoy.DumpEnvoyConfigOnExitEnabled),
+			GracefulShutdownPath:          stringVal(cfg.Envoy.GracefulShutdownPath),
+			GracefulPort:                  intVal(cfg.Envoy.GracefulPort),
+			ExtraArgs:                     extraArgs,
 		},
 		Telemetry: &consuldp.TelemetryConfig{
-			UseCentralConfig: DefaultUseCentralTelemetryConfig,
+			UseCentralConfig: boolVal(cfg.Telemetry.UseCentralConfig),
 			Prometheus: consuldp.PrometheusTelemetryConfig{
-				RetentionTime: DefaultPromRetentionTime,
-				ScrapePath:    DefaultPromScrapePath,
-				MergePort:     DefaultPromMergePort,
+				RetentionTime:     durationVal(cfg.Telemetry.Prometheus.RetentionTime),
+				CACertsPath:       stringVal(cfg.Telemetry.Prometheus.CACertsPath),
+				CertFile:          stringVal(cfg.Telemetry.Prometheus.CertFile),
+				KeyFile:           stringVal(cfg.Telemetry.Prometheus.KeyFile),
+				ServiceMetricsURL: stringVal(cfg.Telemetry.Prometheus.ServiceMetricsURL),
+				ScrapePath:        stringVal(cfg.Telemetry.Prometheus.ScrapePath),
+				MergePort:         intVal(cfg.Telemetry.Prometheus.MergePort),
 			},
 		},
-		Envoy: &consuldp.EnvoyConfig{
-			AdminBindAddress:              DefaultEnvoyAdminBindAddr,
-			AdminBindPort:                 DefaultEnvoyAdminBindPort,
-			ReadyBindPort:                 DefaultEnvoyReadyBindPort,
-			EnvoyConcurrency:              DefaultEnvoyConcurrency,
-			EnvoyDrainTimeSeconds:         DefaultEnvoyDrainTimeSeconds,
-			EnvoyDrainStrategy:            DefaultEnvoyDrainStrategy,
-			ShutdownDrainListenersEnabled: DefaultEnvoyShutdownDrainListenersEnabled,
-			ShutdownGracePeriodSeconds:    DefaultEnvoyShutdownGracePeriodSeconds,
-			GracefulShutdownPath:          DefaultGracefulShutdownPath,
-			GracefulPort:                  DefaultGracefulPort,
-			DumpEnvoyConfigOnExitEnabled:  DefaultDumpEnvoyConfigOnExitEnabled,
-			ExtraArgs:                     []string{},
-		},
 		XDSServer: &consuldp.XDSServer{
-			BindAddress: DefaultXDSBindAddr,
-			BindPort:    DefaultXDSBindPort,
+			BindAddress: stringVal(cfg.XDSServer.BindAddr),
+			BindPort:    intVal(cfg.XDSServer.BindPort),
 		},
 		DNSServer: &consuldp.DNSServerConfig{
-			BindAddr: DefaultDNSBindAddr,
-			Port:     DefaultDNSBindPort,
+			BindAddr: stringVal(cfg.DNSServer.BindAddr),
+			Port:     intVal(cfg.DNSServer.BindPort),
 		},
-	}
+	}, nil
 }
