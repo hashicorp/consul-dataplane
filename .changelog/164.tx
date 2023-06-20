@@ -1,0 +1,4 @@
+```release-note:improvement
+Adds a flag to the existing consul-dataplane command `config-file` to support reading configurations
+from a JSON file.
+```
