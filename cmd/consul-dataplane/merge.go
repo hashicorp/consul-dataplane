@@ -236,7 +236,7 @@ func mergeEnvoyConfigs(c1, c2 *consuldp.EnvoyConfig) {
 	}
 
 	if c2.ExtraArgs != nil && len(c2.ExtraArgs) > 0 {
-		c1.ExtraArgs = append(c1.ExtraArgs, c2.ExtraArgs...)
+		c1.ExtraArgs = c2.ExtraArgs
 	}
 }
 
