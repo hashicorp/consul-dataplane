@@ -169,7 +169,7 @@ func validateFlags() {
 	switch strings.ToUpper(logLevel) {
 	case "TRACE", "DEBUG", "INFO", "WARN", "ERROR":
 	default:
-		log.Fatal("invalid log level. valid values - TRACE, DEBUG, INFO, WARN, ERROR")
+		log.Fatal("invalid log level y. valid values - TRACE, DEBUG, INFO, WARN, ERROR")
 	}
 }
 
