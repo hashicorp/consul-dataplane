@@ -208,8 +208,8 @@ jobs:
             docker.io/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}
             public.ecr.aws/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}
           dev_tags: |
-            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}
-            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-${{ github.sha }}
+            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registry-suffix }}:${{ env.dev_tag }}
+            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registry-suffix }}:${{ env.dev_tag }}-${{ github.sha }}
 
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
