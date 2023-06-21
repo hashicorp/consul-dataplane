@@ -163,7 +163,7 @@ jobs:
           instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
   build-docker-default:
-    name: Docker ${{ matrix.arch }} default release build
+    name: Docker ${{ matrix.arch }} ${{ matrix.fips }} default release build
     needs:
       - get-product-version
       - build-linux
@@ -172,8 +172,11 @@ jobs:
       matrix:
         # This is the subset of architectures we build binaries for officially
         # supported by Envoy.
-        arch: ["arm64", "amd64"]
-        fips: [ ".fips1402", ""]
+        include:
+          - { arch: "amd64" }
+          - { arch: "amd64", fips: ".fips1402", registry-suffix: "-fips" }
+          - { arch: "arm64" }
+          - { arch: "arm64", fips: ".fips1402", registry-suffix: "-fips" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -188,7 +191,7 @@ jobs:
           version="${{ env.version }}"
           echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
 
-      - name: Docker Build (Action)
+      - name: Docker ${{ matrix.fips }} Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
           smoke_test: |
@@ -199,44 +202,51 @@ jobs:
             fi
             echo "Test PASSED"
           version: ${{ env.version }}
-          target: release-default
+          target: release${{ matrix.registry-suffix }}-default
           arch: ${{ matrix.arch }}
           tags: |
-            docker.io/hashicorp/${{env.repo}}:${{env.version}}
-            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}
+            docker.io/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}
+            public.ecr.aws/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}
           dev_tags: |
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-${{ github.sha }}
 
   build-docker-redhat:
-    name: Docker UBI Image Build (for Red Hat Certified Container Registry)
-    needs:
-      - get-product-version
-      - build-linux
-    runs-on: ubuntu-latest
-    env:
-      repo: ${{github.event.repository.name}}
-      version: ${{needs.get-product-version.outputs.product-version}}
-
-    steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - uses: hashicorp/actions-docker-build@v1
-        with:
-          version: ${{env.version}}
-          target: release-ubi
-          arch: amd64
-          redhat_tag: quay.io/redhat-isv-containers/631f805e0d15f623c5996c2e:${{env.version}}-ubi
-
-  build-docker-ubi-dockerhub:
-    name: Docker ${{ matrix.arch }} UBI build for DockerHub
+    name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
     needs:
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ["amd64"]
-        fips: [".fips1402", ""]
+        include:
+          - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
+          - { target-name: "release-fips-ubi", registry-id: "6484fd31685105da62a96b24", fips: ".fips1402" }
+
+    env:
+      repo: ${{github.event.repository.name}}
+      version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
+
+    steps:
+      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+      - uses: hashicorp/actions-docker-build@v1
+        with:
+          version: ${{env.version}}
+          target: ${{ matrix.target-name }}
+          arch: amd64
+          redhat_tag: quay.io/redhat-isv-containers/${{matrix.registry-id}}:${{env.version}}-ubi
+
+  build-docker-ubi-dockerhub:
+    name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
+    needs:
+      - get-product-version
+      - build-linux
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { arch: "amd64" }
+          - { arch: "amd64", fips: ".fips1402", registry-suffix: "-fips" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -260,14 +270,14 @@ jobs:
             fi
             echo "Test PASSED"
           version: ${{ env.version }}
-          target: release-ubi
+          target: release${{ matrix.registry-suffix }}-ubi
           arch: ${{ matrix.arch }}
           tags: |
-            docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
-            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}-ubi
+            docker.io/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}-ubi
+            public.ecr.aws/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}-ubi
           dev_tags: |
-            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
-            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
+            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registry-suffix }}:${{ env.dev_tag }}-ubi
+            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registty-suffix }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
