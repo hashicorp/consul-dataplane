@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -17,9 +16,8 @@ func TestConfigGeneration(t *testing.T) {
 	type testCase struct {
 		desc            string
 		flagOpts        func() (*FlagOpts, error)
-		writeConfigFile func() error
-		assertConfig    func(cfg *consuldp.Config, f *FlagOpts) bool
-		cleanup         func()
+		writeConfigFile func(t *testing.T) error
+		makeExpectedCfg func(f *FlagOpts) *consuldp.Config
 		wantErr         bool
 	}
 
@@ -29,8 +27,8 @@ func TestConfigGeneration(t *testing.T) {
 			flagOpts: func() (*FlagOpts, error) {
 				return generateFlagOpts()
 			},
-			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
-				expectedCfg := &consuldp.Config{
+			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
+				return &consuldp.Config{
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -98,8 +96,6 @@ func TestConfigGeneration(t *testing.T) {
 						},
 					},
 				}
-
-				return reflect.DeepEqual(cfg, expectedCfg)
 			},
 			wantErr: false,
 		},
@@ -125,8 +121,8 @@ func TestConfigGeneration(t *testing.T) {
 				opts.dataplaneConfig.Envoy.DumpEnvoyConfigOnExitEnabled = boolReference(true)
 				return opts, nil
 			},
-			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
-				expectedCfg := &consuldp.Config{
+			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
+				return &consuldp.Config{
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -203,8 +199,6 @@ func TestConfigGeneration(t *testing.T) {
 						},
 					},
 				}
-
-				return reflect.DeepEqual(cfg, expectedCfg)
 			},
 			wantErr: false,
 		},
@@ -215,7 +209,7 @@ func TestConfigGeneration(t *testing.T) {
 				opts.configFile = "test.json"
 				return opts, nil
 			},
-			writeConfigFile: func() error {
+			writeConfigFile: func(t *testing.T) error {
 				inputJson := `{
 					"consul": {
 					  "addresses": "consul_server.dc1",
@@ -242,10 +236,14 @@ func TestConfigGeneration(t *testing.T) {
 				if err != nil {
 					return err
 				}
+
+				t.Cleanup(func() {
+					_ = os.Remove("test.json")
+				})
 				return nil
 			},
-			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
-				expectedCfg := &consuldp.Config{
+			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
+				return &consuldp.Config{
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           "consul_server.dc1",
 						GRPCPort:            8502,
@@ -296,11 +294,6 @@ func TestConfigGeneration(t *testing.T) {
 						},
 					},
 				}
-
-				return reflect.DeepEqual(cfg, expectedCfg)
-			},
-			cleanup: func() {
-				os.Remove("test.json")
 			},
 			wantErr: false,
 		},
@@ -321,7 +314,7 @@ func TestConfigGeneration(t *testing.T) {
 
 				return opts, nil
 			},
-			writeConfigFile: func() error {
+			writeConfigFile: func(t *testing.T) error {
 				inputJson := `{
 					"consul": {
 					  "addresses": "consul_server.dc1",
@@ -348,10 +341,14 @@ func TestConfigGeneration(t *testing.T) {
 				if err != nil {
 					return err
 				}
+
+				t.Cleanup(func() {
+					_ = os.Remove("test.json")
+				})
 				return nil
 			},
-			assertConfig: func(cfg *consuldp.Config, flagOpts *FlagOpts) bool {
-				expectedCfg := &consuldp.Config{
+			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
+				return &consuldp.Config{
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -423,11 +420,6 @@ func TestConfigGeneration(t *testing.T) {
 						},
 					},
 				}
-
-				return reflect.DeepEqual(cfg, expectedCfg)
-			},
-			cleanup: func() {
-				os.Remove("test.json")
 			},
 			wantErr: false,
 		},
@@ -435,15 +427,11 @@ func TestConfigGeneration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if tc.cleanup != nil {
-				t.Cleanup(tc.cleanup)
-			}
-
 			opts, err := tc.flagOpts()
 			require.NoError(t, err)
 
 			if tc.writeConfigFile != nil {
-				require.NoError(t, tc.writeConfigFile())
+				require.NoError(t, tc.writeConfigFile(t))
 			}
 
 			cfg, err := opts.buildDataplaneConfig(nil)
@@ -452,7 +440,7 @@ func TestConfigGeneration(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.True(t, tc.assertConfig(cfg, opts))
+				require.Equal(t, tc.makeExpectedCfg(opts), cfg)
 			}
 		})
 	}
