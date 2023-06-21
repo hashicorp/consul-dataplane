@@ -288,6 +288,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			EnvoyDrainTimeSeconds:         intVal(cfg.Envoy.DrainTimeSeconds),
 			EnvoyDrainStrategy:            stringVal(cfg.Envoy.DrainStrategy),
 			ShutdownDrainListenersEnabled: boolVal(cfg.Envoy.ShutdownDrainListenersEnabled),
+			ShutdownGracePeriodSeconds:    intVal(cfg.Envoy.ShutdownGracePeriodSeconds),
 			DumpEnvoyConfigOnExitEnabled:  boolVal(cfg.Envoy.DumpEnvoyConfigOnExitEnabled),
 			GracefulShutdownPath:          stringVal(cfg.Envoy.GracefulShutdownPath),
 			GracefulPort:                  intVal(cfg.Envoy.GracefulPort),
