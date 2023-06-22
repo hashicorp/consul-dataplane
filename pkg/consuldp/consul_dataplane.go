@@ -263,6 +263,7 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 		Logger:    cdp.logger,
 		Partition: cdp.resolvedService.Partition,
 		Namespace: cdp.resolvedService.Namespace,
+		Token:     cdp.aclToken,
 	})
 	if err == dns.ErrServerDisabled {
 		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")

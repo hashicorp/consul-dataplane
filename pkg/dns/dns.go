@@ -34,6 +34,7 @@ type DNSServerParams struct {
 
 	Partition string
 	Namespace string
+	Token     string
 }
 
 // DNSServerInterface is the interface for athe DNSServer
@@ -60,6 +61,7 @@ type DNSServer struct {
 
 	partition string
 	namespace string
+	token     string
 }
 
 // NewDNSServer creates a new DNS proxy server
@@ -77,6 +79,7 @@ func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
 	s.logger = p.Logger.Named("dns-proxy")
 	s.partition = p.Partition
 	s.namespace = p.Namespace
+	s.token = p.Token
 	return s, nil
 }
 
@@ -209,6 +212,7 @@ func (d *DNSServer) queryConsulAndRespondUDP(buf []byte, addr net.Addr) {
 	ctx = metadata.AppendToOutgoingContext(ctx,
 		"x-consul-partition", d.partition,
 		"x-consul-namespace", d.namespace,
+		"x-consul-token", d.token,
 	)
 
 	resp, err := d.client.Query(ctx, req)
