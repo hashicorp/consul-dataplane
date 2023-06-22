@@ -174,9 +174,9 @@ jobs:
         # supported by Envoy.
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: ".fips1402", registry-suffix: "-fips" }
+          - { arch: "amd64", fips: ".fips1402" }
           - { arch: "arm64" }
-          - { arch: "arm64", fips: ".fips1402", registry-suffix: "-fips" }
+          - { arch: "arm64", fips: ".fips1402" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -191,7 +191,8 @@ jobs:
           version="${{ env.version }}"
           echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
 
-      - name: Docker ${{ matrix.fips }} Build (Action)
+      - name: Docker Build (Action)
+        if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
         with:
           smoke_test: |
@@ -202,14 +203,35 @@ jobs:
             fi
             echo "Test PASSED"
           version: ${{ env.version }}
-          target: release${{ matrix.registry-suffix }}-default
+          target: release-default
           arch: ${{ matrix.arch }}
           tags: |
-            docker.io/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}
-            public.ecr.aws/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}
+            docker.io/hashicorp/${{env.repo}}:${{env.version}}
+            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}
           dev_tags: |
-            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registry-suffix }}:${{ env.dev_tag }}
-            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registry-suffix }}:${{ env.dev_tag }}-${{ github.sha }}
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-${{ github.sha }}
+
+      - name: Docker FIPS Build (Action)
+        if: ${{ matrix.fips }}
+        uses: hashicorp/actions-docker-build@v1
+        with:
+          smoke_test: |
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            if [ "${TEST_VERSION}" != "${version}" ]; then
+              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
+              exit 1
+            fi
+            echo "Test PASSED"
+          version: ${{ env.version }}
+          target: release-fips-default
+          arch: ${{ matrix.arch }}
+          tags: |
+            docker.io/hashicorp/${{env.repo}}-fips:${{env.version}}
+            public.ecr.aws/hashicorp/${{env.repo}}-fips:${{env.version}}
+          dev_tags: |
+            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}
+            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}-${{ github.sha }}
 
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
@@ -246,7 +268,7 @@ jobs:
       matrix:
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: ".fips1402", registry-suffix: "-fips" }
+          - { arch: "amd64", fips: ".fips1402" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -260,6 +282,7 @@ jobs:
           echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
 
       - name: Docker Build (Action)
+        if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
         with:
           smoke_test: |
@@ -270,14 +293,35 @@ jobs:
             fi
             echo "Test PASSED"
           version: ${{ env.version }}
-          target: release${{ matrix.registry-suffix }}-ubi
+          target: release-ubi
           arch: ${{ matrix.arch }}
           tags: |
-            docker.io/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}-ubi
-            public.ecr.aws/hashicorp/${{env.repo}}${{ matrix.registry-suffix }}:${{env.version}}-ubi
+            docker.io/hashicorp/${{env.repo}}:${{env.version}}-ubi
+            public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}-ubi
           dev_tags: |
-            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registry-suffix }}:${{ env.dev_tag }}-ubi
-            docker.io/hashicorppreview/${{ env.repo }}${{ matrix.registty-suffix }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
+            docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
+
+      - name: Docker FIPS Build (Action)
+        if: ${{ matrix.fips }}
+        uses: hashicorp/actions-docker-build@v1
+        with:
+          smoke_test: |
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            if [ "${TEST_VERSION}" != "${version}" ]; then
+              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}}."
+              exit 1
+            fi
+            echo "Test PASSED"
+          version: ${{ env.version }}
+          target: release-fips-ubi
+          arch: ${{ matrix.arch }}
+          tags: |
+            docker.io/hashicorp/${{env.repo}}-fips:${{env.version}}-ubi
+            public.ecr.aws/hashicorp/${{env.repo}}-fips:${{env.version}}-ubi
+          dev_tags: |
+            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}-ubi
+            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}-ubi-${{ github.sha }}
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
