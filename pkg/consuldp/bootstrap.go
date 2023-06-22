@@ -54,6 +54,15 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		return nil, nil, fmt.Errorf("failed to get envoy bootstrap params: %w", err)
 	}
 
+	// store the final resolved service for others to use.
+	cdp.resolvedService = ServiceConfig{
+		NodeName:  rsp.NodeName,
+		NodeID:    rsp.NodeId,
+		ServiceID: cdp.cfg.Service.ServiceID,
+		Namespace: rsp.Namespace,
+		Partition: rsp.Partition,
+	}
+
 	prom := cdp.cfg.Telemetry.Prometheus
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{

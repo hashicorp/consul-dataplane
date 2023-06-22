@@ -47,6 +47,8 @@ type ConsulDataplane struct {
 	aclToken        string
 	metricsConfig   *metricsConfig
 	lifecycleConfig *lifecycleConfig
+
+	resolvedService ServiceConfig
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -255,10 +257,12 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
 
 	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
-		BindAddr: cdp.cfg.DNSServer.BindAddr,
-		Port:     cdp.cfg.DNSServer.Port,
-		Client:   dnsClientInterface,
-		Logger:   cdp.logger,
+		BindAddr:  cdp.cfg.DNSServer.BindAddr,
+		Port:      cdp.cfg.DNSServer.Port,
+		Client:    dnsClientInterface,
+		Logger:    cdp.logger,
+		Partition: cdp.resolvedService.Partition,
+		Namespace: cdp.resolvedService.Namespace,
 	})
 	if err == dns.ErrServerDisabled {
 		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")
