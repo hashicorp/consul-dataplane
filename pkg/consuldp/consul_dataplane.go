@@ -224,6 +224,9 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			doneCh <- nil
 		case err := <-proxy.Exited():
+			if err != nil {
+				cdp.logger.Error("envoy proxy exited with error", "error", err)
+			}
 			doneCh <- err
 		case <-cdp.xdsServerExited():
 			// Initiate graceful shutdown of Envoy, kill if error
