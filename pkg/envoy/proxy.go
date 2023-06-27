@@ -56,7 +56,7 @@ type Proxy struct {
 
 	state    state
 	cmd      *exec.Cmd
-	exitedCh chan struct{}
+	exitedCh chan error
 }
 
 // ProxyConfig contains the configuration required to run an Envoy proxy.
@@ -131,7 +131,7 @@ func NewProxy(cfg ProxyConfig) (*Proxy, error) {
 			Timeout: 10 * time.Second,
 		},
 
-		exitedCh: make(chan struct{}),
+		exitedCh: make(chan error),
 	}, nil
 }
 
@@ -181,7 +181,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 		if err := cleanup(); err != nil {
 			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
 		}
-		close(p.exitedCh)
+		p.exitedCh <- errors.New("envoy proxy exited unexpectedly")
 	}()
 
 	return nil
@@ -321,7 +321,7 @@ func (p *Proxy) dumpConfig() error {
 
 // Exited returns a channel that is closed when the Envoy process exits. It can
 // be used to detect and act on process crashes.
-func (p *Proxy) Exited() chan struct{} { return p.exitedCh }
+func (p *Proxy) Exited() chan error { return p.exitedCh }
 
 func (p *Proxy) getState() state {
 	return state(atomic.LoadUint32((*uint32)(&p.state)))
