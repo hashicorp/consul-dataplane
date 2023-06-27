@@ -223,8 +223,8 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			doneCh <- nil
-		case <-proxy.Exited():
-			doneCh <- nil
+		case err := <-proxy.Exited():
+			doneCh <- err
 		case <-cdp.xdsServerExited():
 			// Initiate graceful shutdown of Envoy, kill if error
 			if err := proxy.Quit(); err != nil {
