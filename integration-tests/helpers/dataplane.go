@@ -5,7 +5,6 @@ package helpers
 
 import (
 	"fmt"
-	"io"
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go"
@@ -16,13 +15,16 @@ import (
 var EnvoyAdminPort = TCP(30000)
 
 type DataplaneConfig struct {
-	Addresses         string
-	ServiceNodeName   string
-	ProxyServiceID    string
-	LoginAuthMethod   string
-	LoginBearerToken  string
-	DNSBindPort       string
-	ServiceMetricsURL string
+	Addresses                     string
+	ServiceNodeName               string
+	ProxyServiceID                string
+	LoginAuthMethod               string
+	LoginBearerToken              string
+	DNSBindPort                   string
+	ServiceMetricsURL             string
+	ShutdownGracePeriodSeconds    string
+	ShutdownDrainListenersEnabled bool
+	DumpEnvoyConfigOnExitEnabled  bool
 }
 
 func (cfg DataplaneConfig) ToArgs() []string {
@@ -43,6 +45,19 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-telemetry-prom-scrape-path", "/metrics",
 		"-telemetry-prom-service-metrics-url", cfg.ServiceMetricsURL,
 	}
+
+	if cfg.ShutdownGracePeriodSeconds != "" {
+		args = append(args, "-shutdown-grace-period-seconds", cfg.ShutdownGracePeriodSeconds)
+	}
+
+	if cfg.ShutdownDrainListenersEnabled {
+		args = append(args, "-shutdown-drain-listeners")
+	}
+
+	if cfg.DumpEnvoyConfigOnExitEnabled {
+		args = append(args, "-dump-envoy-config-on-exit")
+	}
+
 	return args
 }
 
@@ -61,31 +76,6 @@ func RunDataplane(t *testing.T, pod *Pod, suite *Suite, cfg DataplaneConfig) *Co
 			testcontainers.VolumeMount(volume.Name, "/data"),
 		},
 		WaitingFor: wait.ForLog("starting main dispatch loop"), // https://github.com/envoyproxy/envoy/blob/ce49966ecb5f2d530117a29ae60b88198746fd74/source/server/server.cc#L906-L907
-	})
-
-	t.Cleanup(func() {
-		url := fmt.Sprintf(
-			"http://%s:%d/config_dump?include_eds",
-			pod.HostIP,
-			pod.MappedPorts[EnvoyAdminPort],
-		)
-
-		rsp, err := httpClient.Get(url)
-		if err != nil {
-			t.Logf("failed to dump Envoy config: %v\n", err)
-			return
-		}
-		defer rsp.Body.Close()
-
-		config, err := io.ReadAll(rsp.Body)
-		if err != nil {
-			t.Logf("failed to dump Envoy config: %v\n", err)
-			return
-		}
-		suite.CaptureArtifact(
-			fmt.Sprintf("%s-envoy-config.json", cfg.ProxyServiceID),
-			config,
-		)
 	})
 
 	return container

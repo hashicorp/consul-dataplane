@@ -153,6 +153,14 @@ func (p *Proxy) Run(ctx context.Context) error {
 
 	// Run the Envoy process.
 	p.cmd = p.buildCommand(ctx, configPath)
+
+	// Start Envoy in its own process group to avoid directly receiving
+	// SIGTERM intended for consul-dataplane, let proxy manager handle
+	// graceful shutdown if configured.
+	p.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
 		// Clean up the pipe if we weren't able to run Envoy.
