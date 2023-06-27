@@ -73,6 +73,11 @@ var (
 
 	consulDNSBindAddr string
 	consulDNSPort     int
+
+	shutdownDrainListenersEnabled bool
+	shutdownGracePeriodSeconds    int
+	gracefulShutdownPath          string
+	gracefulPort                  int
 )
 
 func init() {
@@ -139,6 +144,15 @@ func init() {
 
 	StringVar(&consulDNSBindAddr, "consul-dns-bind-addr", "127.0.0.1", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns proxy.")
 	IntVar(&consulDNSPort, "consul-dns-bind-port", -1, "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
+
+	// Default is false because it will generally be configured appropriately by Helm
+	// configuration or pod annotation.
+	BoolVar(&shutdownDrainListenersEnabled, "shutdown-drain-listeners", false, "DP_SHUTDOWN_DRAIN_LISTENERS", "Wait for proxy listeners to drain before terminating the proxy container.")
+	// Default is 0 because it will generally be configured appropriately by Helm
+	// configuration or pod annotation.
+	IntVar(&shutdownGracePeriodSeconds, "shutdown-grace-period-seconds", 0, "DP_SHUTDOWN_GRACE_PERIOD_SECONDS", "Amount of time to wait after receiving a SIGTERM signal before terminating the proxy.")
+	StringVar(&gracefulShutdownPath, "graceful-shutdown-path", "/graceful_shutdown", "DP_GRACEFUL_SHUTDOWN_PATH", "An HTTP path to serve the graceful shutdown endpoint.")
+	IntVar(&gracefulPort, "graceful-port", 20300, "DP_GRACEFUL_PORT", "A port to serve HTTP endpoints for graceful shutdown.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -216,12 +230,16 @@ func main() {
 			},
 		},
 		Envoy: &consuldp.EnvoyConfig{
-			AdminBindAddress: adminBindAddr,
-			AdminBindPort:    adminBindPort,
-			ReadyBindAddress: readyBindAddr,
-			ReadyBindPort:    readyBindPort,
-			EnvoyConcurrency: envoyConcurrency,
-			ExtraArgs:        flag.Args(),
+			AdminBindAddress:              adminBindAddr,
+			AdminBindPort:                 adminBindPort,
+			ReadyBindAddress:              readyBindAddr,
+			ReadyBindPort:                 readyBindPort,
+			EnvoyConcurrency:              envoyConcurrency,
+			ShutdownDrainListenersEnabled: shutdownDrainListenersEnabled,
+			ShutdownGracePeriodSeconds:    shutdownGracePeriodSeconds,
+			GracefulShutdownPath:          gracefulShutdownPath,
+			GracefulPort:                  gracefulPort,
+			ExtraArgs:                     flag.Args(),
 		},
 		XDSServer: &consuldp.XDSServer{
 			BindAddress: xdsBindAddr,
