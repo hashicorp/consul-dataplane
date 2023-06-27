@@ -167,15 +167,6 @@ func (m *lifecycleConfig) gracefulShutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	if m.dumpEnvoyConfigOnExitEnabled {
-		m.logger.Info("dumping Envoy config to disk")
-		err := m.proxy.DumpConfig()
-		if err != nil {
-			m.logger.Warn("error while attempting to dump Envoy config to disk", "error", err)
-			close(m.errorExitCh)
-		}
-	}
-
 	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriodSeconds))
 
 	var wg sync.WaitGroup
