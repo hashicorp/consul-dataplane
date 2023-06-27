@@ -170,6 +170,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
 		}
 		p.exitedCh <- err
+		close(p.exitedCh)
 	}()
 
 	return nil
