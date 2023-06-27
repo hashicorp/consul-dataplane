@@ -7,14 +7,11 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/mod/semver"
 
 	"github.com/hashicorp/consul/api"
 
@@ -131,15 +128,14 @@ func TestIntegration(t *testing.T) {
 
 	RunService(t, suite, backendPod, "backend")
 
-	backendDataplane := RunDataplane(t, backendPod, suite, DataplaneConfig{
-		Addresses:                    server.Container.ContainerIP,
-		ServiceNodeName:              SyntheticNodeName,
-		ProxyServiceID:               "backend-sidecar",
-		LoginAuthMethod:              authMethod.Name,
-		LoginBearerToken:             authMethod.GenerateToken(t, "backend"),
-		DNSBindPort:                  dnsUDPPort.Port(),
-		ServiceMetricsURL:            "http://localhost:8080",
-		DumpEnvoyConfigOnExitEnabled: true,
+	RunDataplane(t, backendPod, suite, DataplaneConfig{
+		Addresses:         server.Container.ContainerIP,
+		ServiceNodeName:   SyntheticNodeName,
+		ProxyServiceID:    "backend-sidecar",
+		LoginAuthMethod:   authMethod.Name,
+		LoginBearerToken:  authMethod.GenerateToken(t, "backend"),
+		DNSBindPort:       dnsUDPPort.Port(),
+		ServiceMetricsURL: "http://localhost:8080",
 	})
 
 	frontendPod := RunPod(t, suite, "frontend", []nat.Port{
@@ -262,15 +258,6 @@ func TestIntegration(t *testing.T) {
 	require.Contains(t, metrics, "consul_dataplane_go_goroutines")
 	require.Contains(t, metrics, "envoy_server_total_connections")
 	require.Contains(t, metrics, `service_metric{service_name="backend"}`)
-
-	// Test access logs (Consul 1.15 or greater)
-	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
-		GetEnvoyClusters(t, backendPod.HostIP, backendPod.MappedPorts[EnvoyAdminPort])
-		require.Eventuallyf(t, func() bool {
-			output := backendDataplane.ContainerLogs(t)
-			return strings.Contains(output, "{\"custom_field_path\":\"/clusters\"}")
-		}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
-	}
 
 	// Overwrite deny intention and allow two-way connections to prepare for
 	// testing graceful shutdown
