@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -31,8 +32,9 @@ type xdsServer struct {
 	exitedCh        chan struct{}
 }
 
-type httpGetter interface {
+type httpClient interface {
 	Get(string) (*http.Response, error)
+	Post(string, string, io.Reader) (*http.Response, error)
 }
 
 // ConsulDataplane represents the consul-dataplane process
@@ -44,6 +46,7 @@ type ConsulDataplane struct {
 	xdsServer       *xdsServer
 	aclToken        string
 	metricsConfig   *metricsConfig
+	lifecycleConfig *lifecycleConfig
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -209,20 +212,42 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
+	cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
+	err = cdp.lifecycleConfig.startLifecycleManager(ctx)
+	if err != nil {
+		return err
+	}
+
 	doneCh := make(chan error)
 	go func() {
 		select {
 		case <-ctx.Done():
 			doneCh <- nil
-		case <-proxy.Exited():
-			doneCh <- errors.New("envoy proxy exited unexpectedly")
+		case err := <-proxy.Exited():
+			if err != nil {
+				cdp.logger.Error("envoy proxy exited with error", "error", err)
+			}
+			doneCh <- err
 		case <-cdp.xdsServerExited():
-			if err := proxy.Stop(); err != nil {
-				cdp.logger.Error("failed to stop proxy", "error", err)
+			// Initiate graceful shutdown of Envoy, kill if error
+			if err := proxy.Quit(); err != nil {
+				cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", err)
+				if err := proxy.Kill(); err != nil {
+					cdp.logger.Error("failed to kill proxy", "error", err)
+				}
 			}
 			doneCh <- errors.New("xDS server exited unexpectedly")
 		case <-cdp.metricsConfig.metricsServerExited():
 			doneCh <- errors.New("metrics server exited unexpectedly")
+		case <-cdp.lifecycleConfig.lifecycleServerExited():
+			// Initiate graceful shutdown of Envoy, kill if error
+			if err := proxy.Quit(); err != nil {
+				cdp.logger.Error("failed to stop proxy", "error", err)
+				if err := proxy.Kill(); err != nil {
+					cdp.logger.Error("failed to kill proxy", "error", err)
+				}
+			}
+			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
 		}
 	}()
 	return <-doneCh
@@ -250,23 +275,46 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 }
 
 func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
-	setConcurrency := true
 	extraArgs := cdp.cfg.Envoy.ExtraArgs
-	// Users could set the concurrency as an extra args. Take that as priority for best ux
-	// experience.
-	for _, v := range extraArgs {
-		if v == "--concurrency" {
-			setConcurrency = false
-		}
+
+	envoyArgs := map[string]interface{}{
+		"--concurrency":    cdp.cfg.Envoy.EnvoyConcurrency,
+		"--drain-time-s":   cdp.cfg.Envoy.EnvoyDrainTimeSeconds,
+		"--drain-strategy": cdp.cfg.Envoy.EnvoyDrainStrategy,
 	}
-	if setConcurrency {
-		extraArgs = append(extraArgs, fmt.Sprintf("--concurrency %v", cdp.cfg.Envoy.EnvoyConcurrency))
+
+	// Users could set the Envoy concurrency, drain time, or drain strategy as
+	// extra args. Prioritize values set in that way over passthrough or defaults
+	// from consul-dataplane.
+	for envoyArg, cdpEnvoyValue := range envoyArgs {
+		for _, v := range extraArgs {
+			// If found in extraArgs, skip setting value from consul-dataplane Envoy
+			// config
+			if v == envoyArg {
+				break
+			}
+		}
+
+		// If not found, append value from consul-dataplane Envoy config to extraArgs
+		extraArgs = append(extraArgs, fmt.Sprintf("%s %v", envoyArg, cdpEnvoyValue))
 	}
 
 	return envoy.ProxyConfig{
+		AdminAddr:       cdp.cfg.Envoy.AdminBindAddress,
+		AdminBindPort:   cdp.cfg.Envoy.AdminBindPort,
 		Logger:          cdp.logger,
 		LogJSON:         cdp.cfg.Logging.LogJSON,
 		BootstrapConfig: cfg,
 		ExtraArgs:       extraArgs,
+	}
+}
+
+func (cdp *ConsulDataplane) GracefulShutdown(cancel context.CancelFunc) {
+	// If proxy lifecycle manager has not been initialized, cancel parent context and
+	// proceed to exit rather than attempting graceful shutdown
+	if cdp.lifecycleConfig != nil {
+		cdp.lifecycleConfig.gracefulShutdown()
+	} else {
+		cancel()
 	}
 }

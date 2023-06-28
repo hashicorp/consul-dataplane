@@ -274,6 +274,29 @@ type EnvoyConfig struct {
 	ReadyBindPort int
 	// EnvoyConcurrency is the envoy concurrency https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
 	EnvoyConcurrency int
+	// EnvoyDrainTime is the time in seconds for which Envoy will drain connections
+	// during a hot restart, when listeners are modified or removed via LDS, or when
+	// initiated manually via a request to the Envoy admin API.
+	// The Envoy HTTP connection manager filter will add “Connection: close” to HTTP1
+	// requests, send HTTP2 GOAWAY, and terminate connections on request completion
+	// (after the delayed close period).
+	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-drain-time-s
+	EnvoyDrainTimeSeconds int
+	// EnvoyDrainStrategy is the behaviour of Envoy during the drain sequence.
+	// Determines whether all open connections should be encouraged to drain
+	// immediately or to increase the percentage gradually as the drain time elapses.
+	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-drain-strategy
+	EnvoyDrainStrategy string
+	// ShutdownDrainListenersEnabled configures whether to start draining proxy listeners before terminating the proxy container. Drain time defaults to the value of ShutdownGracePeriodSeconds, but may be set explicitly with EnvoyDrainTimeSeconds.
+	ShutdownDrainListenersEnabled bool
+	// ShutdownGracePeriodSeconds is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
+	ShutdownGracePeriodSeconds int
+	// GracefulShutdownPath is the path on which the HTTP endpoint to initiate a graceful shutdown of Envoy is served
+	GracefulShutdownPath string
+	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
+	GracefulPort int
+	// DumpEnvoyConfigOnExitEnabled configures whether to call Envoy's /config_dump endpoint during consul-dataplane controlled shutdown.
+	DumpEnvoyConfigOnExitEnabled bool
 	// ExtraArgs are the extra arguments passed to envoy at startup of the proxy
 	ExtraArgs []string
 }

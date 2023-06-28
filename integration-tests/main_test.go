@@ -4,6 +4,7 @@
 package integrationtests
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/hashicorp/consul/api"
 	"github.com/stretchr/testify/require"
@@ -22,12 +24,12 @@ import (
 )
 
 var (
-	// upstreamLocalBindPort is the port the frontend sidecar will bind the local
-	// listener for its backend upstream to.
+	// upstreamLocalBindPort is the port each sidecar will bind the local
+	// listener for its upstream to.
 	upstreamLocalBindPort = TCP(10000)
 
 	// proxyInboundListenerPort is the port the sidecars will bind their public
-	// listeners to. Only the backend sidecar's public port is used in these tests.
+	// listeners to.
 	proxyInboundListenerPort = TCP(20000)
 
 	// dnsUDPPort is UDP the port Consul Dataplane's DNS proxy wil be bound to.
@@ -78,7 +80,7 @@ func TestMain(m *testing.M) {
 //   - Running consul-datplane for each sidecar, with the "frontend" sidecar's
 //     local listener port for its "backend" upstream exposed to the host.
 //   - Creating proxy-defaults to set the default protocol to HTTP and prometheus
-//     bind address. Also set access logs on the admin interface of Envoy
+//     bind address.
 //   - Creating an L7/HTTP intention to allow "frontend" to talk to "backend".
 //   - Making an HTTP request through the "frontend" sidecar's exposed "backend"
 //     port.
@@ -86,7 +88,6 @@ func TestMain(m *testing.M) {
 //   - Attempting to make the same request and checking that it fails.
 //   - Making DNS queries against the frontend dataplane's UDP and TCP DNS proxies.
 //   - Scraping the prometheus merged metrics endpoint.
-//   - Make a call to Envoy's admin interface and check for the access logs.
 func TestIntegration(t *testing.T) {
 	suite := NewSuite(t, opts)
 
@@ -116,14 +117,15 @@ func TestIntegration(t *testing.T) {
 
 	server.RegisterSyntheticNode(t)
 
+	backendPod := RunPod(t, suite, "backend", []nat.Port{
+		EnvoyAdminPort,
+		upstreamLocalBindPort,
+		metricsPort,
+	})
+
 	server.RegisterService(t, &api.AgentService{
 		Service: "backend",
 		Port:    8080,
-	})
-
-	backendPod := RunPod(t, suite, "backend", []nat.Port{
-		EnvoyAdminPort,
-		metricsPort,
 	})
 
 	server.RegisterService(t, &api.AgentService{
@@ -134,6 +136,14 @@ func TestIntegration(t *testing.T) {
 		Proxy: &api.AgentServiceConnectProxyConfig{
 			DestinationServiceName: "backend",
 			LocalServicePort:       8080,
+			Upstreams: []api.Upstream{
+				{
+					DestinationType:  api.UpstreamDestTypeService,
+					DestinationName:  "frontend",
+					LocalBindPort:    upstreamLocalBindPort.Int(),
+					LocalBindAddress: "0.0.0.0",
+				},
+			},
 		},
 	})
 
@@ -168,6 +178,7 @@ func TestIntegration(t *testing.T) {
 		Address: frontendPod.ContainerIP,
 		Proxy: &api.AgentServiceConnectProxyConfig{
 			DestinationServiceName: "frontend",
+			LocalServicePort:       8080,
 			Upstreams: []api.Upstream{
 				{
 					DestinationType:  api.UpstreamDestTypeService,
@@ -179,15 +190,31 @@ func TestIntegration(t *testing.T) {
 		},
 	})
 
-	RunDataplane(t, frontendPod, suite, DataplaneConfig{
-		Addresses:         server.Container.ContainerIP,
-		ServiceNodeName:   SyntheticNodeName,
-		ProxyServiceID:    "frontend-sidecar",
-		LoginAuthMethod:   authMethod.Name,
-		LoginBearerToken:  authMethod.GenerateToken(t, "frontend"),
-		DNSBindPort:       dnsUDPPort.Port(),
-		ServiceMetricsURL: "http://localhost:8080",
+	RunService(t, suite, frontendPod, "frontend")
+
+	frontendDataplane := RunDataplane(t, frontendPod, suite, DataplaneConfig{
+		Addresses:                     server.Container.ContainerIP,
+		ServiceNodeName:               SyntheticNodeName,
+		ProxyServiceID:                "frontend-sidecar",
+		LoginAuthMethod:               authMethod.Name,
+		LoginBearerToken:              authMethod.GenerateToken(t, "frontend"),
+		DNSBindPort:                   dnsUDPPort.Port(),
+		ServiceMetricsURL:             "http://localhost:8080",
+		ShutdownGracePeriodSeconds:    "10",
+		ShutdownDrainListenersEnabled: true,
+		DumpEnvoyConfigOnExitEnabled:  true,
 	})
+
+	// Intentions are configured as default deny in helpers/server.go
+	ExpectNoHTTPAccess(t,
+		frontendPod.HostIP,
+		frontendPod.MappedPorts[upstreamLocalBindPort],
+	)
+
+	ExpectNoHTTPAccess(t,
+		backendPod.HostIP,
+		backendPod.MappedPorts[upstreamLocalBindPort],
+	)
 
 	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
 		Kind: api.ServiceIntentions,
@@ -252,6 +279,87 @@ func TestIntegration(t *testing.T) {
 	require.Contains(t, metrics, "consul_dataplane_go_goroutines")
 	require.Contains(t, metrics, "envoy_server_total_connections")
 	require.Contains(t, metrics, `service_metric{service_name="backend"}`)
+
+	// Overwrite deny intention and allow two-way connections to prepare for
+	// testing graceful shutdown
+	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
+		Kind: api.ServiceIntentions,
+		Name: "backend",
+		Sources: []*api.SourceIntention{
+			{
+				Name: "frontend",
+				Type: api.IntentionSourceConsul,
+				Permissions: []*api.IntentionPermission{
+					{
+						Action: api.IntentionActionAllow,
+						HTTP: &api.IntentionHTTPPermission{
+							PathPrefix: "/",
+							Methods:    []string{http.MethodGet},
+						},
+					},
+				},
+			},
+		},
+	})
+	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
+		Kind: api.ServiceIntentions,
+		Name: "frontend",
+		Sources: []*api.SourceIntention{
+			{
+				Name: "backend",
+				Type: api.IntentionSourceConsul,
+				Permissions: []*api.IntentionPermission{
+					{
+						Action: api.IntentionActionAllow,
+						HTTP: &api.IntentionHTTPPermission{
+							PathPrefix: "/",
+							Methods:    []string{http.MethodGet},
+						},
+					},
+				},
+			},
+		},
+	})
+
+	// Ensure frontend upstream on backend service is working
+	ExpectHTTPAccess(t,
+		backendPod.HostIP,
+		backendPod.MappedPorts[upstreamLocalBindPort],
+	)
+
+	// Send SIGTERM to dataplane to start graceful shutdown
+	containerID := frontendDataplane.Container.GetContainerID()
+	cli, err := client.NewClientWithOpts(
+		client.WithAPIVersionNegotiation(),
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error initializing docker client: %s\n", err)
+		os.Exit(1)
+	}
+	err = cli.ContainerKill(context.Background(), containerID, "SIGTERM")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error killing docker container %s: %s\n", containerID, err)
+		os.Exit(1)
+	}
+	// TODO: It may be preferrable to use ContainerStop to set a longer
+	// StopTimeout to avoid issues with cleanup, but importing the
+	// docker/docker/container package for StopOptions has dependency issues.
+	// https://pkg.go.dev/github.com/docker/docker/client#Client.ContainerStop
+	// err = cli.ContainerStop(context.Background(), containerID, container.StopOptions{})
+
+	// Expect outgoing connections through sidecar are allowed until shutdown
+	// grace period has elapsed.
+	ExpectHTTPAccess(t,
+		frontendPod.HostIP,
+		frontendPod.MappedPorts[upstreamLocalBindPort],
+	)
+
+	// Expect inbound connections to the frontend service are rejected while it
+	// is shutting down if listener draining is configured.
+	ExpectNoHTTPAccess(t,
+		backendPod.HostIP,
+		backendPod.MappedPorts[upstreamLocalBindPort],
+	)
 
 	// Test access logs (Consul 1.15 or greater)
 	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
