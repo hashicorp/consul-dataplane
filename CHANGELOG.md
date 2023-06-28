@@ -1,3 +1,11 @@
+## 1.2.0 (June 28, 2023)
+
+SECURITY:
+
+* Update go-discover to 214571b6a5309addf3db7775f4ee8cf4d264fd5f within the Dockerfile. [[GH-153](https://github.com/hashicorp/consul-dataplane/pull/153)]
+* Update to Envoy 1.26.2 within the Dockerfile. [[GH-142](https://github.com/hashicorp/consul-dataplane/pull/142)]
+* Update to Go 1.20.4 and Envoy 1.26.1 within the Dockerfile. [[GH-97](https://github.com/hashicorp/consul-dataplane/pull/97)]
+
 ## 1.2.0-rc1 (June 12, 2023)
 
 SECURITY:
