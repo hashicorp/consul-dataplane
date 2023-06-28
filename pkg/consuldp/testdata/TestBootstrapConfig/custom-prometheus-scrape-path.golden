@@ -244,7 +244,6 @@
       "api_type": "DELTA_GRPC",
       "transport_api_version": "V3",
       "grpc_services": {
-        "initial_metadata": [],
         "envoy_grpc": {
           "cluster_name": "consul-dataplane"
         }
