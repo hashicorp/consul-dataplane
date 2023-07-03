@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -159,9 +158,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 	// Start Envoy in its own process group to avoid directly receiving
 	// SIGTERM intended for consul-dataplane, let proxy manager handle
 	// graceful shutdown if configured.
-	p.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+	p.cmd.SysProcAttr = getProcessAttr()
 
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
