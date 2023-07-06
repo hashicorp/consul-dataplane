@@ -304,7 +304,8 @@ type EnvoyConfig struct {
 // XDSServer contains the configuration of the xDS server.
 type XDSServer struct {
 	// BindAddress is the address on which the Envoy xDS server will be available.
-	BindAddress string
+	BindAddress  string
+	EnvoyAddress string
 	// BindPort is the address on which the Envoy xDS port will be available.
 	BindPort int
 }

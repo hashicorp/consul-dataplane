@@ -77,8 +77,9 @@ type ServiceFlags struct {
 }
 
 type XDSServerFlags struct {
-	BindAddr *string `json:"bindAddress,omitempty"`
-	BindPort *int    `json:"bindPort,omitempty"`
+	BindAddr  *string `json:"bindAddress,omitempty"`
+	BindPort  *int    `json:"bindPort,omitempty"`
+	EnvoyAddr *string `json:"envoyAddress,omitempty"`
 }
 
 type DNSServerFlags struct {
@@ -310,8 +311,9 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			},
 		},
 		XDSServer: &consuldp.XDSServer{
-			BindAddress: stringVal(cfg.XDSServer.BindAddr),
-			BindPort:    intVal(cfg.XDSServer.BindPort),
+			BindAddress:  stringVal(cfg.XDSServer.BindAddr),
+			EnvoyAddress: stringVal(cfg.XDSServer.EnvoyAddr),
+			BindPort:     intVal(cfg.XDSServer.BindPort),
 		},
 		DNSServer: &consuldp.DNSServerConfig{
 			BindAddr: stringVal(cfg.DNSServer.BindAddr),

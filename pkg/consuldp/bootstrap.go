@@ -53,9 +53,13 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	}
 
 	prom := cdp.cfg.Telemetry.Prometheus
+	agentAddr := cdp.cfg.XDSServer.EnvoyAddress
+	if agentAddr == "" {
+		agentAddr = cdp.cfg.XDSServer.BindAddress
+	}
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{
-			AgentAddress: cdp.cfg.XDSServer.BindAddress,
+			AgentAddress: agentAddr,
 			AgentPort:    strconv.Itoa(cdp.cfg.XDSServer.BindPort),
 			AgentTLS:     false,
 		},

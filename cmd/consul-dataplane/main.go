@@ -79,6 +79,7 @@ func init() {
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.DrainStrategy, "envoy-drain-strategy", "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindAddr, "xds-bind-addr", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
+	StringVar(flags, &flagOpts.dataplaneConfig.XDSServer.EnvoyAddr, "envoy-xds-addr", "ENVOY_XDS_ADDR", "The address on which the Envoy connect to.")
 	IntVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindPort, "xds-bind-port", "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
 
 	BoolVar(flags, &flagOpts.dataplaneConfig.Consul.TLS.Disabled, "tls-disabled", "DP_TLS_DISABLED", "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
