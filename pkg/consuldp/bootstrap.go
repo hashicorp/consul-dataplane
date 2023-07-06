@@ -6,13 +6,12 @@ package consuldp
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/consul/proto-public/pbdataplane"
+	"github.com/mitchellh/mapstructure"
 	"net"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/hashicorp/consul/proto-public/pbdataplane"
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 )
@@ -54,9 +53,9 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 
 	prom := cdp.cfg.Telemetry.Prometheus
 	agentAddr := cdp.cfg.XDSServer.EnvoyAddress
-	if agentAddr == "" {
-		agentAddr = cdp.cfg.XDSServer.BindAddress
-	}
+	//if agentAddr == "" {
+	//	agentAddr = cdp.cfg.XDSServer.BindAddress
+	//}
 	args := &bootstrap.BootstrapTplArgs{
 		GRPC: bootstrap.GRPC{
 			AgentAddress: agentAddr,
@@ -83,7 +82,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	if cdp.xdsServer.listenerNetwork == "unix" {
 		args.GRPC.AgentSocket = cdp.xdsServer.listenerAddress
 	} else {
-		xdsServerFullAddr := strings.Split(cdp.xdsServer.listenerAddress, ":")
+		xdsServerFullAddr := strings.Split(cdp.cfg.XDSServer.EnvoyAddress, ":")
 		args.GRPC.AgentAddress = xdsServerFullAddr[0]
 		args.GRPC.AgentPort = xdsServerFullAddr[1]
 	}

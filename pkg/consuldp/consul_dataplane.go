@@ -182,7 +182,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	go cdp.startXDSServer(ctx)
+	//go cdp.startXDSServer(ctx)
 
 	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
@@ -222,6 +222,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	go func() {
 		select {
 		case <-ctx.Done():
+			cdp.logger.Info("done and exit!!!")
 			doneCh <- nil
 		case err := <-proxy.Exited():
 			if err != nil {
@@ -250,6 +251,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
 		}
 	}()
+	doneCh <- nil
 	return <-doneCh
 }
 
