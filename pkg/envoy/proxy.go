@@ -8,13 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -158,9 +158,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 	// Start Envoy in its own process group to avoid directly receiving
 	// SIGTERM intended for consul-dataplane, let proxy manager handle
 	// graceful shutdown if configured.
-	p.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+	p.cmd.SysProcAttr = getProcessAttr()
 
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
@@ -343,32 +341,9 @@ func writeBootstrapConfig(cfg []byte) (string, func() error, error) {
 		os.TempDir(),
 		fmt.Sprintf("envoy-%x-bootstrap.json", time.Now().UnixNano()+int64(os.Getpid())),
 	)
-	if err := syscall.Mkfifo(path, 0600); err != nil {
-		return "", nil, err
-	}
 
-	// O_WRONLY causes OpenFile to block until there's a reader (Envoy). Opening
-	// the pipe with O_RDWR wouldn't block but would result in just sending stuff
-	// to ourself.
-	//
-	// TODO(boxofrad): We don't have a way to cancel this goroutine. If the Envoy
-	// process never opens the other end of the pipe this will hang forever. The
-	// workaround we use in `consul connect envoy` is to write to the pipe in a
-	// subprocess that self-destructs after 10 minutes.
-	go func() {
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, 0600)
-		if err != nil {
-			os.Remove(path)
-			return
-		}
-
-		_, err = file.Write(cfg)
-		file.Close()
-
-		if err != nil {
-			os.Remove(path)
-		}
-	}()
+	log.Printf("bootstrap config path: %s", path)
+	err := os.WriteFile(path, cfg, 0600)
 
 	return path, func() error {
 		err := os.Remove(path)
@@ -376,7 +351,7 @@ func writeBootstrapConfig(cfg []byte) (string, func() error, error) {
 			return nil
 		}
 		return err
-	}, nil
+	}, err
 }
 
 // buildCommand builds the exec.Cmd to run Envoy with the relevant arguments
