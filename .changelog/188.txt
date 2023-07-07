@@ -1,3 +1,3 @@
-```release-note:bug
- fixed the flow of passing bootstrap config to envoy by writing it to a file instead of using syscall.Mkfifo which is unavailable on Windows.
+```release-note:improvement
+In order to support Windows, write Envoy bootstrap configuration to a regular file instead of a named pipe.
 ```
