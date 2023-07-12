@@ -74,8 +74,8 @@ jobs:
           - {goos: "linux", goarch: "arm64"}
           - {goos: "linux", goarch: "386"}
           - {goos: "linux", goarch: "amd64"}
-          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: ".fips1402" }
-          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: ".fips1402"}
+          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402" }
+          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402"}
 
       fail-fast: true
 
@@ -93,7 +93,7 @@ jobs:
           arch: ${{ matrix.goarch }}
           reproducible: assert
           instructions: |
-            if [[ "${{ matrix.fips }}" == ".fips1402" ]]
+            if [[ "${{ matrix.fips }}" == "+fips1402" ]]
             then
               sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
             fi
@@ -174,9 +174,9 @@ jobs:
         # supported by Envoy.
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: ".fips1402" }
+          - { arch: "amd64", fips: "+fips1402" }
           - { arch: "arm64" }
-          - { arch: "arm64", fips: ".fips1402" }
+          - { arch: "arm64", fips: "+fips1402" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -243,7 +243,7 @@ jobs:
       matrix:
         include:
           - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
-          - { target-name: "release-fips-ubi", registry-id: "6484fd31685105da62a96b24", fips: ".fips1402" }
+          - { target-name: "release-fips-ubi", registry-id: "6484fd31685105da62a96b24", fips: "+fips1402" }
 
     env:
       repo: ${{github.event.repository.name}}
@@ -268,7 +268,7 @@ jobs:
       matrix:
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: ".fips1402" }
+          - { arch: "amd64", fips: "+fips1402" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
