@@ -147,8 +147,8 @@ github.com/googleapis/gax-go/v2 v2.0.4/go.mod h1:0Wqv26UfaUD9n4G6kQubkQ+KchISgw+
 github.com/googleapis/gax-go/v2 v2.0.5/go.mod h1:DWXyrwAJ9X0FpwwEdw+IPEYBICEFu5mhpdKc/us6bOk=
 github.com/hashicorp/consul-server-connection-manager v0.1.2 h1:tNVQHUPuMbd+cMdD8kd+qkZUYpmLmrHMAV/49f4L53I=
 github.com/hashicorp/consul-server-connection-manager v0.1.2/go.mod h1:NzQoVi1KcxGI2SangsDue8+ZPuXZWs+6BKAKrDNyg+w=
-github.com/hashicorp/consul/proto-public v0.4.0-rc1 h1:Q7+1DQMChrDdvnhtKBd99Bd16jMgkzTMabCIUvvTG+0=
-github.com/hashicorp/consul/proto-public v0.4.0-rc1/go.mod h1:yOSsnXuMvtPPs9X9U44fb1xbUyOxY9jxuYs4R+ilxYU=
+github.com/hashicorp/consul/proto-public v0.4.0 h1:amEli9TgZBatDzvqW+k9E2HQEfOrIkIAlAreeP7vIlA=
+github.com/hashicorp/consul/proto-public v0.4.0/go.mod h1:yOSsnXuMvtPPs9X9U44fb1xbUyOxY9jxuYs4R+ilxYU=
 github.com/hashicorp/consul/sdk v0.13.0 h1:lce3nFlpv8humJL8rNrrGHYSKc3q+Kxfeg3Ii1m6ZWU=
 github.com/hashicorp/errwrap v1.0.0 h1:hLrqtEDnRye3+sgx6z4qVLNuviH3MR5aQ0ykNJa/UYA=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
