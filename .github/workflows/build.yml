@@ -243,7 +243,7 @@ jobs:
       matrix:
         include:
           - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
-          - { target-name: "release-fips-ubi", registry-id: "6484fd31685105da62a96b24", fips: "+fips1402" }
+          - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1402" }
 
     env:
       repo: ${{github.event.repository.name}}
