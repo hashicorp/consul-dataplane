@@ -292,7 +292,12 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: '1.20'
+          # pinning this to 1.20.5 because this issue in go-testcontainers occurs
+          # in 1.20.6 with the error "http: invalid Host header, host port waiting failed"
+          # https://github.com/testcontainers/testcontainers-go/issues/1359
+          # remove setting this when the above issue is fixed so that the job will
+          # just get the go version from .go-version.
+          go-version: 1.20.5
       - id: run-tests
         run: cd integration-tests && go test -v -output-dir=./output -dataplane-image=hashicorppreview/${{env.repo}}:${{env.dev_tag}}-${{github.sha}} -server-image=${{matrix.server.image}}
         continue-on-error: true
