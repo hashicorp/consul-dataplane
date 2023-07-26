@@ -6,7 +6,7 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/armon/go-metrics v0.4.1
-	github.com/hashicorp/consul-server-connection-manager v0.1.2
+	github.com/hashicorp/consul-server-connection-manager v0.1.3
 	github.com/hashicorp/consul/proto-public v0.4.0
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-multierror v1.1.1
