@@ -102,7 +102,9 @@ func init() {
 
 	// Default is false, may be useful for debugging unexpected termination.
 	BoolVar(flags, &flagOpts.dataplaneConfig.Envoy.DumpEnvoyConfigOnExitEnabled, "dump-envoy-config-on-exit", "DP_DUMP_ENVOY_CONFIG_ON_EXIT", "Call the Envoy /config_dump endpoint during consul-dataplane controlled shutdown.")
-
+	//#########################
+	IntVar(flags, &flagOpts.dataplaneConfig.Envoy.StartupGracePeriodSeconds, "startup-grace-period-seconds", "DP_STARTUP_GRACE_PERIOD_SECONDS", "Amount of time to wait for consul-dataplane startup.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.GracefulStartupPath, "graceful-startup-path", "DP_GRACEFUL_STARTUP_PATH", "An HTTP path to serve the graceful startup endpoint.")
 	flags.StringVar(&flagOpts.configFile, "config-file", "", "The json config file for configuring consul data plane")
 }
 

@@ -121,6 +121,9 @@ type EnvoyFlags struct {
 	GracefulShutdownPath          *string `json:"gracefulShutdownPath,omitempty"`
 	GracefulPort                  *int    `json:"gracefulPort,omitempty"`
 	DumpEnvoyConfigOnExitEnabled  *bool   `json:"dumpEnvoyConfigOnExitEnabled,omitempty"`
+
+	StartupGracePeriodSeconds *int    `json:"startupGracePeriodSeconds,omitempty"`
+	GracefulStartupPath       *string `json:"gracefulStartupPath,omitempty"`
 }
 
 const (
@@ -217,7 +220,9 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			"shutdownGracePeriodSeconds": 0,
 			"gracefulShutdownPath": "/graceful_shutdown",
 			"gracefulPort": 20300,
-			"dumpEnvoyConfigOnExitEnabled": false
+			"dumpEnvoyConfigOnExitEnabled": false,
+			"gracefulStartupPath": "/graceful_startup",
+			"startupGracePeriodSeconds": 0
 		},
 		"xdsServer": {
 			"bindAddress": "127.0.0.1",
@@ -295,6 +300,8 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			DumpEnvoyConfigOnExitEnabled:  boolVal(cfg.Envoy.DumpEnvoyConfigOnExitEnabled),
 			GracefulShutdownPath:          stringVal(cfg.Envoy.GracefulShutdownPath),
 			GracefulPort:                  intVal(cfg.Envoy.GracefulPort),
+			StartupGracePeriodSeconds:     intVal(cfg.Envoy.StartupGracePeriodSeconds),
+			GracefulStartupPath:           stringVal(cfg.Envoy.GracefulStartupPath),
 			ExtraArgs:                     extraArgs,
 		},
 		Telemetry: &consuldp.TelemetryConfig{

@@ -36,8 +36,9 @@ type lifecycleConfig struct {
 	shutdownGracePeriodSeconds    int
 	gracefulPort                  int
 	gracefulShutdownPath          string
-
-	dumpEnvoyConfigOnExitEnabled bool
+	startupGracePeriodSeconds     int
+	gracefulStartupPath           string
+	dumpEnvoyConfigOnExitEnabled  bool
 
 	// manager for controlling the Envoy proxy process
 	proxy envoy.ProxyManager
@@ -58,8 +59,9 @@ func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig 
 		gracefulPort:                  cfg.Envoy.GracefulPort,
 		gracefulShutdownPath:          cfg.Envoy.GracefulShutdownPath,
 		dumpEnvoyConfigOnExitEnabled:  cfg.Envoy.DumpEnvoyConfigOnExitEnabled,
-
-		proxy: proxy,
+		startupGracePeriodSeconds:     cfg.Envoy.StartupGracePeriodSeconds,
+		gracefulStartupPath:           cfg.Envoy.GracefulStartupPath,
+		proxy:                         proxy,
 
 		errorExitCh: make(chan struct{}, 1),
 		mu:          sync.Mutex{},
@@ -210,4 +212,18 @@ func (m *lifecycleConfig) gracefulShutdown() {
 
 	// Wait for context timeout to elapse
 	wg.Wait()
+}
+
+func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http.Request) {
+	// Kick off graceful shutdown in a separate goroutine to avoid blocking
+	// sending an HTTP response
+	go func {
+		m.gracefulStartup()
+		rw.WriteHeader()
+	//Delay the 
+}
+}
+func (m *lifecycleConfig) gracefulStartup() {
+	m.logger.Info("Blocking container startup until Envoy ready")
+
 }

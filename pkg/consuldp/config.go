@@ -297,6 +297,11 @@ type EnvoyConfig struct {
 	GracefulPort int
 	// DumpEnvoyConfigOnExitEnabled configures whether to call Envoy's /config_dump endpoint during consul-dataplane controlled shutdown.
 	DumpEnvoyConfigOnExitEnabled bool
+	//##############
+	//StartupGracePeriodSeconds is the amount of time to block application after startup for Envoy proxy to be ready.
+	StartupGracePeriodSeconds int
+	// GracefulStartupPath is the path on which the HTTP endpoint to initiate a graceful startup of Envoy is served
+	GracefulStartupPath string
 	// ExtraArgs are the extra arguments passed to envoy at startup of the proxy
 	ExtraArgs []string
 }
