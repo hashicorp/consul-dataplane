@@ -24,6 +24,7 @@ const (
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 
 	defaultLifecycleShutdownPath = "/graceful_shutdown"
+	defaultLifecycleStartupPath  = "/graceful_startup"
 )
 
 // lifecycleConfig handles all configuration related to managing the Envoy proxy
@@ -98,6 +99,8 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 
 	m.logger.Info(fmt.Sprintf("setting graceful shutdown path: %s\n", cdpLifecycleShutdownPath))
 	mux.HandleFunc(cdpLifecycleShutdownPath, m.gracefulShutdownHandler)
+
+	mux.HandleFunc(defaultLifecycleStartupPath, m.gracefulStartupHandler)
 
 	// Determine what the proxy lifecycle management server bind port is. It can be
 	// set as a flag.
@@ -215,15 +218,57 @@ func (m *lifecycleConfig) gracefulShutdown() {
 }
 
 func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http.Request) {
-	// Kick off graceful shutdown in a separate goroutine to avoid blocking
-	// sending an HTTP response
-	go func {
-		m.gracefulStartup()
-		rw.WriteHeader()
-	//Delay the 
-}
+
+	m.gracefulStartup()
+	//Unlike in gracefulShutdown, we want to delay the OK response until envoy is ready
+	//in order to block application container.
+	rw.WriteHeader(http.StatusOK)
+
 }
 func (m *lifecycleConfig) gracefulStartup() {
-	m.logger.Info("Blocking container startup until Envoy ready")
+	m.logger.Info("Blocking container startup until Envoy ready / grace period elapsed")
+	timeout := time.Duration(m.shutdownGracePeriodSeconds) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	envoyReady := false
+	var wg sync.WaitGroup
+	wg.Add(1)
+	envoyStatus := make(chan bool)
+
+	//Move readiness check into ProxyManager?
+	//readyUrl := fmt.Sprintf("http://:%d/ready", adminBindAddress, adminBindPort)
+
+	go func() {
+		defer wg.Done()
+	loop:
+		for {
+			select {
+			case <-ctx.Done():
+				break loop
+			case envoyReady = <-envoyStatus:
+				if envoyReady {
+					break loop
+				} else {
+					go func() {
+						envoyStatus <- m.proxy.Ready()
+					}()
+				}
+
+			}
+		}
+
+	}()
+
+	wg.Wait()
+
+	// Block until context timeout has elapsed
+
+	// Finish graceful shutdown, quit Envoy proxy
+	if !envoyReady {
+		m.logger.Info("startup grace period reached before envoy ready")
+	}
+
+	// Wait for context timeout to elapse
 
 }
