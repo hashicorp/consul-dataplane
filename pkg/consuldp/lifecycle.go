@@ -241,6 +241,7 @@ func (m *lifecycleConfig) gracefulStartup() {
 
 	go func() {
 		defer wg.Done()
+		envoyStatus <- m.proxy.Ready()
 	loop:
 		for {
 			select {

@@ -42,6 +42,7 @@ type ProxyManager interface {
 	Quit() error
 	Kill() error
 	DumpConfig() error
+	Ready() bool
 }
 
 // Proxy manages an Envoy proxy process.
@@ -421,4 +422,34 @@ func removeArgAndGetValue(stringAr []string, key string) ([]string, string) {
 		}
 	}
 	return stringAr, ""
+}
+
+func (p *Proxy) Ready() bool {
+	envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+	rsp, err := p.client.Get(envoyReadyURL)
+	if err != nil {
+		p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
+		return false, err
+	}
+	defer rsp.Body.Close()
+	return rsp.StatusCode == 200
+	/*
+		switch p.getState() {
+		case stateExited:
+			// Nothing to do!
+			return false
+		case stateStopped:
+			// Nothing to do!
+			return false
+		case stateDraining:
+			// Nothing to do!
+			return false
+		case stateRunning:
+			// Query ready endpoint to check if proxy is Ready
+		case initialState:
+
+		default:
+			return errors.New("proxy must be running to be stopped")
+		}
+	*/
 }
