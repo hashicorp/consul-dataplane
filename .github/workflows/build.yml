@@ -74,8 +74,8 @@ jobs:
           - {goos: "linux", goarch: "arm64"}
           - {goos: "linux", goarch: "386"}
           - {goos: "linux", goarch: "amd64"}
-          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402" }
-          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402"}
+          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402", pkg_suffix: "-fips" }
+          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402", pkg_suffix: "-fips" }
 
       fail-fast: true
 
@@ -103,7 +103,7 @@ jobs:
         if: ${{ matrix.goos == 'linux' }}
         uses: hashicorp/actions-packaging-linux@v1
         with:
-          name: ${{ github.event.repository.name }}
+          name: ${{ github.event.repository.name }}${{ matrix.pkg_suffix }}
           description: "Consul dataplane connects an application to a Consul service mesh."
           arch: ${{ matrix.goarch }}
           version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
