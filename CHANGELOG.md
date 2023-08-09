@@ -1,3 +1,30 @@
+## 1.2.1 (August 9, 2023)
+
+SECURITY:
+
+* Upgrade to use Go 1.20.7 and `x/net/http` 0.12.0.
+  This resolves [CVE-2023-29406](https://github.com/advisories/GHSA-f8f7-69v5-w4vx)(`net/http`). [[GH-219](https://github.com/hashicorp/consul-dataplane/pull/219)]
+* Upgrade to use Go 1.20.7 and `x/net` 0.13.0.
+  This resolves [CVE-2023-29409](https://nvd.nist.gov/vuln/detail/CVE-2023-29409)(`crypto/tls`)
+  and [CVE-2023-3978](https://nvd.nist.gov/vuln/detail/CVE-2023-3978)(`net/html`). [[GH-227](https://github.com/hashicorp/consul-dataplane/pull/227)]
+
+FEATURES:
+
+* Add -shutdown-drain-listeners, -shutdown-grace-period, -graceful-shutdown-path and -graceful-port flags to configure proxy lifecycle management settings for the Envoy container. [[GH-100](https://github.com/hashicorp/consul-dataplane/pull/100)]
+* Add HTTP server with configurable port and endpoint path for initiating graceful shutdown. [[GH-115](https://github.com/hashicorp/consul-dataplane/pull/115)]
+* Catch SIGTERM and SIGINT to initate graceful shutdown in accordance with proxy lifecycle management configuration. [[GH-130](https://github.com/hashicorp/consul-dataplane/pull/130)]
+
+IMPROVEMENTS:
+
+* connect: Add capture group labels from Envoy cluster FQDNs to Envoy exported metric labels [[GH-184](https://github.com/hashicorp/consul-dataplane/pull/184)]
+
+BUG FIXES:
+
+* Add support for envoy-extra-args. Fixes [Envoy extra-args annotation crashing consul-dataplane container](https://github.com/hashicorp/consul-k8s/issues/1846). [[GH-133](https://github.com/hashicorp/consul-dataplane/pull/133)]
+* Fix a bug where exiting envoy would inadvertently throw an error [[GH-175](https://github.com/hashicorp/consul-dataplane/pull/175)]
+* Fix a bug with Envoy potentially starting with incomplete configuration by not waiting enough for initial xDS configuration. [[GH-140](https://github.com/hashicorp/consul-dataplane/pull/140)]
+
+
 ## 1.2.0 (June 28, 2023)
 
 SECURITY:
