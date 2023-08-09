@@ -1,3 +1,22 @@
+## 1.1.4 (August 9, 2023)
+
+SECURITY:
+
+* Upgrade to use Go 1.20.6 and `x/net/http` 0.12.0.
+  This resolves [CVE-2023-29406](https://github.com/advisories/GHSA-f8f7-69v5-w4vx)(`net/http`). [[GH-219](https://github.com/hashicorp/consul-dataplane/pull/219)]
+* Upgrade to use Go 1.20.7 and `x/net` 0.13.0.
+  This resolves [CVE-2023-29409](https://nvd.nist.gov/vuln/detail/CVE-2023-29409)(`crypto/tls`)
+  and [CVE-2023-3978](https://nvd.nist.gov/vuln/detail/CVE-2023-3978)(`net/html`). [[GH-227](https://github.com/hashicorp/consul-dataplane/pull/227)]
+
+IMPROVEMENTS:
+
+* connect: Add capture group labels from Envoy cluster FQDNs to Envoy exported metric labels [[GH-184](https://github.com/hashicorp/consul-dataplane/pull/184)]
+
+BUG FIXES:
+
+* Fix a bug with Envoy potentially starting with incomplete configuration by not waiting enough for initial xDS configuration. [[GH-140](https://github.com/hashicorp/consul-dataplane/pull/140)]
+
+
 ## 1.1.3 (June 28, 2023)
 
 SECURITY:
