@@ -225,6 +225,9 @@ func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http
 	rw.WriteHeader(http.StatusOK)
 
 }
+
+// gracefulStartup blocks until the startup grace period has elapsed or we have confirmed that
+// Envoy proxy is ready.
 func (m *lifecycleConfig) gracefulStartup() {
 	m.logger.Info("Blocking container startup until Envoy ready / grace period elapsed")
 	timeout := time.Duration(m.shutdownGracePeriodSeconds) * time.Second
@@ -236,12 +239,11 @@ func (m *lifecycleConfig) gracefulStartup() {
 	wg.Add(1)
 	envoyStatus := make(chan bool)
 
-	//Move readiness check into ProxyManager?
-	//readyUrl := fmt.Sprintf("http://:%d/ready", adminBindAddress, adminBindPort)
-
 	go func() {
 		defer wg.Done()
 		envoyStatus <- m.proxy.Ready()
+
+		//Loop until either proxy is ready or timeout expires.
 	loop:
 		for {
 			select {
@@ -251,6 +253,7 @@ func (m *lifecycleConfig) gracefulStartup() {
 				if envoyReady {
 					break loop
 				} else {
+					//Check if Envoy is ready, don't block here so that timeout break can still happen.
 					go func() {
 						envoyStatus <- m.proxy.Ready()
 					}()
@@ -263,13 +266,8 @@ func (m *lifecycleConfig) gracefulStartup() {
 
 	wg.Wait()
 
-	// Block until context timeout has elapsed
-
-	// Finish graceful shutdown, quit Envoy proxy
 	if !envoyReady {
 		m.logger.Info("startup grace period reached before envoy ready")
 	}
-
-	// Wait for context timeout to elapse
 
 }
