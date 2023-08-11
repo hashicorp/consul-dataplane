@@ -6,11 +6,11 @@
 
 # envoy-binary pulls in the latest Envoy binary, as Envoy don't publish
 # prebuilt binaries in any other form.
-FROM envoyproxy/envoy-distroless:v1.24.7 as envoy-binary
+FROM envoyproxy/envoy-distroless:v1.24.10 as envoy-binary
 
 # go-discover builds the discover binary (which we don't currently publish
 # either).
-FROM golang:1.20.4-alpine as go-discover
+FROM golang:1.20.7-alpine as go-discover
 RUN CGO_ENABLED=0 go install github.com/hashicorp/go-discover/cmd/discover@214571b6a5309addf3db7775f4ee8cf4d264fd5f
 
 # Pull in dumb-init from alpine, as our distroless release image doesn't have a
