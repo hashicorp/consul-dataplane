@@ -14,6 +14,18 @@ FROM envoyproxy/envoy-distroless:v1.26.4 as envoy-binary
 # TODO once hashicorp/envoy-fips:v1.26.4 is published this should be updated as well
 FROM hashicorp/envoy-fips:v1.26.2 as envoy-fips-binary
 
+# Modify the envoy binary to be able to bind to privileged ports (< 1024)
+FROM alpine:latest AS envoy-setcap
+
+ARG BIN_NAME
+ARG TARGETARCH
+ARG TARGETOS
+
+COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
+
+RUN apk add libcap
+RUN setcap cap_net_bind_service+ep /usr/local/bin/envoy
+
 # go-discover builds the discover binary (which we don't currently publish
 # either).
 FROM golang:1.20.7-alpine as go-discover
@@ -46,7 +58,7 @@ LABEL name=${BIN_NAME}\
       description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
 
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY --from=envoy-setcap /usr/local/bin/envoy /usr/local/bin/
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
@@ -116,7 +128,7 @@ RUN groupadd --gid 1000 $PRODUCT_NAME && \
 
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/envoy
+COPY --from=envoy-setcap /usr/local/bin/envoy /usr/local/bin/envoy
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
 
