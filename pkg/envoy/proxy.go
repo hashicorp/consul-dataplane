@@ -42,7 +42,7 @@ type ProxyManager interface {
 	Quit() error
 	Kill() error
 	DumpConfig() error
-	Ready() bool
+	Ready() (bool, error)
 }
 
 // Proxy manages an Envoy proxy process.
@@ -424,28 +424,30 @@ func removeArgAndGetValue(stringAr []string, key string) ([]string, string) {
 	return stringAr, ""
 }
 
-func (p *Proxy) Ready() bool {
+func (p *Proxy) Ready() (bool, error) {
 
-		switch p.getState() {
-		case stateExited:
-			// Nothing to do!
-			return false
-		case stateStopped:
-			// Nothing to do!
-			return false
-		case stateDraining:
-			// Nothing to do!
-			return false
-		case stateRunning, stateInitial:
-			// Query ready endpoint to check if proxy is Ready
-			envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-			rsp, err := p.client.Get(envoyReadyURL)
-			defer rsp.Body.Close()
-			if err != nil {
-				p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
-				return false
-			}
-			return rsp.StatusCode == 200
+	switch p.getState() {
+	case stateExited:
+		// Nothing to do!
+		return false, nil
+	case stateStopped:
+		// Nothing to do!
+		return false, nil
+	case stateDraining:
+		// Nothing to do!
+		return false, nil
+	case stateRunning, stateInitial:
+		// Query ready endpoint to check if proxy is Ready
+		envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+		rsp, err := p.client.Get(envoyReadyURL)
+		defer rsp.Body.Close()
+		if err != nil {
+			p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
+			return false, err
 		}
-	
+		return rsp.StatusCode == 200, nil
+	default:
+		return false, nil
+	}
+
 }

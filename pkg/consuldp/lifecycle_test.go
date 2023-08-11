@@ -213,3 +213,6 @@ func (p *mockProxy) Kill() error {
 func (p *mockProxy) DumpConfig() error {
 	return nil
 }
+func (p *mockProxy) Ready() (bool, error) {
+	return false, nil
+}
