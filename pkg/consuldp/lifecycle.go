@@ -219,9 +219,9 @@ func (m *lifecycleConfig) gracefulShutdown() {
 
 func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http.Request) {
 
-	m.gracefulStartup()
 	//Unlike in gracefulShutdown, we want to delay the OK response until envoy is ready
 	//in order to block application container.
+	m.gracefulStartup()
 	rw.WriteHeader(http.StatusOK)
 
 }
@@ -229,8 +229,8 @@ func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http
 // gracefulStartup blocks until the startup grace period has elapsed or we have confirmed that
 // Envoy proxy is ready.
 func (m *lifecycleConfig) gracefulStartup() {
-	m.logger.Info("Blocking container startup until Envoy ready / grace period elapsed")
-	timeout := time.Duration(m.shutdownGracePeriodSeconds) * time.Second
+	timeout := time.Duration(m.startupGracePeriodSeconds) * time.Second
+	m.logger.Info(fmt.Sprintf("blocking container startup until Envoy ready or grace period of %d seconds elapsed", m.startupGracePeriodSeconds))
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
