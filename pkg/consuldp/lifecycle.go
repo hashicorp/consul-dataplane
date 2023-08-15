@@ -87,20 +87,11 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 	// management control
 	mux := http.NewServeMux()
 
-	// Determine what HTTP endpoint paths to configure for the proxy lifecycle
-	// management server. These can be set as flags.
-	cdpLifecycleShutdownPath := defaultLifecycleShutdownPath
-	if m.gracefulShutdownPath != "" {
-		cdpLifecycleShutdownPath = m.gracefulShutdownPath
-	}
+	m.logger.Info(fmt.Sprintf("setting graceful shutdown path: %s\n", m.shutdownPath()))
+	mux.HandleFunc(m.shutdownPath(), m.gracefulShutdownHandler)
 
-	// Set config to allow introspection of default path for testing
-	m.gracefulShutdownPath = cdpLifecycleShutdownPath
-
-	m.logger.Info(fmt.Sprintf("setting graceful shutdown path: %s\n", cdpLifecycleShutdownPath))
-	mux.HandleFunc(cdpLifecycleShutdownPath, m.gracefulShutdownHandler)
-
-	mux.HandleFunc(defaultLifecycleStartupPath, m.gracefulStartupHandler)
+	m.logger.Info(fmt.Sprintf("setting graceful startup path: %s\n", m.startupPath()))
+	mux.HandleFunc(m.startupPath(), m.gracefulStartupHandler)
 
 	// Determine what the proxy lifecycle management server bind port is. It can be
 	// set as a flag.
@@ -272,4 +263,22 @@ func (m *lifecycleConfig) gracefulStartup() {
 		m.logger.Info("startup grace period reached before envoy ready")
 	}
 
+}
+
+func (m *lifecycleConfig) shutdownPath() string {
+	if m.gracefulShutdownPath == "" {
+		// Set config to allow introspection of default path for testing
+		m.gracefulShutdownPath = defaultLifecycleShutdownPath
+	}
+
+	return m.gracefulShutdownPath
+}
+
+func (m *lifecycleConfig) startupPath() string {
+	if m.gracefulStartupPath == "" {
+		// Set config to allow introspection of default path for testing
+		m.gracefulStartupPath = defaultLifecycleStartupPath
+	}
+
+	return m.gracefulStartupPath
 }
