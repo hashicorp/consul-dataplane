@@ -21,6 +21,8 @@ var (
 	envoyAdminAddr = "127.0.0.1"
 )
 
+// TestLifecycleServerClosed tests that the lifecycle manager properly starts up
+// and shuts down when the context passed into it is cancelled.
 func TestLifecycleServerClosed(t *testing.T) {
 	cfg := Config{
 		Envoy: &EnvoyConfig{
@@ -38,35 +40,35 @@ func TestLifecycleServerClosed(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return !m.running
 	}, time.Second*2, time.Second)
-
 }
 
-func TestLifecycleServerEnabled(t *testing.T) {
+func TestLifecycleServer(t *testing.T) {
 	cases := map[string]struct {
 		shutdownDrainListenersEnabled bool
 		shutdownGracePeriodSeconds    int
 		gracefulShutdownPath          string
+		startupGracePeriodSeconds     int
+		gracefulStartupPath           string
 		gracefulPort                  int
+		proxyStartupDelaySeconds      int
 	}{
-		// TODO: testing the actual Envoy behavior here such as how open or new
-		// connections are handled should happpen in integration or acceptance tests
-		"connection draining disabled without grace period": {
+		"connection draining disabled without shutdown grace period": {
 			// All inbound and outbound connections are terminated immediately.
 		},
-		"connection draining enabled without grace period": {
+		"connection draining enabled without shutdown grace period": {
 			// This should immediately send "Connection: close" to inbound HTTP1
 			// connections, GOAWAY to inbound HTTP2, and terminate connections on
 			// request completion. Outbound connections should start being rejected
 			// immediately.
 			shutdownDrainListenersEnabled: true,
 		},
-		"connection draining disabled with grace period": {
+		"connection draining disabled with shutdown grace period": {
 			// This should immediately terminate any open inbound connections.
 			// Outbound connections should be allowed until the grace period has
 			// elapsed.
 			shutdownGracePeriodSeconds: 5,
 		},
-		"connection draining enabled with grace period": {
+		"connection draining enabled with shutdown grace period": {
 			// This should immediately send "Connection: close" to inbound HTTP1
 			// connections, GOAWAY to inbound HTTP2, and terminate connections on
 			// request completion.
@@ -80,11 +82,21 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			shutdownDrainListenersEnabled: true,
 			shutdownGracePeriodSeconds:    5,
 			gracefulShutdownPath:          "/quit-nicely",
-			// TODO: should this be random or use freeport? logic disallows passing
-			// zero value explicitly
-			gracefulPort: 23108,
+			gracefulPort:                  23108,
+		},
+		"startup grace period with default path, no startup time": {
+			startupGracePeriodSeconds: 5,
+		},
+		"startup grace period with default path, small startup time": {
+			startupGracePeriodSeconds: 10,
+			proxyStartupDelaySeconds:  5,
+		},
+		"startup grace period with default path, large startup time": {
+			startupGracePeriodSeconds: 10,
+			proxyStartupDelaySeconds:  15,
 		},
 	}
+
 	for name, c := range cases {
 		c := c
 		log.Printf("config = %v", c)
@@ -145,12 +157,32 @@ func TestLifecycleServerEnabled(t *testing.T) {
 			if c.gracefulShutdownPath != "" {
 				require.Equal(t, m.gracefulShutdownPath, c.gracefulShutdownPath, "failed to set lifecycle server graceful shutdown HTTP endpoint path")
 			}
+			shutdownUrl := fmt.Sprintf("http://127.0.0.1:%d%s", port, m.gracefulShutdownPath)
 
-			// Check lifecycle server graceful shutdown path configuration
-			url := fmt.Sprintf("http://127.0.0.1:%d%s", port, m.gracefulShutdownPath)
-			log.Printf("sending request to %s\n", url)
+			// Check lifecycle server graceful startup path configuration
+			if c.gracefulStartupPath != "" {
+				require.Equal(t, m.gracefulStartupPath, c.gracefulStartupPath, "failed to set lifecycle server graceful startup HTTP endpoint path")
+			}
+			startupURL := fmt.Sprintf("http://127.0.0.1:%d%s", port, m.gracefulStartupPath)
 
-			resp, err := http.Get(url)
+			// Start the mock proxy.
+			go m.proxy.Run(ctx)
+			start := time.Now()
+			log.Printf("sending startup check request to %s\n", startupURL)
+			resp, err := http.Get(startupURL)
+			require.NoError(t, err)
+			require.True(t, resp.StatusCode == 200)
+			duration := time.Since(start)
+			var expectedTime int
+			if c.proxyStartupDelaySeconds < c.startupGracePeriodSeconds {
+				expectedTime = c.proxyStartupDelaySeconds
+			} else {
+				expectedTime = c.startupGracePeriodSeconds
+			}
+			require.True(t, duration.Seconds()-float64(time.Duration(expectedTime)) < 1)
+
+			log.Printf("sending request to %s\n", shutdownUrl)
+			resp, err = http.Get(shutdownUrl)
 
 			// HTTP handler is not blocking, so need to wait and check mock
 			// client for expected method calls to proxy manager within
@@ -185,14 +217,19 @@ func TestLifecycleServerEnabled(t *testing.T) {
 }
 
 type mockProxy struct {
-	runCalled   int
-	drainCalled int
-	quitCalled  int
-	killCalled  int
+	runCalled           int
+	drainCalled         int
+	quitCalled          int
+	killCalled          int
+	isReady             bool
+	startupDelaySeconds int
 }
 
 func (p *mockProxy) Run(ctx context.Context) error {
 	p.runCalled++
+	time.Sleep(time.Duration(p.startupDelaySeconds) * time.Second)
+	p.isReady = true
+
 	return nil
 }
 
@@ -214,5 +251,5 @@ func (p *mockProxy) DumpConfig() error {
 	return nil
 }
 func (p *mockProxy) Ready() (bool, error) {
-	return false, nil
+	return p.isReady, nil
 }
