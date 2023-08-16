@@ -87,13 +87,16 @@ func TestLifecycleServer(t *testing.T) {
 		"startup grace period with default path, no startup time": {
 			startupGracePeriodSeconds: 5,
 		},
-		"startup grace period with default path, small startup time": {
+		"startup grace period with default path, no grace period": {
+			startupGracePeriodSeconds: 5,
+		},
+		"startup grace period with default path, grace period > startup time": {
 			startupGracePeriodSeconds: 10,
 			proxyStartupDelaySeconds:  5,
 		},
-		"startup grace period with default path, large startup time": {
-			startupGracePeriodSeconds: 10,
-			proxyStartupDelaySeconds:  15,
+		"startup grace period with default path, grace period < startup time": {
+			startupGracePeriodSeconds: 5,
+			proxyStartupDelaySeconds:  10,
 		},
 	}
 
