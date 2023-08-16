@@ -121,9 +121,10 @@ type EnvoyFlags struct {
 	GracefulShutdownPath          *string `json:"gracefulShutdownPath,omitempty"`
 	GracefulPort                  *int    `json:"gracefulPort,omitempty"`
 	DumpEnvoyConfigOnExitEnabled  *bool   `json:"dumpEnvoyConfigOnExitEnabled,omitempty"`
-
-	StartupGracePeriodSeconds *int    `json:"startupGracePeriodSeconds,omitempty"`
-	GracefulStartupPath       *string `json:"gracefulStartupPath,omitempty"`
+	//Time in seconds to wait for dataplane to be ready.
+	StartupGracePeriodSeconds *int `json:"startupGracePeriodSeconds,omitempty"`
+	//Endpoint for graceful startup function.
+	GracefulStartupPath *string `json:"gracefulStartupPath,omitempty"`
 }
 
 const (
