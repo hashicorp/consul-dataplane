@@ -1,0 +1,3 @@
+```release-note:security
+Make consul dataplane handle bootstrap param response for Catalog and Mesh V2 resources
+```
