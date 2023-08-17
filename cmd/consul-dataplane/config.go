@@ -22,6 +22,7 @@ type FlagOpts struct {
 type DataplaneConfigFlags struct {
 	Consul    ConsulFlags    `json:"consul,omitempty"`
 	Service   ServiceFlags   `json:"service,omitempty"`
+	Proxy     ProxyFlags     `json:"proxy,omitempty"`
 	Logging   LogFlags       `json:"logging,omitempty"`
 	XDSServer XDSServerFlags `json:"xdsServer,omitempty"`
 	DNSServer DNSServerFlags `json:"dnsServer,omitempty"`
@@ -74,6 +75,24 @@ type ServiceFlags struct {
 	ServiceIDPath *string `json:"serviceIDPath,omitempty"`
 	Namespace     *string `json:"namespace,omitempty"`
 	Partition     *string `json:"partition,omitempty"`
+}
+
+func (sf ServiceFlags) IsEmpty() bool {
+	return sf.NodeName == nil &&
+		sf.NodeID == nil &&
+		sf.ServiceID == nil &&
+		sf.ServiceIDPath == nil &&
+		sf.Namespace == nil &&
+		sf.Partition == nil
+}
+
+type ProxyFlags struct {
+	NodeName  *string `json:"nodeName,omitempty"`
+	NodeID    *string `json:"nodeID,omitempty"`
+	ID        *string `json:"id,omitempty"`
+	IDPath    *string `json:"idPath,omitempty"`
+	Namespace *string `json:"namespace,omitempty"`
+	Partition *string `json:"partition,omitempty"`
 }
 
 type XDSServerFlags struct {
@@ -247,6 +266,26 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 // constructRuntimeConfig constructs the final config needed for dataplane to start
 // itself after substituting all the user provided inputs
 func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*consuldp.Config, error) {
+	// Handle deprecated service flags.
+	var proxyCfg consuldp.ProxyConfig
+	if !cfg.Service.IsEmpty() {
+		proxyCfg = consuldp.ProxyConfig{
+			NodeName:  stringVal(cfg.Service.NodeName),
+			NodeID:    stringVal(cfg.Service.NodeID),
+			ProxyID:   stringVal(cfg.Service.ServiceID),
+			Namespace: stringVal(cfg.Service.Namespace),
+			Partition: stringVal(cfg.Service.Partition),
+		}
+	} else {
+		proxyCfg = consuldp.ProxyConfig{
+			NodeName:  stringVal(cfg.Proxy.NodeName),
+			NodeID:    stringVal(cfg.Proxy.NodeID),
+			ProxyID:   stringVal(cfg.Proxy.ID),
+			Namespace: stringVal(cfg.Proxy.Namespace),
+			Partition: stringVal(cfg.Proxy.Partition),
+		}
+	}
+
 	return &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
 			Addresses:           stringVal(cfg.Consul.Addresses),
@@ -276,13 +315,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 				InsecureSkipVerify: boolVal(cfg.Consul.TLS.InsecureSkipVerify),
 			},
 		},
-		Service: &consuldp.ServiceConfig{
-			NodeName:  stringVal(cfg.Service.NodeName),
-			NodeID:    stringVal(cfg.Service.NodeID),
-			ServiceID: stringVal(cfg.Service.ServiceID),
-			Namespace: stringVal(cfg.Service.Namespace),
-			Partition: stringVal(cfg.Service.Partition),
-		},
+		Proxy: &proxyCfg,
 		Logging: &consuldp.LoggingConfig{
 			Name:     DefaultLogName,
 			LogJSON:  boolVal(cfg.Logging.LogJSON),

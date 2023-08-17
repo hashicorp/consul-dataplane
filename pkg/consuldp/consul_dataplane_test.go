@@ -22,9 +22,9 @@ func validConfig() *Config {
 				},
 			},
 		},
-		Service: &ServiceConfig{
-			NodeName:  "agentless-node",
-			ServiceID: "web-proxy",
+		Proxy: &ProxyConfig{
+			NodeName: "agentless-node",
+			ProxyID:  "web-proxy",
 		},
 		Logging: &LoggingConfig{
 			LogLevel: "INFO",
@@ -89,28 +89,28 @@ func TestNewConsulDPError(t *testing.T) {
 		},
 		{
 			name:      "missing service config",
-			modFn:     func(c *Config) { c.Service = nil },
+			modFn:     func(c *Config) { c.Proxy = nil },
 			expectErr: "service details not specified",
 		},
 		{
 			name: "missing node details",
 			modFn: func(c *Config) {
-				c.Service.NodeName = ""
-				c.Service.NodeID = ""
+				c.Proxy.NodeName = ""
+				c.Proxy.NodeID = ""
 			},
 			expectErr: "node name or ID not specified",
 		},
 		{
 			name: "missing node details",
 			modFn: func(c *Config) {
-				c.Service.NodeName = ""
-				c.Service.NodeID = ""
+				c.Proxy.NodeName = ""
+				c.Proxy.NodeID = ""
 			},
 			expectErr: "node name or ID not specified",
 		},
 		{
 			name:      "missing service id",
-			modFn:     func(c *Config) { c.Service.ServiceID = "" },
+			modFn:     func(c *Config) { c.Proxy.ProxyID = "" },
 			expectErr: "proxy service ID not specified",
 		},
 		{

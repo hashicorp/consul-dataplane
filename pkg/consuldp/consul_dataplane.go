@@ -77,11 +77,11 @@ func validateConfig(cfg *Config) error {
 		return errors.New("consul addresses not specified")
 	case cfg.Consul.GRPCPort == 0:
 		return errors.New("consul server gRPC port not specified")
-	case cfg.Service == nil:
+	case cfg.Proxy == nil:
 		return errors.New("service details not specified")
-	case cfg.Service.NodeID == "" && cfg.Service.NodeName == "":
+	case cfg.Proxy.NodeID == "" && cfg.Proxy.NodeName == "":
 		return errors.New("node name or ID not specified")
-	case cfg.Service.ServiceID == "":
+	case cfg.Proxy.ProxyID == "":
 		return errors.New("proxy service ID not specified")
 	case cfg.Envoy == nil:
 		return errors.New("envoy settings not specified")

@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul/proto-public/pbdataplane"
-	"github.com/mitchellh/mapstructure"
-
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
+	"github.com/hashicorp/consul/proto-public/pbdataplane"
+	pbmesh "github.com/hashicorp/consul/proto-public/pbmesh/v1alpha1"
+	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -28,11 +28,12 @@ const (
 
 // bootstrapConfig generates the Envoy bootstrap config in JSON format.
 func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.BootstrapConfig, []byte, error) {
-	svc := cdp.cfg.Service
+	svc := cdp.cfg.Proxy
 	envoy := cdp.cfg.Envoy
 
 	req := &pbdataplane.GetEnvoyBootstrapParamsRequest{
-		ServiceId: svc.ServiceID,
+		ServiceId: svc.ProxyID,
+		ProxyId:   svc.ProxyID,
 		Namespace: svc.Namespace,
 		Partition: svc.Partition,
 	}
@@ -60,7 +61,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 			AgentTLS:     false,
 		},
 		ProxyCluster:          rsp.Service,
-		ProxyID:               svc.ServiceID,
+		ProxyID:               svc.ProxyID,
 		NodeName:              rsp.NodeName,
 		ProxySourceService:    rsp.Service,
 		AdminAccessLogConfig:  rsp.AccessLogs,
@@ -74,6 +75,11 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		PrometheusCertFile:    prom.CertFile,
 		PrometheusKeyFile:     prom.KeyFile,
 		PrometheusScrapePath:  prom.ScrapePath,
+	}
+
+	if rsp.ClusterName != "" {
+		args.ProxyCluster = rsp.ClusterName
+		args.ProxySourceService = rsp.ClusterName
 	}
 
 	if cdp.xdsServer.listenerNetwork == "unix" {
@@ -102,8 +108,12 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	}
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
-		if err := mapstructure.WeakDecode(rsp.Config.AsMap(), &bootstrapConfig); err != nil {
-			return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
+		if rsp.BootstrapConfig != nil {
+			bootstrapConfig = bootstrapConfigFromCfg(rsp.BootstrapConfig)
+		} else {
+			if err := mapstructure.WeakDecode(rsp.Config.AsMap(), &bootstrapConfig); err != nil {
+				return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
+			}
 		}
 
 		// Envoy is configured with a listener that proxies metrics from its
@@ -119,4 +129,23 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	// slate and we don't need to maintain this legacy behavior.
 	cfg, err := bootstrapConfig.GenerateJSON(args, true)
 	return &bootstrapConfig, cfg, err
+}
+
+func bootstrapConfigFromCfg(cfg *pbmesh.BootstrapConfig) bootstrap.BootstrapConfig {
+	return bootstrap.BootstrapConfig{
+		StatsdURL:                       cfg.StatsdUrl,
+		DogstatsdURL:                    cfg.DogstatsdUrl,
+		StatsTags:                       cfg.StatsTags,
+		TelemetryCollectorBindSocketDir: cfg.TelemetryCollectorBindSocketDir,
+		PrometheusBindAddr:              cfg.PrometheusBindAddr,
+		StatsBindAddr:                   cfg.StatsBindAddr,
+		ReadyBindAddr:                   cfg.ReadyBindAddr,
+		OverrideJSONTpl:                 cfg.OverrideJsonTpl,
+		StaticClustersJSON:              cfg.StaticClustersJson,
+		StaticListenersJSON:             cfg.StaticListenersJson,
+		StatsSinksJSON:                  cfg.StatsSinksJson,
+		StatsConfigJSON:                 cfg.StatsConfigJson,
+		StatsFlushInterval:              cfg.StatsFlushInterval,
+		TracingConfigJSON:               cfg.TracingConfigJson,
+	}
 }
