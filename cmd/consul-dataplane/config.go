@@ -6,9 +6,11 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"slices"
 	"strings"
 
 	"dario.cat/mergo"
+
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 )
 
@@ -31,6 +33,7 @@ type DataplaneConfigFlags struct {
 
 type ConsulFlags struct {
 	Addresses           *string `json:"addresses,omitempty"`
+	Experiments         *string `json:"experiments,omitempty"`
 	GRPCPort            *int    `json:"grpcPort,omitempty"`
 	ServerWatchDisabled *bool   `json:"serverWatchDisabled,omitempty"`
 
@@ -241,6 +244,11 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 // constructRuntimeConfig constructs the final config needed for dataplane to start
 // itself after substituting all the user provided inputs
 func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*consuldp.Config, error) {
+	experiments := []string{}
+	if cfg.Consul.Experiments != nil {
+		experiments = strings.Split(*cfg.Consul.Experiments, ",")
+	}
+
 	return &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
 			Addresses:           stringVal(cfg.Consul.Addresses),
@@ -269,6 +277,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 				ServerName:         stringVal(cfg.Consul.TLS.ServerName),
 				InsecureSkipVerify: boolVal(cfg.Consul.TLS.InsecureSkipVerify),
 			},
+			UseResourceAPIs: slices.Contains(experiments, "resource-apis"),
 		},
 		Service: &consuldp.ServiceConfig{
 			NodeName:  stringVal(cfg.Service.NodeName),

@@ -34,6 +34,8 @@ func init() {
 		"	b) on failure - exit with a non-zero code and optionally print an error message of up to 1024 bytes to stderr.\n"+
 		"	Refer to https://github.com/hashicorp/go-netaddrs#summary for more details and examples.\n")
 
+	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Experiments, "experiments", "DP_CONSUL_EXPERIMENTS", "A comma-delimited list of feature flags set in Consul. This is used to set API compatibility. e.g. 'resource-apis'")
+
 	IntVar(flags, &flagOpts.dataplaneConfig.Consul.GRPCPort, "grpc-port", "DP_CONSUL_GRPC_PORT", "The Consul server gRPC port to which consul-dataplane connects.")
 
 	BoolVar(flags, &flagOpts.dataplaneConfig.Consul.ServerWatchDisabled, "server-watch-disabled", "DP_SERVER_WATCH_DISABLED", "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")

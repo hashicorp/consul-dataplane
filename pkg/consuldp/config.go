@@ -30,6 +30,8 @@ type ConsulConfig struct {
 	ServerWatchDisabled bool
 	// TLS contains the TLS settings for communicating with Consul servers.
 	TLS *TLSConfig
+	// UseResourceAPIs tells consul-dataplane to use V2 APIs with the Consul servers.
+	UseResourceAPIs bool
 }
 
 // DNSServerConfig is the configuration for the transparent DNS proxy that will forward requests to consul

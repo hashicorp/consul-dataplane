@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 )
 
 func TestConfigGeneration(t *testing.T) {
@@ -54,6 +55,7 @@ func TestConfigGeneration(t *testing.T) {
 							ServerName:         "tls-server-name",
 							InsecureSkipVerify: true,
 						},
+						UseResourceAPIs: true,
 					},
 					Service: &consuldp.ServiceConfig{
 						NodeName:  "test-node-dc1",
@@ -156,6 +158,7 @@ func TestConfigGeneration(t *testing.T) {
 							ServerName:         "tls-server-name",
 							InsecureSkipVerify: true,
 						},
+						UseResourceAPIs: true,
 					},
 					Service: &consuldp.ServiceConfig{
 						NodeName:  "test-node-dc1",
@@ -377,6 +380,7 @@ func TestConfigGeneration(t *testing.T) {
 							ServerName:         "tls-server-name",
 							InsecureSkipVerify: true,
 						},
+						UseResourceAPIs: true,
 					},
 					Service: &consuldp.ServiceConfig{
 						NodeName:  "test-node-dc1",
@@ -464,6 +468,7 @@ func generateFlagOpts() (*FlagOpts, error) {
 				"serverName": "tls-server-name",
 				"insecureSkipVerify": true
 			},
+			"experiments": "resource-apis",
 			"credentials": {
 				"type": "static",
 				"static": {
