@@ -169,7 +169,10 @@ func TestLifecycleServer(t *testing.T) {
 			startupURL := fmt.Sprintf("http://127.0.0.1:%d%s", port, m.gracefulStartupPath)
 
 			// Start the mock proxy.
-			go m.proxy.Run(ctx)
+			go func() {
+				err := m.proxy.Run(ctx)
+				require.NoError(t, err)
+			}()
 			start := time.Now()
 			log.Printf("sending startup check request to %s\n", startupURL)
 			resp, err := http.Get(startupURL)
