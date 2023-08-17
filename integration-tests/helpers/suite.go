@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/go-connections/nat"
@@ -192,12 +191,12 @@ func (s *Suite) Volume(t *testing.T) *Volume {
 	defer s.mu.Unlock()
 
 	if s.volume == nil {
-		docker, _, _, err := testcontainers.NewDockerClient()
+		docker, err := testcontainers.NewDockerClient()
 		require.NoError(t, err)
 
 		v, err := docker.VolumeCreate(
 			s.Context(t),
-			volume.VolumeCreateBody{
+			volume.CreateOptions{
 				Name: fmt.Sprintf("%s-volume", s.Name),
 			},
 		)
@@ -252,7 +251,7 @@ func (c *Container) ContainerLogs(t *testing.T) string {
 }
 
 type Volume struct {
-	types.Volume
+	volume.Volume
 
 	suite     *Suite
 	mu        sync.Mutex
