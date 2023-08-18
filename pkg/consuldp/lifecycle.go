@@ -235,8 +235,13 @@ func (m *lifecycleConfig) gracefulStartup() {
 
 	go func() {
 		defer wg.Done()
-		envoyReady, _ = m.proxy.Ready()
-		envoyStatus <- envoyReady
+		go func() {
+			envoyReady, err := m.proxy.Ready()
+			if err != nil {
+				m.logger.Info(fmt.Sprintf("error when querying proxy readiness, %s", err.Error()))
+			}
+			envoyStatus <- envoyReady
+		}()
 
 		//Loop until either proxy is ready or timeout expires.
 	loop:
@@ -250,7 +255,10 @@ func (m *lifecycleConfig) gracefulStartup() {
 				} else {
 					//Check if Envoy is ready, don't block here so that timeout break can still happen.
 					go func() {
-						ready, _ := m.proxy.Ready()
+						ready, err := m.proxy.Ready()
+						if err != nil {
+							m.logger.Info(fmt.Sprintf("error when querying proxy readiness, %s", err.Error()))
+						}
 						envoyStatus <- ready
 					}()
 				}

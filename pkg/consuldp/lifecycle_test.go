@@ -42,6 +42,8 @@ func TestLifecycleServerClosed(t *testing.T) {
 	}, time.Second*2, time.Second)
 }
 
+// TestLifecycleServer tests the different functions of the lifecycle server,
+// using a mock proxy, including graceful_shutdown and graceful_startup.
 func TestLifecycleServer(t *testing.T) {
 	cases := map[string]struct {
 		shutdownDrainListenersEnabled bool

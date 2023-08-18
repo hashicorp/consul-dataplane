@@ -295,7 +295,7 @@ type EnvoyConfig struct {
 	GracefulShutdownPath string
 	//StartupGracePeriodSeconds is the amount of time to block application after startup for Envoy proxy to be ready.
 	StartupGracePeriodSeconds int
-	// GracefulStartupPath is the path on which the HTTP endpoint to initiate a graceful startup of Envoy is served
+	// GracefulStartupPath is the path where the HTTP endpoint to initiate a graceful startup of Envoy is served
 	GracefulStartupPath string
 	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
 	GracefulPort int
