@@ -11,8 +11,7 @@
 # prebuilt binaries in any other form.
 FROM envoyproxy/envoy-distroless:v1.26.4 as envoy-binary
 
-# TODO once hashicorp/envoy-fips:v1.26.4 is published this should be updated as well
-FROM hashicorp/envoy-fips:v1.26.2 as envoy-fips-binary
+FROM hashicorp/envoy-fips:v1.26.4 as envoy-fips-binary
 
 # go-discover builds the discover binary (which we don't currently publish
 # either).
