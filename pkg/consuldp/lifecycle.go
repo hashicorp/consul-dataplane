@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -223,57 +224,30 @@ func (m *lifecycleConfig) gracefulStartup() {
 	if m.startupGracePeriodSeconds == 0 {
 		return
 	}
-	timeout := time.Duration(m.startupGracePeriodSeconds) * time.Second
-	m.logger.Info(fmt.Sprintf("blocking container startup until Envoy ready or grace period of %d seconds elapsed", m.startupGracePeriodSeconds))
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(m.startupGracePeriodSeconds)*time.Second)
 	defer cancel()
 
-	envoyReady := false
-	var wg sync.WaitGroup
-	wg.Add(1)
-	envoyStatus := make(chan bool)
-
+	var ready atomic.Bool
 	go func() {
-		defer wg.Done()
-		go func() {
-			envoyReady, err := m.proxy.Ready()
+		for ctx.Err() == nil {
+			r, err := m.proxy.Ready()
 			if err != nil {
 				m.logger.Info(fmt.Sprintf("error when querying proxy readiness, %s", err.Error()))
 			}
-			envoyStatus <- envoyReady
-		}()
-
-		//Loop until either proxy is ready or timeout expires.
-	loop:
-		for {
-			select {
-			case <-ctx.Done():
-				break loop
-			case envoyReady = <-envoyStatus:
-				if envoyReady {
-					break loop
-				} else {
-					//Check if Envoy is ready, don't block here so that timeout break can still happen.
-					go func() {
-						ready, err := m.proxy.Ready()
-						if err != nil {
-							m.logger.Info(fmt.Sprintf("error when querying proxy readiness, %s", err.Error()))
-						}
-						envoyStatus <- ready
-					}()
-				}
-
+			if r {
+				ready.Store(true)
+				cancel()
+				break
 			}
+			time.Sleep(50 * time.Millisecond)
 		}
-
 	}()
 
-	wg.Wait()
-
-	if !envoyReady {
-		m.logger.Info("startup grace period reached before envoy ready")
+	<-ctx.Done()
+	if !ready.Load() {
+		m.logger.Info("grace period elapsed before proxy ready")
 	}
-
 }
 
 func (m *lifecycleConfig) shutdownPath() string {
