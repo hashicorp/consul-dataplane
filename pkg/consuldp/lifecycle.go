@@ -246,7 +246,7 @@ func (m *lifecycleConfig) gracefulStartup() {
 
 	<-ctx.Done()
 	if !ready.Load() {
-		m.logger.Info("grace period elapsed before proxy ready")
+		m.logger.Warn("grace period elapsed before proxy ready")
 	}
 }
 
