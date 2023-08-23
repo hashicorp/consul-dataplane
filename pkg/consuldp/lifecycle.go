@@ -210,12 +210,10 @@ func (m *lifecycleConfig) gracefulShutdown() {
 }
 
 func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http.Request) {
-
 	//Unlike in gracefulShutdown, we want to delay the OK response until envoy is ready
 	//in order to block application container.
 	m.gracefulStartup()
 	rw.WriteHeader(http.StatusOK)
-
 }
 
 // gracefulStartup blocks until the startup grace period has elapsed or we have confirmed that

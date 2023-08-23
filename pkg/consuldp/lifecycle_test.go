@@ -41,6 +41,9 @@ func TestLifecycleServerClosed(t *testing.T) {
 		return !m.running
 	}, time.Second*2, time.Second)
 }
+
+// TestLifecycleServer_Startup the graceful startup functionality of the dataplane
+// using different grace period and simulated startup duration configurations.
 func TestLifecycleServer_Startup(t *testing.T) {
 	cases := map[string]struct {
 		startupGracePeriodSeconds int
@@ -161,8 +164,8 @@ func TestLifecycleServer_Startup(t *testing.T) {
 
 }
 
-// TestLifecycleServer tests the different functions of the lifecycle server,
-// using a mock proxy, including graceful_shutdown and graceful_startup.
+// TestLifecycleServer_Shutdown the graceful shutdown functionality of the dataplane
+// with different grace period and listener draining configurations.
 func TestLifecycleServer_Shutdown(t *testing.T) {
 	cases := map[string]struct {
 		shutdownDrainListenersEnabled bool
