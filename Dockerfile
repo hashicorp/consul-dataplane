@@ -8,6 +8,20 @@
 # prebuilt binaries in any other form.
 FROM envoyproxy/envoy-distroless:v1.24.10 as envoy-binary
 
+# Modify the envoy binary to be able to bind to privileged ports (< 1024)
+FROM alpine:latest AS setcap
+
+ARG BIN_NAME=consul-dataplane
+ARG TARGETARCH
+ARG TARGETOS
+
+COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+
+RUN apk add libcap
+RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
+RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
+
 # go-discover builds the discover binary (which we don't currently publish
 # either).
 FROM golang:1.20.7-alpine as go-discover
@@ -22,7 +36,8 @@ RUN apk add dumb-init
 # -----------------------------------
 FROM gcr.io/distroless/base-debian11 AS release-default
 
-ARG BIN_NAME
+ARG BIN_NAME=consul-dataplane
+ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
 ARG PRODUCT_NAME=$BIN_NAME
@@ -39,10 +54,10 @@ LABEL name=${BIN_NAME}\
       summary="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
       description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
 
-COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
-COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY --from=go-discover /go/bin/discover /usr/local/bin/
+COPY --from=setcap /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap /usr/local/bin/$BIN_NAME /usr/local/bin/
 
 USER 100
 
@@ -54,7 +69,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # -----------------------------------
 FROM registry.access.redhat.com/ubi9-minimal:9.2 as release-ubi
 
-ARG BIN_NAME
+ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
@@ -78,10 +93,10 @@ RUN groupadd --gid 1000 $PRODUCT_NAME && \
     adduser --uid 100 --system -g $PRODUCT_NAME $PRODUCT_NAME && \
     usermod -a -G root $PRODUCT_NAME
 
-COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
-COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/envoy
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
+COPY --from=go-discover /go/bin/discover /usr/local/bin/
+COPY --from=setcap /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
 
 USER 100
