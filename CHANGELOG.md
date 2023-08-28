@@ -1,3 +1,13 @@
+## 1.2.2 (August 29, 2023)
+
+SECURITY:
+
+* Update to Go 1.20.7 and Envoy 1.26.4 within the Dockerfile. [[GH-235](https://github.com/hashicorp/consul-dataplane/pull/235)]
+
+BUG FIXES:
+
+* Fix a bug where container user was unable to bind to privileged ports (< 1024). The consul-dataplane container now requires the NET_BIND_SERVICE capability. [[GH-238](https://github.com/hashicorp/consul-dataplane/pull/238)]
+
 ## 1.2.1 (August 9, 2023)
 
 SECURITY:
