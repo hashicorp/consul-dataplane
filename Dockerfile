@@ -11,10 +11,8 @@
 # prebuilt binaries in any other form.
 FROM envoyproxy/envoy-distroless:v1.26.4 as envoy-binary
 
-FROM hashicorp/envoy-fips:v1.26.4 as envoy-fips-binary
-
-# Modify the envoy binary to be able to bind to privileged ports (< 1024)
-FROM alpine:latest AS setcap
+# Modify the envoy binary to be able to bind to privileged ports (< 1024).
+FROM debian:bullseye-slim AS setcap-envoy-binary
 
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
@@ -23,7 +21,23 @@ ARG TARGETOS
 COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
-RUN apk add libcap
+RUN apt-get update && apt install -y libcap2-bin
+RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
+RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
+
+FROM hashicorp/envoy-fips:v1.26.4 as envoy-fips-binary
+
+# Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
+FROM debian:bullseye-slim AS setcap-envoy-fips-binary
+
+ARG BIN_NAME=consul-dataplane
+ARG TARGETARCH
+ARG TARGETOS
+
+COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
+COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+
+RUN apt-get update && apt install -y libcap2-bin
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
@@ -61,8 +75,9 @@ LABEL name=${BIN_NAME}\
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap /usr/local/bin/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
+COPY LICENSE /licenses/copyright.txt
 
 USER 100
 
@@ -89,10 +104,11 @@ LABEL name=${BIN_NAME}\
       summary="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
       description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
 
-COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
-COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY --from=go-discover /go/bin/discover /usr/local/bin/
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
+COPY LICENSE /licenses/copyright.txt
 
 USER 100
 
@@ -130,8 +146,8 @@ RUN groupadd --gid 1000 $PRODUCT_NAME && \
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap /usr/local/bin/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
 
 USER 100
@@ -167,10 +183,10 @@ RUN groupadd --gid 1000 $PRODUCT_NAME && \
     adduser --uid 100 --system -g $PRODUCT_NAME $PRODUCT_NAME && \
     usermod -a -G root $PRODUCT_NAME
 
-COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
-COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/envoy
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
+COPY --from=go-discover /go/bin/discover /usr/local/bin/
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
 
 USER 100
