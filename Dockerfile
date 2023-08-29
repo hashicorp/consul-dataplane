@@ -8,8 +8,8 @@
 # prebuilt binaries in any other form.
 FROM envoyproxy/envoy-distroless:v1.24.10 as envoy-binary
 
-# Modify the envoy binary to be able to bind to privileged ports (< 1024)
-FROM alpine:latest AS setcap
+# Modify the envoy binary to be able to bind to privileged ports (< 1024).
+FROM debian:bullseye-slim AS setcap-envoy-binary
 
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
@@ -18,7 +18,7 @@ ARG TARGETOS
 COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
-RUN apk add libcap
+RUN apt-get update && apt install -y libcap2-bin
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
@@ -56,8 +56,9 @@ LABEL name=${BIN_NAME}\
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap /usr/local/bin/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
+COPY LICENSE /licenses/copyright.txt
 
 USER 100
 
@@ -95,8 +96,8 @@ RUN groupadd --gid 1000 $PRODUCT_NAME && \
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap /usr/local/bin/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
 
 USER 100
