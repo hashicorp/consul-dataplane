@@ -11,8 +11,6 @@
 # prebuilt binaries in any other form.
 FROM envoyproxy/envoy-distroless:v1.26.4 as envoy-binary
 
-FROM hashicorp/envoy-fips:v1.26.4 as envoy-fips-binary
-
 # Modify the envoy binary to be able to bind to privileged ports (< 1024)
 FROM debian:bullseye-slim AS setcap-envoy-binary
 
@@ -24,6 +22,8 @@ COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 
 RUN apt-get update && apt install -y libcap2-bin
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
+
+FROM hashicorp/envoy-fips:v1.26.4 as envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024)
 FROM debian:bullseye-slim AS setcap-envoy-fips-binary
