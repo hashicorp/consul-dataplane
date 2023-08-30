@@ -73,6 +73,7 @@ COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
 COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY LICENSE /licenses/copyright.txt
 
 USER 100
 
@@ -103,6 +104,7 @@ COPY --from=go-discover /go/bin/discover /usr/local/bin/
 COPY --from=setcap-envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY LICENSE /licenses/copyright.txt
 
 USER 100
 
