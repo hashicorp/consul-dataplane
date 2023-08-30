@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/armon/go-metrics"
@@ -130,8 +129,6 @@ func validateConfig(cfg *Config) error {
 func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	ctx = hclog.WithContext(ctx, cdp.logger)
 	cdp.logger.Info("started consul-dataplane process")
-
-	cdp.logger.Info("observing dataplane env", "env", os.Environ())
 
 	// At startup we need to cache metrics until we have information from the bootstrap envoy config
 	// that the consumer wants metrics enabled. Until then we will set our own light weight metrics
