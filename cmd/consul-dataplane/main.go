@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
@@ -42,6 +43,9 @@ func init() {
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
 	BoolVar(flags, &flagOpts.dataplaneConfig.Logging.LogJSON, "log-json", "DP_LOG_JSON", "Enables log messages in JSON format.")
+
+	// TODO this should be a subcommand, not a janky flag
+	BoolVar(flags, &flagOpts.dataplaneConfig.IsUp, "isup", "IS_UP", "asdfasdfasdf")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeName, "service-node-name", "DP_SERVICE_NODE_NAME", "The name of the Consul node to which the proxy service instance is registered.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeID, "service-node-id", "DP_SERVICE_NODE_ID", "The ID of the Consul node to which the proxy service instance is registered.")
@@ -134,6 +138,14 @@ func run() error {
 		return nil
 	}
 
+	fmt.Printf("%+v\n", flagOpts)
+
+	if flagOpts.dataplaneConfig.IsUp != nil && *flagOpts.dataplaneConfig.IsUp {
+		fmt.Println("Running the wait for startup")
+		time.Sleep(20 * time.Second)
+		return nil
+	}
+
 	readServiceIDFromFile()
 	validateFlags()
 
@@ -154,9 +166,11 @@ func run() error {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		// Block waiting for SIGTERM
-		<-sigCh
+		fmt.Println("Waiting for SIGINT or SIGTERM")
+		// Block waiting for SIGINT or SIGTERM
+		v := <-sigCh
 
+		fmt.Println("Received signal", v)
 		consuldpInstance.GracefulShutdown(cancel)
 	}()
 
