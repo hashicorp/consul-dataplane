@@ -25,7 +25,6 @@ done
 
 if [ -z "$config_yaml" ]; then
   >&2 echo "--config-yaml is required"
-  echo "--config-yaml is required"
   exit 1
 fi
 
