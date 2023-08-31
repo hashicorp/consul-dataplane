@@ -8,11 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -147,14 +145,8 @@ func (p *Proxy) Run(ctx context.Context) error {
 		return errors.New("proxy may only be run once")
 	}
 
-	// Write the bootstrap config to a pipe.
-	configPath, cleanup, err := writeBootstrapConfig(p.cfg.BootstrapConfig)
-	if err != nil {
-		return err
-	}
-
 	// Run the Envoy process.
-	p.cmd = p.buildCommand(ctx, configPath)
+	p.cmd = p.buildCommand(ctx, string(p.cfg.BootstrapConfig))
 
 	// Start Envoy in its own process group to avoid directly receiving
 	// SIGTERM intended for consul-dataplane, let proxy manager handle
@@ -163,10 +155,6 @@ func (p *Proxy) Run(ctx context.Context) error {
 
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
-		// Clean up the pipe if we weren't able to run Envoy.
-		if err := cleanup(); err != nil {
-			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
-		}
 		return err
 	}
 
@@ -177,9 +165,6 @@ func (p *Proxy) Run(ctx context.Context) error {
 		err := p.cmd.Wait()
 		p.cfg.Logger.Info("envoy process exited", "error", err)
 		p.transitionState(stateRunning, stateExited)
-		if err := cleanup(); err != nil {
-			p.cfg.Logger.Error("failed to cleanup boostrap config", "error", err)
-		}
 		p.exitedCh <- err
 		close(p.exitedCh)
 	}()
@@ -328,33 +313,9 @@ func (p *Proxy) transitionState(before, after state) bool {
 	return atomic.CompareAndSwapUint32((*uint32)(&p.state), uint32(before), uint32(after))
 }
 
-// writeBootstrapConfig writes the given Envoy bootstrap config to a named pipe
-// and returns the path. It also returns a cleanup function that must be called
-// when Envoy is done with it.
-//
-// We use a named pipe rather than a tempfile because it prevents writing any
-// secrets to disk. See: https://github.com/hashicorp/consul/pull/5964
-func writeBootstrapConfig(cfg []byte) (string, func() error, error) {
-	path := filepath.Join(
-		os.TempDir(),
-		fmt.Sprintf("envoy-%x-bootstrap.json", time.Now().UnixNano()+int64(os.Getpid())),
-	)
-
-	log.Printf("bootstrap config path: %s", path)
-	err := os.WriteFile(path, cfg, 0600)
-
-	return path, func() error {
-		err := os.Remove(path)
-		if err == nil || errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}, err
-}
-
 // buildCommand builds the exec.Cmd to run Envoy with the relevant arguments
 // (e.g. config path) and its logs redirected to the logger.
-func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
+func (p *Proxy) buildCommand(ctx context.Context, cfgYaml string) *exec.Cmd {
 	var logFormat string
 	if p.cfg.LogJSON {
 		logFormat = logFormatJSON
@@ -392,7 +353,7 @@ func (p *Proxy) buildCommand(ctx context.Context, cfgPath string) *exec.Cmd {
 
 	args := append(
 		[]string{
-			"--config-path", cfgPath,
+			"--config-yaml", cfgYaml,
 			"--log-format", logFormat,
 			"--log-level", logLevel,
 
