@@ -1,20 +1,20 @@
 #!/bin/bash
 
 # This script pretends to be Envoy in unit tests. It captures the flags and the
-# bootstrap config from the named pipe specified via `--config-path`, and writes
-# them to the file at `--test-output` (which is read and checked in the test).
+# bootstrap config specified via `--config-yaml`, and writes them to the file at
+# `--test-output` (which is read and checked in the test).
 # It then sleeps for 10 minutes to check we're correctly killing the process.
 
 set -e
 
-config_path=""
+config_yaml=""
 test_output=""
 
 prev_arg=""
 for arg in "$@"; do
   case "$prev_arg" in
-    --config-path)
-      config_path="$arg"
+    --config-yaml)
+      config_yaml="$arg"
       ;;
     --test-output)
       test_output="$arg"
@@ -23,8 +23,9 @@ for arg in "$@"; do
   prev_arg="$arg"
 done
 
-if [ -z "$config_path" ]; then
-  >&2 echo "--config-path is required"
+if [ -z "$config_yaml" ]; then
+  >&2 echo "--config-yaml is required"
+  echo "--config-yaml is required"
   exit 1
 fi
 
@@ -35,7 +36,7 @@ fi
 
 # Base64 encode the data to avoid having to escape it in the JSON output.
 args=$(echo "$@" | base64 | tr -d \\n)
-config_data=$(base64 -i $config_path | tr -d \\n)
+config_data=$(echo -n "$config_yaml" | base64 | tr -d \\n)
 
 cat <<EOF > "$test_output"
 {
