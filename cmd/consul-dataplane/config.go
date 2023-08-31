@@ -29,6 +29,9 @@ type DataplaneConfigFlags struct {
 	DNSServer DNSServerFlags `json:"dnsServer,omitempty"`
 	Telemetry TelemetryFlags `json:"telemetry,omitempty"`
 	Envoy     EnvoyFlags     `json:"envoy,omitempty"`
+
+	// TODO this should be a subcommand, not a janky flag
+	IsUp *bool `json:"isup,omitempty"`
 }
 
 type ConsulFlags struct {
