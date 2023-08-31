@@ -22,7 +22,21 @@ import (
 )
 
 func TestProxy(t *testing.T) {
-	bootstrapConfig := []byte(`hello world`)
+	bootstrapConfig := []byte(`
+	{
+		"dynamic_resources": {
+			"cds_config": {
+				"ads": {},
+				"initial_fetch_timeout": "0s",
+				"resource_api_version": "V3"
+			},
+			"lds_config": {
+				"ads": {},
+				"initial_fetch_timeout": "0s",
+				"resource_api_version": "V3"
+			},
+		}
+	}`)
 
 	// This test checks that we're starting the Envoy process with the correct
 	// arguments and that it is able to read the config we provide. It does so
