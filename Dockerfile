@@ -12,9 +12,6 @@
 FROM envoyproxy/envoy-distroless:v1.26.4 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
-# NOTE: We should not/cannot run setcap on consul-dataplane as it removes
-#   the TMPDIR envar that consul-dataplane depends on for bootstrapping envoy.
-#   See the Environment docs at https://man7.org/linux/man-pages/man8/ld.so.8.html
 FROM debian:bullseye-slim AS setcap-envoy-binary
 
 ARG BIN_NAME=consul-dataplane
@@ -31,9 +28,6 @@ RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 FROM hashicorp/envoy-fips:v1.26.4 as envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
-# NOTE: We should not/cannot run setcap on consul-dataplane as it removes
-#   the TMPDIR envar that consul-dataplane depends on for bootstrapping envoy.
-#   See the Environment docs at https://man7.org/linux/man-pages/man8/ld.so.8.html
 FROM debian:bullseye-slim AS setcap-envoy-fips-binary
 
 ARG BIN_NAME=consul-dataplane
