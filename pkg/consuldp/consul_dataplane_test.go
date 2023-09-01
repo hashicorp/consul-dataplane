@@ -88,30 +88,14 @@ func TestNewConsulDPError(t *testing.T) {
 			expectErr: "consul server gRPC port not specified",
 		},
 		{
-			name:      "missing service config",
+			name:      "missing proxy config",
 			modFn:     func(c *Config) { c.Proxy = nil },
-			expectErr: "service details not specified",
+			expectErr: "proxy details not specified",
 		},
 		{
-			name: "missing node details",
-			modFn: func(c *Config) {
-				c.Proxy.NodeName = ""
-				c.Proxy.NodeID = ""
-			},
-			expectErr: "node name or ID not specified",
-		},
-		{
-			name: "missing node details",
-			modFn: func(c *Config) {
-				c.Proxy.NodeName = ""
-				c.Proxy.NodeID = ""
-			},
-			expectErr: "node name or ID not specified",
-		},
-		{
-			name:      "missing service id",
+			name:      "missing proxy id",
 			modFn:     func(c *Config) { c.Proxy.ProxyID = "" },
-			expectErr: "proxy service ID not specified",
+			expectErr: "proxy ID not specified",
 		},
 		{
 			name:      "missing envoy config",

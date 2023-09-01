@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 )
 
 func TestConfigGeneration(t *testing.T) {
@@ -161,6 +162,7 @@ func TestConfigGeneration(t *testing.T) {
 						EnvoyConcurrency:              4,
 						EnvoyDrainStrategy:            "test-strategy",
 						ShutdownDrainListenersEnabled: true,
+						GracefulStartupPath:           "/graceful_startup",
 						GracefulShutdownPath:          "/graceful_shutdown",
 						EnvoyDrainTimeSeconds:         30,
 						GracefulPort:                  20300,
@@ -263,6 +265,7 @@ func TestConfigGeneration(t *testing.T) {
 						EnvoyConcurrency:              4,
 						EnvoyDrainStrategy:            "test-strategy",
 						ShutdownDrainListenersEnabled: true,
+						GracefulStartupPath:           "/graceful_startup",
 						GracefulShutdownPath:          "/graceful_shutdown",
 						EnvoyDrainTimeSeconds:         30,
 						GracefulPort:                  20300,
@@ -388,6 +391,95 @@ func TestConfigGeneration(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			desc: "prefer proxy flags over service flags when both are set",
+			flagOpts: func() (*FlagOpts, error) {
+				opts, err := generateFlagOptsWithServiceFlags()
+				if err != nil {
+					return nil, err
+				}
+				opts.dataplaneConfig.Proxy.ID = strReference("proxy-id")
+				opts.dataplaneConfig.Proxy.NodeName = strReference("proxy-node-name")
+				opts.dataplaneConfig.Proxy.NodeID = strReference("proxy-node-id")
+				opts.dataplaneConfig.Proxy.Namespace = strReference("foo")
+				opts.dataplaneConfig.Proxy.Partition = strReference("bar")
+
+				opts.dataplaneConfig.XDSServer.BindPort = intReference(6060)
+				return opts, nil
+			},
+			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
+				return &consuldp.Config{
+					Consul: &consuldp.ConsulConfig{
+						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
+						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
+						ServerWatchDisabled: true,
+						Credentials: &consuldp.CredentialsConfig{
+							Type: "static",
+							Static: consuldp.StaticCredentialsConfig{
+								Token: "test-token-123",
+							},
+							Login: consuldp.LoginCredentialsConfig{
+								AuthMethod:  "test-iam-auth",
+								BearerToken: "bearer-login",
+							},
+						},
+						TLS: &consuldp.TLSConfig{
+							Disabled:           false,
+							CACertsPath:        "/consul/",
+							CertFile:           "ca-cert.pem",
+							KeyFile:            "key.pem",
+							ServerName:         "tls-server-name",
+							InsecureSkipVerify: true,
+						},
+					},
+					Proxy: &consuldp.ProxyConfig{
+						NodeName:  "proxy-node-name",
+						NodeID:    "proxy-node-id",
+						Namespace: "foo",
+						ProxyID:   "proxy-id",
+						Partition: "bar",
+					},
+					Logging: &consuldp.LoggingConfig{
+						Name:     DefaultLogName,
+						LogJSON:  true,
+						LogLevel: "WARN",
+					},
+					DNSServer: &consuldp.DNSServerConfig{
+						BindAddr: "127.0.0.1",
+						Port:     8604,
+					},
+					XDSServer: &consuldp.XDSServer{
+						BindAddress: "127.0.1.0",
+						BindPort:    6060,
+					},
+					Envoy: &consuldp.EnvoyConfig{
+						AdminBindAddress:              "127.0.1.0",
+						AdminBindPort:                 18000,
+						ReadyBindAddress:              "127.0.1.0",
+						ReadyBindPort:                 18003,
+						EnvoyConcurrency:              4,
+						EnvoyDrainStrategy:            "test-strategy",
+						ShutdownDrainListenersEnabled: true,
+						GracefulShutdownPath:          "/graceful_shutdown",
+						GracefulStartupPath:           "/graceful_startup",
+						EnvoyDrainTimeSeconds:         30,
+						GracefulPort:                  20300,
+					},
+					Telemetry: &consuldp.TelemetryConfig{
+						UseCentralConfig: true,
+						Prometheus: consuldp.PrometheusTelemetryConfig{
+							RetentionTime: 10 * time.Second,
+							ScrapePath:    "/metrics",
+							MergePort:     12000,
+							CACertsPath:   "/consul/",
+							CertFile:      "prom-ca-cert.pem",
+							KeyFile:       "prom-key.pem",
+						},
+					},
+				}
+			},
+			wantErr: false,
+		},
+		{
 			desc: "able to generate config properly when config file is given without flag inputs",
 			flagOpts: func() (*FlagOpts, error) {
 				opts := &FlagOpts{}
@@ -484,7 +576,7 @@ func TestConfigGeneration(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			desc: "test whether CLI flag values override the file values",
+			desc: "test whether CLI flag values override the file values with service flags",
 			flagOpts: func() (*FlagOpts, error) {
 				opts, err := generateFlagOptsWithServiceFlags()
 				if err != nil {
@@ -610,6 +702,133 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			desc: "test whether CLI flag values override the file values with proxy flags",
+			flagOpts: func() (*FlagOpts, error) {
+				opts, err := generateFlagOptsWithProxyFlags()
+				if err != nil {
+					return nil, err
+				}
+				opts.configFile = "test.json"
+
+				opts.dataplaneConfig.Logging.LogLevel = strReference("info")
+				opts.dataplaneConfig.Logging.LogJSON = boolReference(false)
+				opts.dataplaneConfig.Consul.Credentials.Login.Meta = map[string]string{
+					"key1": "value1",
+				}
+
+				return opts, nil
+			},
+			writeConfigFile: func(t *testing.T) error {
+				inputJson := `{
+					"consul": {
+					  "addresses": "consul_server.dc1",
+					  "grpcPort": 8502,
+					  "serverWatchDisabled": false
+					},
+					"proxy": {
+					  "nodeName": "test-node-1",
+					  "proxyId": "frontend-service-sidecar-proxy",
+					  "namespace": "default",
+					  "partition": "default"
+					},
+					"envoy": {
+					  "adminBindAddress": "127.0.0.1",
+					  "adminBindPort": 19000
+					},
+					"logging": {
+					  "logLevel": "warn",
+					  "logJSON": true
+					}
+				  }`
+
+				err := os.WriteFile("test.json", []byte(inputJson), 0600)
+				if err != nil {
+					return err
+				}
+
+				t.Cleanup(func() {
+					_ = os.Remove("test.json")
+				})
+				return nil
+			},
+			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
+				return &consuldp.Config{
+					Consul: &consuldp.ConsulConfig{
+						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
+						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
+						ServerWatchDisabled: true,
+						Credentials: &consuldp.CredentialsConfig{
+							Type: "static",
+							Static: consuldp.StaticCredentialsConfig{
+								Token: "test-token-123",
+							},
+							Login: consuldp.LoginCredentialsConfig{
+								AuthMethod:  "test-iam-auth",
+								BearerToken: "bearer-login",
+								Meta: map[string]string{
+									"key1": "value1",
+								},
+							},
+						},
+						TLS: &consuldp.TLSConfig{
+							Disabled:           false,
+							CACertsPath:        "/consul/",
+							CertFile:           "ca-cert.pem",
+							KeyFile:            "key.pem",
+							ServerName:         "tls-server-name",
+							InsecureSkipVerify: true,
+						},
+					},
+					Proxy: &consuldp.ProxyConfig{
+						NodeName:  "test-node-dc1",
+						NodeID:    "dc1.node.id",
+						Namespace: "default",
+						ProxyID:   "node1.service1",
+						Partition: "default",
+					},
+					Logging: &consuldp.LoggingConfig{
+						Name:     DefaultLogName,
+						LogJSON:  false,
+						LogLevel: "INFO",
+					},
+					DNSServer: &consuldp.DNSServerConfig{
+						BindAddr: "127.0.0.1",
+						Port:     8604,
+					},
+					XDSServer: &consuldp.XDSServer{
+						BindAddress: "127.0.1.0",
+						BindPort:    0,
+					},
+					Envoy: &consuldp.EnvoyConfig{
+						AdminBindAddress:              "127.0.1.0",
+						AdminBindPort:                 18000,
+						ReadyBindAddress:              "127.0.1.0",
+						ReadyBindPort:                 18003,
+						EnvoyConcurrency:              4,
+						EnvoyDrainStrategy:            "test-strategy",
+						ShutdownDrainListenersEnabled: true,
+						GracefulShutdownPath:          "/graceful_shutdown",
+						GracefulStartupPath:           "/graceful_startup",
+						EnvoyDrainTimeSeconds:         30,
+						GracefulPort:                  20300,
+						DumpEnvoyConfigOnExitEnabled:  false,
+					},
+					Telemetry: &consuldp.TelemetryConfig{
+						UseCentralConfig: true,
+						Prometheus: consuldp.PrometheusTelemetryConfig{
+							RetentionTime: 10 * time.Second,
+							ScrapePath:    "/metrics",
+							MergePort:     12000,
+							CACertsPath:   "/consul/",
+							CertFile:      "prom-ca-cert.pem",
+							KeyFile:       "prom-key.pem",
+						},
+					},
+				}
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -627,7 +846,8 @@ func TestConfigGeneration(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tc.makeExpectedCfg(opts), cfg)
+				expCfg := tc.makeExpectedCfg(opts)
+				require.Equal(t, expCfg, cfg)
 			}
 		})
 	}

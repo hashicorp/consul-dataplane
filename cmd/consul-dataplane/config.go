@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"dario.cat/mergo"
+
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 )
 
@@ -77,13 +78,13 @@ type ServiceFlags struct {
 	Partition     *string `json:"partition,omitempty"`
 }
 
-func (sf ServiceFlags) IsEmpty() bool {
-	return sf.NodeName == nil &&
-		sf.NodeID == nil &&
-		sf.ServiceID == nil &&
-		sf.ServiceIDPath == nil &&
-		sf.Namespace == nil &&
-		sf.Partition == nil
+func (pf ProxyFlags) IsEmpty() bool {
+	return pf.NodeName == nil &&
+		pf.NodeID == nil &&
+		pf.ID == nil &&
+		pf.IDPath == nil &&
+		pf.Namespace == nil &&
+		pf.Partition == nil
 }
 
 type ProxyFlags struct {
@@ -268,21 +269,21 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*consuldp.Config, error) {
 	// Handle deprecated service flags.
 	var proxyCfg consuldp.ProxyConfig
-	if !cfg.Service.IsEmpty() {
-		proxyCfg = consuldp.ProxyConfig{
-			NodeName:  stringVal(cfg.Service.NodeName),
-			NodeID:    stringVal(cfg.Service.NodeID),
-			ProxyID:   stringVal(cfg.Service.ServiceID),
-			Namespace: stringVal(cfg.Service.Namespace),
-			Partition: stringVal(cfg.Service.Partition),
-		}
-	} else {
+	if !cfg.Proxy.IsEmpty() {
 		proxyCfg = consuldp.ProxyConfig{
 			NodeName:  stringVal(cfg.Proxy.NodeName),
 			NodeID:    stringVal(cfg.Proxy.NodeID),
 			ProxyID:   stringVal(cfg.Proxy.ID),
 			Namespace: stringVal(cfg.Proxy.Namespace),
 			Partition: stringVal(cfg.Proxy.Partition),
+		}
+	} else {
+		proxyCfg = consuldp.ProxyConfig{
+			NodeName:  stringVal(cfg.Service.NodeName),
+			NodeID:    stringVal(cfg.Service.NodeID),
+			ProxyID:   stringVal(cfg.Service.ServiceID),
+			Namespace: stringVal(cfg.Service.Namespace),
+			Partition: stringVal(cfg.Service.Partition),
 		}
 	}
 
