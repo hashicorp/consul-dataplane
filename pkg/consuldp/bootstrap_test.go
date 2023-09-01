@@ -68,8 +68,8 @@ func TestBootstrapConfig(t *testing.T) {
 				AccessLogs: []string{"{\"name\":\"Consul Listener Filter Log\",\"typedConfig\":{\"@type\":\"type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog\",\"logFormat\":{\"jsonFormat\":{\"custom_field\":\"%START_TIME%\"}}}}"},
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
-				ClusterName: "web",
-				NodeName:    nodeName,
+				Identity: "web",
+				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
 					DogstatsdUrl: "this-should-not-appear-in-generated-config",
 				},
@@ -99,8 +99,8 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
-				ClusterName: "web",
-				NodeName:    nodeName,
+				Identity: "web",
+				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
 					DogstatsdUrl: "this-should-not-appear-in-generated-config",
 				},
@@ -129,8 +129,8 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
-				ClusterName: "web",
-				NodeName:    nodeName,
+				Identity: "web",
+				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
 					DogstatsdUrl: "udp://127.0.0.1:9125",
 				},
@@ -161,9 +161,9 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
-				ClusterName: "web",
-				Namespace:   "default",
-				NodeName:    nodeName,
+				Identity:  "web",
+				Namespace: "default",
+				NodeName:  nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
 					TelemetryCollectorBindSocketDir: "/tmp/consul/hcp-metrics",
 				},
@@ -196,8 +196,8 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
-				ClusterName: "web",
-				NodeName:    nodeName,
+				Identity: "web",
+				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
 					PrometheusBindAddr: "0.0.0.0:20200",
 				},
@@ -225,8 +225,8 @@ func TestBootstrapConfig(t *testing.T) {
 				NodeName: nodeName,
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
-				ClusterName: "web",
-				NodeName:    nodeName,
+				Identity: "web",
+				NodeName: nodeName,
 			},
 		},
 		"unix-socket-xds-server": {
@@ -252,8 +252,8 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 			},
 			&pbdataplane.GetEnvoyBootstrapParamsResponse{
-				ClusterName: "web",
-				NodeName:    nodeName,
+				Identity: "web",
+				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
 					DogstatsdUrl: "this-should-not-appear-in-generated-config",
 				},

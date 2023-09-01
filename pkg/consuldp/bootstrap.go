@@ -11,10 +11,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	pbmesh "github.com/hashicorp/consul/proto-public/pbmesh/v1alpha1"
 	"github.com/mitchellh/mapstructure"
+
+	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
 )
 
 const (
@@ -77,9 +78,9 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		PrometheusScrapePath:  prom.ScrapePath,
 	}
 
-	if rsp.ClusterName != "" {
-		args.ProxyCluster = rsp.ClusterName
-		args.ProxySourceService = rsp.ClusterName
+	if rsp.Identity != "" {
+		args.ProxyCluster = rsp.Identity
+		args.ProxySourceService = rsp.Identity
 	}
 
 	if cdp.xdsServer.listenerNetwork == "unix" {
