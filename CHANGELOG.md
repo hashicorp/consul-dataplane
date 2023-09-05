@@ -1,4 +1,4 @@
-## 1.2.2 (August 29, 2023)
+## 1.2.2 (September 5, 2023)
 
 SECURITY:
 
