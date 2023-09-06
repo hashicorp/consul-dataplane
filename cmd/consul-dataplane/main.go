@@ -43,12 +43,35 @@ func init() {
 
 	BoolVar(flags, &flagOpts.dataplaneConfig.Logging.LogJSON, "log-json", "DP_LOG_JSON", "Enables log messages in JSON format.")
 
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeName, "service-node-name", "DP_SERVICE_NODE_NAME", "The name of the Consul node to which the proxy service instance is registered.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeID, "service-node-id", "DP_SERVICE_NODE_ID", "The ID of the Consul node to which the proxy service instance is registered.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.ServiceID, "proxy-service-id", "DP_PROXY_SERVICE_ID", "The proxy service instance's ID.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.ServiceIDPath, "proxy-service-id-path", "DP_PROXY_SERVICE_ID_PATH", "The path to a file containing the proxy service instance's ID.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.Namespace, "service-namespace", "DP_SERVICE_NAMESPACE", "The Consul Enterprise namespace in which the proxy service instance is registered.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.Partition, "service-partition", "DP_SERVICE_PARTITION", "The Consul Enterprise partition in which the proxy service instance is registered.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeName, "service-node-name", "DP_SERVICE_NODE_NAME",
+		"[Deprecated; use -proxy-node-name instead] The name of the Consul node to which the proxy service instance is registered.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeID, "service-node-id", "DP_SERVICE_NODE_ID",
+		"[Deprecated; use -proxy-node-id instead] The ID of the Consul node to which the proxy service instance is registered.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Service.ServiceID, "proxy-service-id", "DP_PROXY_SERVICE_ID",
+		"[Deprecated; use -proxy-id instead] The proxy service instance's ID.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Service.ServiceIDPath, "proxy-service-id-path", "DP_PROXY_SERVICE_ID_PATH",
+		"[Deprecated; use -proxy-id-path instead] The path to a file containing the proxy service instance's ID.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Service.Namespace, "service-namespace", "DP_SERVICE_NAMESPACE",
+		"[Deprecated; use -proxy-namespace instead] The Consul Enterprise namespace in which the proxy service instance is registered.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Service.Partition, "service-partition", "DP_SERVICE_PARTITION",
+		"[Deprecated; use -proxy-partition instead] The Consul Enterprise partition in which the proxy service instance is registered.")
+
+	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.NodeName, "proxy-node-name", "DP_PROXY_NODE_NAME",
+		"The name of the Consul node to which the proxy service instance is registered."+
+			"In Consul's V2 Catalog API, this value is ignored.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.NodeID, "proxy-node-id", "DP_PROXY_NODE_ID",
+		"The ID of the Consul node to which the proxy service instance is registered."+
+			"In Consul's V2 Catalog API, this value is ignored.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.ID, "proxy-id", "DP_PROXY_ID",
+		"In Consul's V1 Catalog API, the proxy service instance's ID."+
+			"In Consul's V2 Catalog API, the workload ID associated with the proxy.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.IDPath, "proxy-id-path", "DP_PROXY_ID_PATH",
+		"In Consul's V1 Catalog API, the path to a file containing the proxy service instance's ID."+
+			"In Consul's V2 Catalog API, the path to a file containing the workload ID associated with the proxy.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.Namespace, "proxy-namespace", "DP_PROXY_NAMESPACE",
+		"The Consul Enterprise namespace in which the proxy service instance (V1 API) or workload (V2 API) is registered.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.Partition, "proxy-partition", "DP_PROXY_PARTITION",
+		"The Consul Enterprise partition in which the proxy service instance (V1 API) or workload (V2 API) is registered.")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Credentials.Type, "credential-type", "DP_CREDENTIAL_TYPE", "The type of credentials, either static or login, used to authenticate with Consul servers.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Credentials.Static.Token, "static-token", "DP_CREDENTIAL_STATIC_TOKEN", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
@@ -135,6 +158,7 @@ func run() error {
 	}
 
 	readServiceIDFromFile()
+	readProxyIDFromFile()
 	validateFlags()
 
 	consuldpCfg, err := flagOpts.buildDataplaneConfig(flags.Args())
@@ -186,5 +210,24 @@ func readServiceIDFromFile() {
 		}
 		s := string(id)
 		flagOpts.dataplaneConfig.Service.ServiceID = &s
+	}
+}
+
+// readProxyIDFromFile reads the proxy ID from the file specified by the
+// -proxy-id-path flag.
+//
+// We do this here, rather than in the consuldp package's config handling,
+// because this option only really makes sense as a CLI flag (and we handle
+// all flag parsing here).
+func readProxyIDFromFile() {
+	if flagOpts.dataplaneConfig.Proxy.ID == nil &&
+		flagOpts.dataplaneConfig.Proxy.IDPath != nil &&
+		*flagOpts.dataplaneConfig.Proxy.IDPath != "" {
+		id, err := os.ReadFile(*flagOpts.dataplaneConfig.Proxy.IDPath)
+		if err != nil {
+			log.Fatalf("failed to read given -proxy-id-path: %v", err)
+		}
+		s := string(id)
+		flagOpts.dataplaneConfig.Proxy.ID = &s
 	}
 }

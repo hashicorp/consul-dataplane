@@ -209,21 +209,21 @@ type LoggingConfig struct {
 	LogJSON bool
 }
 
-// ServiceConfig contains details of the proxy service instance.
-type ServiceConfig struct {
+// ProxyConfig contains details of the proxy service instance.
+type ProxyConfig struct {
 	// NodeName is the name of the node to which the proxy service instance is
-	// registered.
+	// registered. Ignored in Consul Catalog V2.
 	NodeName string
 	// NodeName is the ID of the node to which the proxy service instance is
-	// registered.
+	// registered. Ignored in Consul Catalog V2.
 	NodeID string
-	// ServiceID is the ID of the proxy service instance.
-	ServiceID string
+	// ProxyID is the ID of the proxy service instance or workload.
+	ProxyID string
 	// Namespace is the Consul Enterprise namespace in which the proxy service
-	// instance is registered.
+	// instance or workload is registered.
 	Namespace string
 	// Partition is the Consul Enterprise partition in which the proxy service
-	// instance is registered.
+	// instance or workload is registered.
 	Partition string
 }
 
@@ -318,7 +318,7 @@ type XDSServer struct {
 type Config struct {
 	DNSServer *DNSServerConfig
 	Consul    *ConsulConfig
-	Service   *ServiceConfig
+	Proxy     *ProxyConfig
 	Logging   *LoggingConfig
 	Telemetry *TelemetryConfig
 	Envoy     *EnvoyConfig
