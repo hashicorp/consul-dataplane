@@ -156,7 +156,7 @@ func validateFlags() {
 
 func run() error {
 	// Shift arguments by one if subcommand is the first argument.
-	subcommand := os.Args[1]
+	subcommand := "graceful-startup" //os.Args[1]
 	var arguments []string
 	switch subcommand {
 	case "graceful-startup":
@@ -164,6 +164,8 @@ func run() error {
 	default:
 		arguments = os.Args[1:]
 	}
+
+	fmt.Println("arguments", arguments)
 
 	err := flags.Parse(arguments)
 	if err != nil {
@@ -184,6 +186,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println(consuldpCfg.Envoy)
 
 	if subcommand == "graceful-startup" {
 		fmt.Println("graceful port is :", consuldpCfg.Envoy.GracefulPort)
