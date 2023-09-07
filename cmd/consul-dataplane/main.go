@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
@@ -156,7 +155,17 @@ func validateFlags() {
 }
 
 func run() error {
-	err := flags.Parse(os.Args[1:])
+	// Shift arguments by one if subcommand is the first argument.
+	subcommand := os.Args[1]
+	var arguments []string
+	switch subcommand {
+	case "graceful-startup":
+		arguments = os.Args[2:]
+	default:
+		arguments = os.Args[1:]
+	}
+
+	err := flags.Parse(arguments)
 	if err != nil {
 		return err
 	}
@@ -167,14 +176,6 @@ func run() error {
 		return nil
 	}
 
-	fmt.Printf("%+v\n", flagOpts)
-
-	if flagOpts.dataplaneConfig.IsUp != nil && *flagOpts.dataplaneConfig.IsUp {
-		fmt.Println("Running the wait for startup")
-		time.Sleep(20 * time.Second)
-		return nil
-	}
-
 	readServiceIDFromFile()
 	readProxyIDFromFile()
 	validateFlags()
@@ -182,6 +183,12 @@ func run() error {
 	consuldpCfg, err := flagOpts.buildDataplaneConfig(flags.Args())
 	if err != nil {
 		return err
+	}
+
+	if subcommand == "graceful-startup" {
+		fmt.Println("graceful port is :", consuldpCfg.Envoy.GracefulPort)
+		log.Default().Printf(fmt.Sprintf("graceful port is: %d", consuldpCfg.Envoy.GracefulPort))
+		return RunGracefulStartup(consuldpCfg.Envoy.GracefulStartupPath, consuldpCfg.Envoy.GracefulPort)
 	}
 
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)

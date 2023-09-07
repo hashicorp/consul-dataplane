@@ -213,6 +213,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
 	err = cdp.lifecycleConfig.startLifecycleManager(ctx)
 	if err != nil {
+		cdp.logger.Error("failed to start lifecycle manager", "error", err)
 		return err
 	}
 
@@ -311,6 +312,7 @@ func (cdp *ConsulDataplane) GracefulShutdown(cancel context.CancelFunc) {
 	// If proxy lifecycle manager has not been initialized, cancel parent context and
 	// proceed to exit rather than attempting graceful shutdown
 	if cdp.lifecycleConfig != nil {
+		cdp.logger.Error("lifecycle config not initialized", "error")
 		cdp.lifecycleConfig.gracefulShutdown()
 	} else {
 		cancel()
