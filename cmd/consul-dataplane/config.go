@@ -27,9 +27,6 @@ type DataplaneConfigFlags struct {
 	DNSServer DNSServerFlags `json:"dnsServer,omitempty"`
 	Telemetry TelemetryFlags `json:"telemetry,omitempty"`
 	Envoy     EnvoyFlags     `json:"envoy,omitempty"`
-
-	// TODO this should be a subcommand, not a janky flag
-	IsUp *bool `json:"isup,omitempty"`
 }
 
 type ConsulFlags struct {
@@ -124,9 +121,9 @@ type EnvoyFlags struct {
 	GracefulShutdownPath          *string `json:"gracefulShutdownPath,omitempty"`
 	GracefulPort                  *int    `json:"gracefulPort,omitempty"`
 	DumpEnvoyConfigOnExitEnabled  *bool   `json:"dumpEnvoyConfigOnExitEnabled,omitempty"`
-	//Time in seconds to wait for dataplane to be ready.
+	// Time in seconds to wait for dataplane to be ready.
 	StartupGracePeriodSeconds *int `json:"startupGracePeriodSeconds,omitempty"`
-	//Endpoint for graceful startup function.
+	// Path where the Graceful Startup can be called.
 	GracefulStartupPath *string `json:"gracefulStartupPath,omitempty"`
 }
 
@@ -223,7 +220,7 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			"shutdownDrainListenersEnabled": false,
 			"shutdownGracePeriodSeconds": 0,
 			"gracefulShutdownPath": "/graceful_shutdown",
-			"gracefulPort": 20300,
+			"gracefulPort": 20600,
 			"dumpEnvoyConfigOnExitEnabled": false,
 			"gracefulStartupPath": "/graceful_startup",
 			"startupGracePeriodSeconds": 0

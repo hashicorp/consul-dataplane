@@ -43,9 +43,6 @@ func init() {
 
 	BoolVar(flags, &flagOpts.dataplaneConfig.Logging.LogJSON, "log-json", "DP_LOG_JSON", "Enables log messages in JSON format.")
 
-	// TODO this should be a subcommand, not a janky flag
-	BoolVar(flags, &flagOpts.dataplaneConfig.IsUp, "isup", "IS_UP", "asdfasdfasdf")
-
 	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeName, "service-node-name", "DP_SERVICE_NODE_NAME", "The name of the Consul node to which the proxy service instance is registered.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeID, "service-node-id", "DP_SERVICE_NODE_ID", "The ID of the Consul node to which the proxy service instance is registered.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Service.ServiceID, "proxy-service-id", "DP_PROXY_SERVICE_ID", "The proxy service instance's ID.")
@@ -127,7 +124,7 @@ func validateFlags() {
 
 func run() error {
 	// Shift arguments by one if subcommand is the first argument.
-	subcommand := os.Args[1]
+	subcommand := "graceful-startup" //os.Args[1]
 	var arguments []string
 	switch subcommand {
 	case "graceful-startup":
@@ -135,6 +132,8 @@ func run() error {
 	default:
 		arguments = os.Args[1:]
 	}
+
+	fmt.Println("arguments", arguments)
 
 	err := flags.Parse(arguments)
 	if err != nil {
@@ -154,6 +153,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println(consuldpCfg.Envoy)
 
 	if subcommand == "graceful-startup" {
 		fmt.Println("graceful port is :", consuldpCfg.Envoy.GracefulPort)
