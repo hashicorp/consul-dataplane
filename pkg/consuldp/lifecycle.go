@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -20,7 +19,7 @@ import (
 const (
 	// defaultLifecycleBindPort is the port which will serve the proxy lifecycle HTTP
 	// endpoints on the loopback interface.
-	defaultLifecycleBindPort = "20300"
+	defaultLifecycleBindPort = "20600"
 	cdpLifecycleBindAddr     = "127.0.0.1"
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 
@@ -52,6 +51,8 @@ type lifecycleConfig struct {
 	errorExitCh chan struct{}
 	running     bool
 	mu          sync.Mutex
+
+	gracefulTimeoutReached bool
 }
 
 func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig {
@@ -107,7 +108,10 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 
 	// Start the proxy lifecycle management server
 	go m.startLifecycleServer()
-
+	go func() {
+		time.Sleep(time.Duration(m.startupGracePeriodSeconds) * time.Second)
+		m.gracefulTimeoutReached = true
+	}()
 	return nil
 }
 
@@ -119,6 +123,10 @@ func (m *lifecycleConfig) startLifecycleServer() {
 	if err != nil && err != http.ErrServerClosed {
 		m.logger.Error("failed to serve proxy lifecycle management requests", "error", err)
 		close(m.errorExitCh)
+	} else {
+		if err != nil {
+			m.logger.Error("failed to start lifecycle management server", "error", err)
+		}
 	}
 }
 
@@ -212,40 +220,28 @@ func (m *lifecycleConfig) gracefulShutdown() {
 func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http.Request) {
 	//Unlike in gracefulShutdown, we want to delay the OK response until envoy is ready
 	//in order to block application container.
-	m.gracefulStartup()
-	rw.WriteHeader(http.StatusOK)
+	m.logger.Info("request received to startup handler")
+	rw.WriteHeader(m.gracefulStartup())
 }
 
 // gracefulStartup blocks until the startup grace period has elapsed or we have confirmed that
 // Envoy proxy is ready.
-func (m *lifecycleConfig) gracefulStartup() {
+func (m *lifecycleConfig) gracefulStartup() int {
+	m.logger.Info("graceful startup called")
 	if m.startupGracePeriodSeconds == 0 {
-		return
+		return http.StatusOK
+	}
+	if m.gracefulTimeoutReached {
+		return http.StatusOK
+	}
+	if ready, err := m.proxy.Ready(); ready && err == nil {
+		return http.StatusOK
+	} else if err != nil {
+		return 500
+	} else {
+		return 503
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(m.startupGracePeriodSeconds)*time.Second)
-	defer cancel()
-
-	var ready atomic.Bool
-	go func() {
-		for ctx.Err() == nil {
-			r, err := m.proxy.Ready()
-			if err != nil {
-				m.logger.Info(fmt.Sprintf("error when querying proxy readiness, %s", err.Error()))
-			}
-			if r {
-				ready.Store(true)
-				cancel()
-				break
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-	}()
-
-	<-ctx.Done()
-	if !ready.Load() {
-		m.logger.Warn("grace period elapsed before proxy ready")
-	}
 }
 
 func (m *lifecycleConfig) shutdownPath() string {
