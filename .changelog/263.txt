@@ -1,0 +1,3 @@
+```release-note:update
+Have consul dataplane use Hashicorp-published Envoy
+```
