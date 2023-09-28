@@ -336,9 +336,9 @@ jobs:
           - version: v1.17.0-dev
             image: hashicorppreview/consul:1.17-dev
         dataplane:
-          - image_suffix: "dev"
+          - image_suffix: ""
             docker_target: "release-default"
-          - image_suffix: "dev-ubi"
+          - image_suffix: "ubi"
             docker_target: "release-ubi"
     env:
       repo: ${{ github.event.repository.name }}
