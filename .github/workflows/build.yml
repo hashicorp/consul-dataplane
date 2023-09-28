@@ -338,7 +338,7 @@ jobs:
         dataplane:
           - image_suffix: ""
             docker_target: "release-default"
-          - image_suffix: "ubi"
+          - image_suffix: "-ubi"
             docker_target: "release-ubi"
     env:
       repo: ${{ github.event.repository.name }}
@@ -347,7 +347,7 @@ jobs:
       - name: Set docker dev tag
         run: |
           version="${{ env.version }}"
-          echo "dev_tag=${{ env.version }}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
+          echo "dev_tag=${{ env.version }}${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
 
       - name: Set image tarball
         run: |
