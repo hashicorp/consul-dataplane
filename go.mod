@@ -2,12 +2,15 @@ module github.com/hashicorp/consul-dataplane
 
 go 1.20
 
+// This replace directive is needed because `api` requires 0.4.1 of proto-public but we need an unreleased version
+replace github.com/hashicorp/consul/proto-public v0.4.1 => github.com/hashicorp/consul/proto-public v0.1.2-0.20230929231147-632fd65c091c
+
 require (
 	dario.cat/mergo v1.0.0
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/armon/go-metrics v0.4.1
 	github.com/hashicorp/consul-server-connection-manager v0.1.3
-	github.com/hashicorp/consul/proto-public v0.1.2-0.20230905183425-7549c48596bd
+	github.com/hashicorp/consul/proto-public v0.4.1
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
@@ -40,9 +43,10 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/net v0.13.0 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/sys v0.10.0 // indirect
+	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
