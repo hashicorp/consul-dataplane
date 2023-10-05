@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
-	pbmesh "github.com/hashicorp/consul/proto-public/pbmesh/v1alpha1"
+	pbmesh "github.com/hashicorp/consul/proto-public/pbmesh/v2beta1"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
@@ -127,7 +127,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	}
 
 	// Note: we pass true for omitDeprecatedTags here - consul-dataplane is clean
-	// slate and we don't need to maintain this legacy behavior.
+	// slate, and we don't need to maintain this legacy behavior.
 	cfg, err := bootstrapConfig.GenerateJSON(args, true)
 	return &bootstrapConfig, cfg, err
 }
