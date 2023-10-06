@@ -14,7 +14,6 @@ project "consul-dataplane" {
     release_branches = [
       "main",
       "release/**",
-      "crt-move-to-prepare-workflow",
     ]
   }
 }
