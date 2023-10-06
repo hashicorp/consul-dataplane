@@ -22,9 +22,9 @@ func validConfig() *Config {
 				},
 			},
 		},
-		Proxy: &ProxyConfig{
-			NodeName: "agentless-node",
-			ProxyID:  "web-proxy",
+		Service: &ServiceConfig{
+			NodeName:  "agentless-node",
+			ServiceID: "web-proxy",
 		},
 		Logging: &LoggingConfig{
 			LogLevel: "INFO",
@@ -88,14 +88,30 @@ func TestNewConsulDPError(t *testing.T) {
 			expectErr: "consul server gRPC port not specified",
 		},
 		{
-			name:      "missing proxy config",
-			modFn:     func(c *Config) { c.Proxy = nil },
-			expectErr: "proxy details not specified",
+			name:      "missing service config",
+			modFn:     func(c *Config) { c.Service = nil },
+			expectErr: "service details not specified",
 		},
 		{
-			name:      "missing proxy id",
-			modFn:     func(c *Config) { c.Proxy.ProxyID = "" },
-			expectErr: "proxy ID not specified",
+			name: "missing node details",
+			modFn: func(c *Config) {
+				c.Service.NodeName = ""
+				c.Service.NodeID = ""
+			},
+			expectErr: "node name or ID not specified",
+		},
+		{
+			name: "missing node details",
+			modFn: func(c *Config) {
+				c.Service.NodeName = ""
+				c.Service.NodeID = ""
+			},
+			expectErr: "node name or ID not specified",
+		},
+		{
+			name:      "missing service id",
+			modFn:     func(c *Config) { c.Service.ServiceID = "" },
+			expectErr: "proxy service ID not specified",
 		},
 		{
 			name:      "missing envoy config",

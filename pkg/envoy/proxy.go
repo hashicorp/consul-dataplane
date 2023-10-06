@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -39,8 +40,6 @@ type ProxyManager interface {
 	Drain() error
 	Quit() error
 	Kill() error
-	DumpConfig() error
-	Ready() (bool, error)
 }
 
 // Proxy manages an Envoy proxy process.
@@ -151,7 +150,9 @@ func (p *Proxy) Run(ctx context.Context) error {
 	// Start Envoy in its own process group to avoid directly receiving
 	// SIGTERM intended for consul-dataplane, let proxy manager handle
 	// graceful shutdown if configured.
-	p.cmd.SysProcAttr = getProcessAttr()
+	p.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
 
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
@@ -210,7 +211,10 @@ func (p *Proxy) Quit() error {
 	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", p.cfg.AdminAddr, p.cfg.AdminBindPort)
 
 	switch p.getState() {
-	case stateExited, stateStopped:
+	case stateExited:
+		// Nothing to do!
+		return nil
+	case stateStopped:
 		// Nothing to do!
 		return nil
 	case stateDraining:
@@ -260,45 +264,6 @@ func (p *Proxy) Kill() error {
 	default:
 		return errors.New("proxy must be running to be killed")
 	}
-}
-
-// Dump Envoy config to disk.
-func (p *Proxy) DumpConfig() error {
-	switch p.getState() {
-	case stateExited:
-		return errors.New("proxy must be running to dump config")
-	case stateStopped:
-		return errors.New("proxy must be running to dump config")
-	case stateDraining:
-		return p.dumpConfig()
-	case stateRunning:
-		return p.dumpConfig()
-	default:
-		return errors.New("proxy must be running to dump config")
-	}
-}
-
-func (p *Proxy) dumpConfig() error {
-	envoyConfigDumpUrl := fmt.Sprintf("http://%s:%v/config_dump?include_eds", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-
-	rsp, err := p.client.Get(envoyConfigDumpUrl)
-	if err != nil {
-		p.cfg.Logger.Error("envoy: failed to dump config", "error", err)
-		return err
-	}
-	defer rsp.Body.Close()
-
-	config, err := io.ReadAll(rsp.Body)
-	if err != nil {
-		p.cfg.Logger.Error("envoy: failed to dump config", "error", err)
-		return err
-	}
-
-	if _, err := p.cfg.EnvoyOutputStream.Write(config); err != nil {
-		p.cfg.Logger.Error("envoy: failed to write config to output stream", "error", err)
-	}
-
-	return err
 }
 
 // Exited returns a channel that is closed when the Envoy process exits. It can
@@ -380,26 +345,4 @@ func removeArgAndGetValue(stringAr []string, key string) ([]string, string) {
 		}
 	}
 	return stringAr, ""
-}
-
-func (p *Proxy) Ready() (bool, error) {
-
-	switch p.getState() {
-	case stateExited, stateStopped, stateDraining:
-		// Nothing to do!
-		return false, nil
-	case stateRunning, stateInitial:
-		// Query ready endpoint to check if proxy is Ready
-		envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-		rsp, err := p.client.Get(envoyReadyURL)
-		defer rsp.Body.Close()
-		if err != nil {
-			p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
-			return false, err
-		}
-		return rsp.StatusCode == 200, nil
-	default:
-		return false, nil
-	}
-
 }

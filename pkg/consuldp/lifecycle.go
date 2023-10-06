@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -25,7 +24,6 @@ const (
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 
 	defaultLifecycleShutdownPath = "/graceful_shutdown"
-	defaultLifecycleStartupPath  = "/graceful_startup"
 )
 
 // lifecycleConfig handles all configuration related to managing the Envoy proxy
@@ -38,9 +36,8 @@ type lifecycleConfig struct {
 	shutdownGracePeriodSeconds    int
 	gracefulPort                  int
 	gracefulShutdownPath          string
-	startupGracePeriodSeconds     int
-	gracefulStartupPath           string
-	dumpEnvoyConfigOnExitEnabled  bool
+
+	dumpEnvoyConfigOnExitEnabled bool
 
 	// manager for controlling the Envoy proxy process
 	proxy envoy.ProxyManager
@@ -61,9 +58,8 @@ func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig 
 		gracefulPort:                  cfg.Envoy.GracefulPort,
 		gracefulShutdownPath:          cfg.Envoy.GracefulShutdownPath,
 		dumpEnvoyConfigOnExitEnabled:  cfg.Envoy.DumpEnvoyConfigOnExitEnabled,
-		startupGracePeriodSeconds:     cfg.Envoy.StartupGracePeriodSeconds,
-		gracefulStartupPath:           cfg.Envoy.GracefulStartupPath,
-		proxy:                         proxy,
+
+		proxy: proxy,
 
 		errorExitCh: make(chan struct{}, 1),
 		mu:          sync.Mutex{},
@@ -88,11 +84,18 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 	// management control
 	mux := http.NewServeMux()
 
-	m.logger.Info(fmt.Sprintf("setting graceful shutdown path: %s\n", m.shutdownPath()))
-	mux.HandleFunc(m.shutdownPath(), m.gracefulShutdownHandler)
+	// Determine what HTTP endpoint paths to configure for the proxy lifecycle
+	// management server. These can be set as flags.
+	cdpLifecycleShutdownPath := defaultLifecycleShutdownPath
+	if m.gracefulShutdownPath != "" {
+		cdpLifecycleShutdownPath = m.gracefulShutdownPath
+	}
 
-	m.logger.Info(fmt.Sprintf("setting graceful startup path: %s\n", m.startupPath()))
-	mux.HandleFunc(m.startupPath(), m.gracefulStartupHandler)
+	// Set config to allow introspection of default path for testing
+	m.gracefulShutdownPath = cdpLifecycleShutdownPath
+
+	m.logger.Info(fmt.Sprintf("setting graceful shutdown path: %s\n", cdpLifecycleShutdownPath))
+	mux.HandleFunc(cdpLifecycleShutdownPath, m.gracefulShutdownHandler)
 
 	// Determine what the proxy lifecycle management server bind port is. It can be
 	// set as a flag.
@@ -164,15 +167,6 @@ func (m *lifecycleConfig) gracefulShutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	if m.dumpEnvoyConfigOnExitEnabled {
-		m.logger.Info("dumping Envoy config to disk")
-		err := m.proxy.DumpConfig()
-		if err != nil {
-			m.logger.Warn("error while attempting to dump Envoy config to disk", "error", err)
-			close(m.errorExitCh)
-		}
-	}
-
 	m.logger.Info(fmt.Sprintf("waiting %d seconds before terminating dataplane proxy", m.shutdownGracePeriodSeconds))
 
 	var wg sync.WaitGroup
@@ -207,61 +201,4 @@ func (m *lifecycleConfig) gracefulShutdown() {
 
 	// Wait for context timeout to elapse
 	wg.Wait()
-}
-
-func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http.Request) {
-	//Unlike in gracefulShutdown, we want to delay the OK response until envoy is ready
-	//in order to block application container.
-	m.gracefulStartup()
-	rw.WriteHeader(http.StatusOK)
-}
-
-// gracefulStartup blocks until the startup grace period has elapsed or we have confirmed that
-// Envoy proxy is ready.
-func (m *lifecycleConfig) gracefulStartup() {
-	if m.startupGracePeriodSeconds == 0 {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(m.startupGracePeriodSeconds)*time.Second)
-	defer cancel()
-
-	var ready atomic.Bool
-	go func() {
-		for ctx.Err() == nil {
-			r, err := m.proxy.Ready()
-			if err != nil {
-				m.logger.Info(fmt.Sprintf("error when querying proxy readiness, %s", err.Error()))
-			}
-			if r {
-				ready.Store(true)
-				cancel()
-				break
-			}
-			time.Sleep(50 * time.Millisecond)
-		}
-	}()
-
-	<-ctx.Done()
-	if !ready.Load() {
-		m.logger.Warn("grace period elapsed before proxy ready")
-	}
-}
-
-func (m *lifecycleConfig) shutdownPath() string {
-	if m.gracefulShutdownPath == "" {
-		// Set config to allow introspection of default path for testing
-		m.gracefulShutdownPath = defaultLifecycleShutdownPath
-	}
-
-	return m.gracefulShutdownPath
-}
-
-func (m *lifecycleConfig) startupPath() string {
-	if m.gracefulStartupPath == "" {
-		// Set config to allow introspection of default path for testing
-		m.gracefulStartupPath = defaultLifecycleStartupPath
-	}
-
-	return m.gracefulStartupPath
 }

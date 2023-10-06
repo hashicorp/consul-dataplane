@@ -209,21 +209,21 @@ type LoggingConfig struct {
 	LogJSON bool
 }
 
-// ProxyConfig contains details of the proxy service instance.
-type ProxyConfig struct {
+// ServiceConfig contains details of the proxy service instance.
+type ServiceConfig struct {
 	// NodeName is the name of the node to which the proxy service instance is
-	// registered. Ignored in Consul Catalog V2.
+	// registered.
 	NodeName string
 	// NodeName is the ID of the node to which the proxy service instance is
-	// registered. Ignored in Consul Catalog V2.
+	// registered.
 	NodeID string
-	// ProxyID is the ID of the proxy service instance or workload.
-	ProxyID string
+	// ServiceID is the ID of the proxy service instance.
+	ServiceID string
 	// Namespace is the Consul Enterprise namespace in which the proxy service
-	// instance or workload is registered.
+	// instance is registered.
 	Namespace string
 	// Partition is the Consul Enterprise partition in which the proxy service
-	// instance or workload is registered.
+	// instance is registered.
 	Partition string
 }
 
@@ -291,12 +291,8 @@ type EnvoyConfig struct {
 	ShutdownDrainListenersEnabled bool
 	// ShutdownGracePeriodSeconds is the amount of time to wait after receiving a SIGTERM before terminating the proxy container.
 	ShutdownGracePeriodSeconds int
-	// GracefulShutdownPath is the path on which the HTTP endpoint to initiate a graceful shutdown of Envoy is served.
+	// GracefulShutdownPath is the path on which the HTTP endpoint to initiate a graceful shutdown of Envoy is served
 	GracefulShutdownPath string
-	// StartupGracePeriodSeconds is the amount of time to block application after startup for Envoy proxy to be ready.
-	StartupGracePeriodSeconds int
-	// GracefulStartupPath is the path where the HTTP endpoint to initiate a graceful startup of Envoy is served.
-	GracefulStartupPath string
 	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
 	GracefulPort int
 	// DumpEnvoyConfigOnExitEnabled configures whether to call Envoy's /config_dump endpoint during consul-dataplane controlled shutdown.
@@ -318,7 +314,7 @@ type XDSServer struct {
 type Config struct {
 	DNSServer *DNSServerConfig
 	Consul    *ConsulConfig
-	Proxy     *ProxyConfig
+	Service   *ServiceConfig
 	Logging   *LoggingConfig
 	Telemetry *TelemetryConfig
 	Envoy     *EnvoyConfig

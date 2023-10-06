@@ -294,6 +294,12 @@ const bootstrapTemplate = `{
       "api_type": "DELTA_GRPC",
       "transport_api_version": "V3",
       "grpc_services": {
+        "initial_metadata": [
+          {
+            "key": "x-consul-token",
+            "value": "{{ .Token }}"
+          }
+        ],
         "envoy_grpc": {
           "cluster_name": "{{ .LocalAgentClusterName }}"
         }

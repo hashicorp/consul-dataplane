@@ -80,7 +80,7 @@ func TestMain(m *testing.M) {
 //   - Running consul-datplane for each sidecar, with the "frontend" sidecar's
 //     local listener port for its "backend" upstream exposed to the host.
 //   - Creating proxy-defaults to set the default protocol to HTTP and prometheus
-//     bind address. Also set access logs on the admin interface of Envoy
+//     bind address.
 //   - Creating an L7/HTTP intention to allow "frontend" to talk to "backend".
 //   - Making an HTTP request through the "frontend" sidecar's exposed "backend"
 //     port.
@@ -88,7 +88,6 @@ func TestMain(m *testing.M) {
 //   - Attempting to make the same request and checking that it fails.
 //   - Making DNS queries against the frontend dataplane's UDP and TCP DNS proxies.
 //   - Scraping the prometheus merged metrics endpoint.
-//   - Make a call to Envoy's admin interface and check for the access logs.
 func TestIntegration(t *testing.T) {
 	suite := NewSuite(t, opts)
 
@@ -151,14 +150,13 @@ func TestIntegration(t *testing.T) {
 	RunService(t, suite, backendPod, "backend")
 
 	backendDataplane := RunDataplane(t, backendPod, suite, DataplaneConfig{
-		Addresses:                    server.Container.ContainerIP,
-		ServiceNodeName:              SyntheticNodeName,
-		ProxyServiceID:               "backend-sidecar",
-		LoginAuthMethod:              authMethod.Name,
-		LoginBearerToken:             authMethod.GenerateToken(t, "backend"),
-		DNSBindPort:                  dnsUDPPort.Port(),
-		ServiceMetricsURL:            "http://localhost:8080",
-		DumpEnvoyConfigOnExitEnabled: true,
+		Addresses:         server.Container.ContainerIP,
+		ServiceNodeName:   SyntheticNodeName,
+		ProxyServiceID:    "backend-sidecar",
+		LoginAuthMethod:   authMethod.Name,
+		LoginBearerToken:  authMethod.GenerateToken(t, "backend"),
+		DNSBindPort:       dnsUDPPort.Port(),
+		ServiceMetricsURL: "http://localhost:8080",
 	})
 
 	frontendPod := RunPod(t, suite, "frontend", []nat.Port{
@@ -282,15 +280,6 @@ func TestIntegration(t *testing.T) {
 	require.Contains(t, metrics, "envoy_server_total_connections")
 	require.Contains(t, metrics, `service_metric{service_name="backend"}`)
 
-	// Test access logs (Consul 1.15 or greater)
-	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
-		GetEnvoyClusters(t, backendPod.HostIP, backendPod.MappedPorts[EnvoyAdminPort])
-		require.Eventuallyf(t, func() bool {
-			output := backendDataplane.ContainerLogs(t)
-			return strings.Contains(output, "{\"custom_field_path\":\"/clusters\"}")
-		}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
-	}
-
 	// Overwrite deny intention and allow two-way connections to prepare for
 	// testing graceful shutdown
 	server.SetConfigEntry(t, &api.ServiceIntentionsConfigEntry{
@@ -371,4 +360,13 @@ func TestIntegration(t *testing.T) {
 		backendPod.HostIP,
 		backendPod.MappedPorts[upstreamLocalBindPort],
 	)
+
+	// Test access logs (Consul 1.15 or greater)
+	if semver.Compare(semver.MajorMinor(opts.ServerVersion), "v1.15") >= 0 {
+		GetEnvoyClusters(t, backendPod.HostIP, backendPod.MappedPorts[EnvoyAdminPort])
+		require.Eventuallyf(t, func() bool {
+			output := backendDataplane.ContainerLogs(t)
+			return strings.Contains(output, "{\"custom_field_path\":\"/clusters\"}")
+		}, 30*time.Second, 3*time.Second, "could not find admin access logs in output")
+	}
 }
