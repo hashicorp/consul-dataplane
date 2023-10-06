@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package consuldp
 
 import (
@@ -77,10 +74,12 @@ func validateConfig(cfg *Config) error {
 		return errors.New("consul addresses not specified")
 	case cfg.Consul.GRPCPort == 0:
 		return errors.New("consul server gRPC port not specified")
-	case cfg.Proxy == nil:
-		return errors.New("proxy details not specified")
-	case cfg.Proxy.ProxyID == "":
-		return errors.New("proxy ID not specified")
+	case cfg.Service == nil:
+		return errors.New("service details not specified")
+	case cfg.Service.NodeID == "" && cfg.Service.NodeName == "":
+		return errors.New("node name or ID not specified")
+	case cfg.Service.ServiceID == "":
+		return errors.New("proxy service ID not specified")
 	case cfg.Envoy == nil:
 		return errors.New("envoy settings not specified")
 	case cfg.Envoy.AdminBindAddress == "":

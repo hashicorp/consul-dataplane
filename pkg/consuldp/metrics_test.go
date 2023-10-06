@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package consuldp
 
 import (
@@ -170,7 +167,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 			require.IsType(t, &http.Client{}, m.client)
 			require.Greater(t, m.client.(*http.Client).Timeout, time.Duration(0))
 
-			// Mock get requests to Envoy and Proxy instance metrics
+			// Mock get requests to Envoy and Service instance metrics
 			// so that they return a fake metric string.
 			m.client = &mockClient{}
 

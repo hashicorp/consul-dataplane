@@ -1,3 +1,0 @@
-```release-note:improvement
-Add the `-config-file` flag to support reading configuration options from a JSON file.
-```

@@ -21,7 +21,7 @@ jobs:
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@v3
       - name: Determine Go version
         id: get-go-version
         # We use .go-version as our source of truth for current Go
@@ -35,7 +35,7 @@ jobs:
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@v3
       - name: get product version
         id: get-product-version
         run: |
@@ -49,7 +49,7 @@ jobs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
       - name: "Checkout directory"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@v3
       - name: Generate metadata file
         id: generate-metadata-file
         uses: hashicorp/actions-generate-metadata@v1
@@ -57,7 +57,7 @@ jobs:
           version: ${{ needs.get-product-version.outputs.product-version }}
           product: ${{ env.PKG_NAME }}
           repositoryOwner: "hashicorp"
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@v2
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
@@ -66,47 +66,37 @@ jobs:
     needs:
       - get-go-version
       - get-product-version
-    runs-on: ubuntu-20.04 # the GLIBC is too high on 22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - {goos: "linux", goarch: "arm"}
-          - {goos: "linux", goarch: "arm64"}
-          - {goos: "linux", goarch: "386"}
-          - {goos: "linux", goarch: "amd64"}
-          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402", pkg_suffix: "-fips" }
-          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402", pkg_suffix: "-fips" }
+        goos: [linux]
+        goarch: ["arm", "arm64", "386", "amd64"]
 
       fail-fast: true
 
-    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} ${{ matrix.fips }} build
+    name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@v3
 
       - uses: hashicorp/actions-go-build@v0.1.3
         with:
           product_name: ${{ env.PKG_NAME }}
-          product_version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
+          product_version: ${{ needs.get-product-version.outputs.product-version }}
           go_version: ${{ needs.get-go-version.outputs.go-version }}
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
           reproducible: assert
-          instructions: |
-            if [[ "${{ matrix.fips }}" == "+fips1402" ]]
-            then
-              sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
-            fi
-            ${{ matrix.env }} go build -tags=${{ matrix.gotags }} -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
+          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
         uses: hashicorp/actions-packaging-linux@v1
         with:
-          name: ${{ github.event.repository.name }}${{ matrix.pkg_suffix }}
+          name: ${{ github.event.repository.name }}
           description: "Consul dataplane connects an application to a Consul service mesh."
           arch: ${{ matrix.goarch }}
-          version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
+          version: ${{ needs.get-product-version.outputs.product-version }}
           maintainer: "HashiCorp"
           homepage: "https://github.com/hashicorp/consul-dataplane"
           license: "MPL-2.0"
@@ -120,13 +110,13 @@ jobs:
           echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
           echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
 
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ env.RPM_PACKAGE }}
           path: out/${{ env.RPM_PACKAGE }}
 
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ env.DEB_PACKAGE }}
@@ -150,7 +140,7 @@ jobs:
       GOARCH: ${{ matrix.goarch }}
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@v3
 
       - uses: hashicorp/actions-go-build@v0.1.3
         with:
@@ -163,7 +153,7 @@ jobs:
           instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
   build-docker-default:
-    name: Docker ${{ matrix.arch }} ${{ matrix.fips }} default release build
+    name: Docker ${{ matrix.arch }} default release build
     needs:
       - get-product-version
       - build-linux
@@ -172,17 +162,13 @@ jobs:
       matrix:
         # This is the subset of architectures we build binaries for officially
         # supported by Envoy.
-        include:
-          - { arch: "amd64" }
-          - { arch: "amd64", fips: "+fips1402" }
-          - { arch: "arm64" }
-          - { arch: "arm64", fips: "+fips1402" }
+        arch: ["arm64", "amd64"]
     env:
       repo: ${{ github.event.repository.name }}
-      version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
+      version: ${{ needs.get-product-version.outputs.product-version }}
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@v3
 
       # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
       # This naming convention will be used ONLY for per-commit dev images
@@ -192,13 +178,12 @@ jobs:
           echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
 
       - name: Docker Build (Action)
-        if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
-              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
+              echo "Test FAILED"
               exit 1
             fi
             echo "Test PASSED"
@@ -212,68 +197,39 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-${{ github.sha }}
 
-      - name: Docker FIPS Build (Action)
-        if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
-        with:
-          smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
-            if [ "${TEST_VERSION}" != "${version}" ]; then
-              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
-              exit 1
-            fi
-            echo "Test PASSED"
-          version: ${{ env.version }}
-          target: release-fips-default
-          arch: ${{ matrix.arch }}
-          tags: |
-            docker.io/hashicorp/${{env.repo}}-fips:${{env.version}}
-            public.ecr.aws/hashicorp/${{env.repo}}-fips:${{env.version}}
-          dev_tags: |
-            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}
-            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}-${{ github.sha }}
-
   build-docker-redhat:
-    name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
+    name: Docker UBI Image Build (for Red Hat Certified Container Registry)
     needs:
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
-          - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1402" }
-
     env:
       repo: ${{github.event.repository.name}}
-      version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
+      version: ${{needs.get-product-version.outputs.product-version}}
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@v3
       - uses: hashicorp/actions-docker-build@v1
         with:
           version: ${{env.version}}
-          target: ${{ matrix.target-name }}
+          target: release-ubi
           arch: amd64
-          redhat_tag: quay.io/redhat-isv-containers/${{matrix.registry-id}}:${{env.version}}-ubi
+          redhat_tag: quay.io/redhat-isv-containers/631f805e0d15f623c5996c2e:${{env.version}}-ubi
 
   build-docker-ubi-dockerhub:
-    name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
+    name: Docker ${{ matrix.arch }} UBI build for DockerHub
     needs:
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - { arch: "amd64" }
-          - { arch: "amd64", fips: "+fips1402" }
+        arch: ["amd64"]
     env:
       repo: ${{ github.event.repository.name }}
-      version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
+      version: ${{ needs.get-product-version.outputs.product-version }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@v3
       # Strip everything but MAJOR.MINOR from the version string and add a `-dev` suffix
       # This naming convention will be used ONLY for per-commit dev images
       - name: Set docker dev tag
@@ -282,13 +238,12 @@ jobs:
           echo "dev_tag=${version%.*}-dev" >> $GITHUB_ENV
 
       - name: Docker Build (Action)
-        if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
-              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}}."
+              echo "Test FAILED"
               exit 1
             fi
             echo "Test PASSED"
@@ -302,27 +257,6 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.dev_tag }}-ubi-${{ github.sha }}
 
-      - name: Docker FIPS Build (Action)
-        if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
-        with:
-          smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
-            if [ "${TEST_VERSION}" != "${version}" ]; then
-              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}}."
-              exit 1
-            fi
-            echo "Test PASSED"
-          version: ${{ env.version }}
-          target: release-fips-ubi
-          arch: ${{ matrix.arch }}
-          tags: |
-            docker.io/hashicorp/${{env.repo}}-fips:${{env.version}}-ubi
-            public.ecr.aws/hashicorp/${{env.repo}}-fips:${{env.version}}-ubi
-          dev_tags: |
-            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}-ubi
-            docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.dev_tag }}-ubi-${{ github.sha }}
-
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
     needs:
@@ -333,12 +267,10 @@ jobs:
     strategy:
       matrix:
         server:
+          - version: v1.14.4
+            image: docker.mirror.hashicorp.services/hashicorp/consul:1.14.4
           - version: v1.15.0-dev
             image: hashicorppreview/consul:1.15-dev
-          - version: v1.16.0-dev
-            image: hashicorppreview/consul:1.16-dev
-          - version: v1.17.0-dev
-            image: hashicorppreview/consul:1.17-dev
         dataplane:
           - image_suffix: "dev"
             docker_target: "release-default"
@@ -350,18 +282,17 @@ jobs:
     steps:
       - name: Set docker dev tag
         run: |
-          version="${{ env.version }}"
+          version="${{env.version}}"
           echo "dev_tag=${version%.*}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
-
       - name: Set image tarball
         run: |
           echo "image_tarball=${{env.repo}}_${{ matrix.dataplane.docker_target }}_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
-      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+      - uses: actions/download-artifact@v3
         with:
           name: ${{env.image_tarball}}
       - run: docker load --input ${{env.image_tarball}}
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
         with:
           # pinning this to 1.20.5 because this issue in go-testcontainers occurs
           # in 1.20.6 with the error "http: invalid Host header, host port waiting failed"
@@ -372,7 +303,7 @@ jobs:
       - id: run-tests
         run: cd integration-tests && go test -v -output-dir=./output -dataplane-image=hashicorppreview/${{env.repo}}:${{env.dev_tag}}-${{github.sha}} -server-image=${{matrix.server.image}} -server-version=${{matrix.server.version}}
         continue-on-error: true
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@v3
         continue-on-error: true
         with:
           name: consul-${{matrix.server.version}}-integration-tests-output

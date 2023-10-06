@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package main
 
 import (
@@ -12,71 +9,29 @@ import (
 )
 
 var (
-	asInt = func(s string) (*int, error) {
-		if s == "" {
-			return nil, nil
-		}
-
-		n, err := strconv.Atoi(s)
-		if err != nil {
-			return nil, err
-		}
-
-		return &n, nil
-	}
-
-	asBool = func(s string) (*bool, error) {
-		if s == "" {
-			return nil, nil
-		}
-
-		b, err := strconv.ParseBool(s)
-		if err != nil {
-			return nil, err
-		}
-
-		return &b, nil
-	}
-
-	asDuration = func(s string) (*Duration, error) {
-		if s == "" {
-			return nil, nil
-		}
-
-		t, err := time.ParseDuration(s)
-		if err != nil {
-			return nil, err
-		}
-
-		return &Duration{Duration: t}, nil
-	}
-
-	asString = func(s string) (*string, error) {
-		if s == "" {
-			return nil, nil
-		}
-
-		return &s, nil
-	}
+	asInt      = strconv.Atoi
+	asBool     = strconv.ParseBool
+	asDuration = time.ParseDuration
+	asString   = func(s string) (string, error) { return s, nil }
 )
 
-func parseEnv[T any](name string, parseFn func(string) (*T, error)) *T {
-	val, err := parseEnvError(name, parseFn)
+func parseEnv[T any](name string, defaultVal T, parseFn func(string) (T, error)) T {
+	val, err := parseEnvError(name, defaultVal, parseFn)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return val
 }
 
-func parseEnvError[T any](name string, parseFn func(string) (*T, error)) (*T, error) {
+func parseEnvError[T any](name string, defaultVal T, parseFn func(string) (T, error)) (T, error) {
 	valStr, ok := os.LookupEnv(name)
 	if !ok {
 		// Env var is not present in the environment.
-		return nil, nil
+		return defaultVal, nil
 	}
 	valT, err := parseFn(valStr)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse environment variable %s=%s as %T", name, valStr, valT)
+		return defaultVal, fmt.Errorf("unable to parse environment variable %s=%s as %T", name, valStr, valT)
 	}
 	return valT, nil
 }

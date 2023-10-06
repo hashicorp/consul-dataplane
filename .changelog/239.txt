@@ -1,3 +1,0 @@
-```release-note:improvement
-Add graceful_startup endpoint and postStart hook in order to guarantee that dataplane starts up before application container. 
-```

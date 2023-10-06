@@ -1,3 +1,0 @@
-```release-note:security
-Update to Envoy 1.26.2 within the Dockerfile. 
-```

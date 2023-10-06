@@ -1,3 +1,0 @@
-```release-note:improvement
-In order to support Windows, write Envoy bootstrap configuration to a regular file instead of a named pipe.
-```

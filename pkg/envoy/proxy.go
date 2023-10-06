@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package envoy
 
 import (
@@ -13,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -40,7 +38,6 @@ type ProxyManager interface {
 	Quit() error
 	Kill() error
 	DumpConfig() error
-	Ready() (bool, error)
 }
 
 // Proxy manages an Envoy proxy process.
@@ -151,7 +148,9 @@ func (p *Proxy) Run(ctx context.Context) error {
 	// Start Envoy in its own process group to avoid directly receiving
 	// SIGTERM intended for consul-dataplane, let proxy manager handle
 	// graceful shutdown if configured.
-	p.cmd.SysProcAttr = getProcessAttr()
+	p.cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
 
 	p.cfg.Logger.Debug("running envoy proxy", "command", strings.Join(p.cmd.Args, " "))
 	if err := p.cmd.Start(); err != nil {
@@ -210,7 +209,10 @@ func (p *Proxy) Quit() error {
 	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", p.cfg.AdminAddr, p.cfg.AdminBindPort)
 
 	switch p.getState() {
-	case stateExited, stateStopped:
+	case stateExited:
+		// Nothing to do!
+		return nil
+	case stateStopped:
 		// Nothing to do!
 		return nil
 	case stateDraining:
@@ -380,26 +382,4 @@ func removeArgAndGetValue(stringAr []string, key string) ([]string, string) {
 		}
 	}
 	return stringAr, ""
-}
-
-func (p *Proxy) Ready() (bool, error) {
-
-	switch p.getState() {
-	case stateExited, stateStopped, stateDraining:
-		// Nothing to do!
-		return false, nil
-	case stateRunning, stateInitial:
-		// Query ready endpoint to check if proxy is Ready
-		envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
-		rsp, err := p.client.Get(envoyReadyURL)
-		defer rsp.Body.Close()
-		if err != nil {
-			p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
-			return false, err
-		}
-		return rsp.StatusCode == 200, nil
-	default:
-		return false, nil
-	}
-
 }

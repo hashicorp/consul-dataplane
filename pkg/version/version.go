@@ -1,6 +1,3 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package version
 
 import (
@@ -17,7 +14,7 @@ var (
 	//
 	// Version must conform to the format expected by github.com/hashicorp/go-version
 	// for tests to work.
-	Version = "1.3.0"
+	Version = "1.1.6"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
@@ -36,10 +33,6 @@ func GetHumanVersion() string {
 			// if we tagged a prerelease version then the release is in the version already
 			version += fmt.Sprintf("-%s", release)
 		}
-	}
-
-	if IsFIPS() {
-		version = fmt.Sprintf("%s+fips1402", version)
 	}
 
 	// Strip off any single quotes added by the git information.
