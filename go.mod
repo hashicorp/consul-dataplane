@@ -2,15 +2,12 @@ module github.com/hashicorp/consul-dataplane
 
 go 1.20
 
-// This replace directive is needed because `api` requires 0.4.1 of proto-public but we need an unreleased version
-replace github.com/hashicorp/consul/proto-public v0.4.1 => github.com/hashicorp/consul/proto-public v0.1.2-0.20230929231147-632fd65c091c
-
 require (
 	dario.cat/mergo v1.0.0
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/armon/go-metrics v0.4.1
 	github.com/hashicorp/consul-server-connection-manager v0.1.3
-	github.com/hashicorp/consul/proto-public v0.4.1
+	github.com/hashicorp/consul/proto-public v0.5.1-rc1
 	github.com/hashicorp/go-hclog v1.2.2
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
