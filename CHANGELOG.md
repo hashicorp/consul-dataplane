@@ -1,25 +1,19 @@
-## 1.3.0 (November 6, 2023)
+## 1.3.0-rc1 (October 10, 2023)
 
 SECURITY:
 
-* Update Envoy version to 1.27.2 to address [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-315](https://github.com/hashicorp/consul-dataplane/pull/315)]
 * Update to Go 1.20.7 and Envoy 1.26.4 within the Dockerfile. [[GH-235](https://github.com/hashicorp/consul-dataplane/pull/235)]
-* Upgrade `google.golang.org/grpc` to 1.56.3.
-  This resolves vulnerability [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-323](https://github.com/hashicorp/consul-dataplane/pull/323)]
-* Upgrade to use Go 1.20.10 and `x/net` 0.17.0.
-  This resolves [CVE-2023-39325](https://nvd.nist.gov/vuln/detail/CVE-2023-39325)
-  / [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-299](https://github.com/hashicorp/consul-dataplane/pull/299)]
 * Upgrade to use Go 1.20.6 and `x/net/http` 0.12.0.
-  This resolves [CVE-2023-29406](https://github.com/advisories/GHSA-f8f7-69v5-w4vx)(`net/http`). [[GH-219](https://github.com/hashicorp/consul-dataplane/pull/219)]
+This resolves [CVE-2023-29406](https://github.com/advisories/GHSA-f8f7-69v5-w4vx)(`net/http`). [[GH-219](https://github.com/hashicorp/consul-dataplane/pull/219)]
 * Upgrade to use Go 1.20.7 and `x/net` 0.13.0.
-  This resolves [CVE-2023-29409](https://nvd.nist.gov/vuln/detail/CVE-2023-29409)(`crypto/tls`)
-  and [CVE-2023-3978](https://nvd.nist.gov/vuln/detail/CVE-2023-3978)(`net/html`). [[GH-227](https://github.com/hashicorp/consul-dataplane/pull/227)]
+This resolves [CVE-2023-29409](https://nvd.nist.gov/vuln/detail/CVE-2023-29409)(`crypto/tls`) 
+and [CVE-2023-3978](https://nvd.nist.gov/vuln/detail/CVE-2023-3978)(`net/html`). [[GH-227](https://github.com/hashicorp/consul-dataplane/pull/227)]
 * Upgrade to use Go 1.20.8. This resolves CVEs
-  [CVE-2023-39320](https://github.com/advisories/GHSA-rxv8-v965-v333) (`cmd/go`),
-  [CVE-2023-39318](https://github.com/advisories/GHSA-vq7j-gx56-rxjh) (`html/template`),
-  [CVE-2023-39319](https://github.com/advisories/GHSA-vv9m-32rr-3g55) (`html/template`),
-  [CVE-2023-39321](https://github.com/advisories/GHSA-9v7r-x7cv-v437) (`crypto/tls`), and
-  [CVE-2023-39322](https://github.com/advisories/GHSA-892h-r6cr-53g4) (`crypto/tls`) [[GH-261](https://github.com/hashicorp/consul-dataplane/pull/261)]
+[CVE-2023-39320](https://github.com/advisories/GHSA-rxv8-v965-v333) (`cmd/go`),
+[CVE-2023-39318](https://github.com/advisories/GHSA-vq7j-gx56-rxjh) (`html/template`),
+[CVE-2023-39319](https://github.com/advisories/GHSA-vv9m-32rr-3g55) (`html/template`),
+[CVE-2023-39321](https://github.com/advisories/GHSA-9v7r-x7cv-v437) (`crypto/tls`), and
+[CVE-2023-39322](https://github.com/advisories/GHSA-892h-r6cr-53g4) (`crypto/tls`) [[GH-261](https://github.com/hashicorp/consul-dataplane/pull/261)]
 
 FEATURES:
 
