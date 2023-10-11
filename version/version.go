@@ -1,9 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package version
 
 import (
+	_ "embed"
 	"fmt"
 	"strings"
 )
@@ -14,15 +12,15 @@ var (
 	GitCommit string
 
 	// The main version number that is being run at the moment.
-	//
 	// Version must conform to the format expected by github.com/hashicorp/go-version
 	// for tests to work.
-	Version = "1.3.0"
-
-	// A pre-release marker for the version. If this is "" (empty string)
+	// VersionPrerelease is a pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
 	// such as "dev" (in development), "beta", "rc1", etc.
-	VersionPrerelease = "dev"
+	// Version and VersionPrerelease info are now being embedded directly from the VERSION file.
+	//go:embed VERSION
+	fullVersion                   string
+	Version, VersionPrerelease, _ = strings.Cut(strings.TrimSpace(fullVersion), "-")
 )
 
 // GetHumanVersion composes the parts of the version in a way that's suitable
