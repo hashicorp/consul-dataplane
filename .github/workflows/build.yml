@@ -38,9 +38,7 @@ jobs:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - name: get product version
         id: get-product-version
-        run: |
-          make version
-          echo "product-version=$(make version)" >> $GITHUB_OUTPUT
+        uses: hashicorp/actions-set-product-version@v1
 
   generate-metadata-file:
     needs: get-product-version

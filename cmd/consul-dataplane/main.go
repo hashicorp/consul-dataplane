@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/hashicorp/consul-dataplane/version"
 	"log"
 	"os"
 	"os/signal"
@@ -14,7 +15,6 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
-	"github.com/hashicorp/consul-dataplane/pkg/version"
 )
 
 var (

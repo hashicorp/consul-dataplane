@@ -14,7 +14,7 @@ PLATFORM = $(OS)/$(ARCH)
 DIST     = dist/$(PLATFORM)
 BIN      = $(DIST)/$(BIN_NAME)
 
-VERSION = $(shell ./build-scripts/version.sh pkg/version/version.go)
+VERSION = $(shell ./build-scripts/version.sh version/VERSION)
 
 GIT_COMMIT?=$(shell git rev-parse --short HEAD)
 GIT_DIRTY?=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
