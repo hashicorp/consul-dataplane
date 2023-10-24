@@ -107,7 +107,7 @@ func (cdp *ConsulDataplane) startXDSServer(ctx context.Context) {
 func (cdp *ConsulDataplane) stopXDSServer() {
 	if cdp.xdsServer.gRPCServer != nil {
 		cdp.logger.Debug("stopping xDS server")
-		cdp.xdsServer.gRPCServer.Stop()
+		cdp.xdsServer.gRPCServer.GracefulStop()
 	}
 }
 
