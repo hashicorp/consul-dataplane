@@ -1,3 +1,21 @@
+## 1.2.3 (November 1, 2023)
+
+SECURITY:
+
+* Update Envoy version to 1.26.6 to address [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-313](https://github.com/hashicorp/consul-dataplane/pull/313)]
+* Upgrade `google.golang.org/grpc` to 1.56.3.
+  This resolves vulnerability [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-323](https://github.com/hashicorp/consul-dataplane/pull/323)]
+* Upgrade to use Go 1.20.10 and `x/net` 0.17.0.
+  This resolves [CVE-2023-39325](https://nvd.nist.gov/vuln/detail/CVE-2023-39325)
+  / [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-299](https://github.com/hashicorp/consul-dataplane/pull/299)]
+* Upgrade to use Go 1.20.8. This resolves CVEs
+  [CVE-2023-39320](https://github.com/advisories/GHSA-rxv8-v965-v333) (`cmd/go`),
+  [CVE-2023-39318](https://github.com/advisories/GHSA-vq7j-gx56-rxjh) (`html/template`),
+  [CVE-2023-39319](https://github.com/advisories/GHSA-vv9m-32rr-3g55) (`html/template`),
+  [CVE-2023-39321](https://github.com/advisories/GHSA-9v7r-x7cv-v437) (`crypto/tls`), and
+  [CVE-2023-39322](https://github.com/advisories/GHSA-892h-r6cr-53g4) (`crypto/tls`) [[GH-261](https://github.com/hashicorp/consul-dataplane/pull/261)]
+
+
 ## 1.2.2 (September 5, 2023)
 
 SECURITY:
