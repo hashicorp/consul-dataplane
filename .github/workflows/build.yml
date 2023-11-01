@@ -289,7 +289,7 @@ jobs:
       - name: Set docker dev tag
         run: |
           version="${{env.version}}"
-          echo "dev_tag=${version%.*}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
+          echo "dev_tag=${env.version}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
       - name: Set image tarball
         run: |
           echo "image_tarball=${{env.repo}}_${{ matrix.dataplane.docker_target }}_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
