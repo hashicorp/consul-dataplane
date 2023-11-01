@@ -1,4 +1,21 @@
-## 1.0.6 (September 5 2023)
+## 1.0.7 (November 1, 2023)
+
+SECURITY:
+
+* Update Envoy version to 1.24.12 to address [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-311](https://github.com/hashicorp/consul-dataplane/pull/311)]
+* Upgrade `google.golang.org/grpc` to 1.56.3.
+  This resolves vulnerability [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-323](https://github.com/hashicorp/consul-dataplane/pull/323)]
+* Upgrade to use Go 1.20.10 and `x/net` 0.17.0.
+  This resolves [CVE-2023-39325](https://nvd.nist.gov/vuln/detail/CVE-2023-39325)
+  / [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-299](https://github.com/hashicorp/consul-dataplane/pull/299)]
+* Upgrade to use Go 1.20.8. This resolves CVEs
+  [CVE-2023-39320](https://github.com/advisories/GHSA-rxv8-v965-v333) (`cmd/go`),
+  [CVE-2023-39318](https://github.com/advisories/GHSA-vq7j-gx56-rxjh) (`html/template`),
+  [CVE-2023-39319](https://github.com/advisories/GHSA-vv9m-32rr-3g55) (`html/template`),
+  [CVE-2023-39321](https://github.com/advisories/GHSA-9v7r-x7cv-v437) (`crypto/tls`), and
+  [CVE-2023-39322](https://github.com/advisories/GHSA-892h-r6cr-53g4) (`crypto/tls`) [[GH-261](https://github.com/hashicorp/consul-dataplane/pull/261)]
+
+## 1.0.6 (September 5, 2023)
 
 SECURITY:
 
@@ -8,7 +25,7 @@ BUG FIXES:
 
 * Fix a bug where container user was unable to bind to privileged ports (< 1024). The consul-dataplane container now requires the NET_BIND_SERVICE capability. [[GH-238](https://github.com/hashicorp/consul-dataplane/pull/238)]
 
-## 1.0.5 (August 9 2023)
+## 1.0.5 (August 9, 2023)
 
 SECURITY:
 
@@ -27,7 +44,7 @@ BUG FIXES:
 * Fix a bug with Envoy potentially starting with incomplete configuration by not waiting enough for initial xDS configuration. [[GH-140](https://github.com/hashicorp/consul-dataplane/pull/140)]
 
 
-## 1.0.4 (June 28 2023)
+## 1.0.4 (June 28, 2023)
 
 SECURITY:
 
