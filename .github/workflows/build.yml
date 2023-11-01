@@ -352,9 +352,9 @@ jobs:
           - version: v1.16.0-dev
             image: hashicorppreview/consul:1.16-dev
         dataplane:
-          - image_suffix: "dev"
+          - image_suffix: ""
             docker_target: "release-default"
-          - image_suffix: "dev-ubi"
+          - image_suffix: "-ubi"
             docker_target: "release-ubi"
     env:
       repo: ${{ github.event.repository.name }}
@@ -363,7 +363,7 @@ jobs:
       - name: Set docker dev tag
         run: |
           version="${{ env.version }}"
-          echo "dev_tag=${version%.*}-${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
+          echo "dev_tag=${{ env.version }}${{ matrix.dataplane.image_suffix }}" >> $GITHUB_ENV
 
       - name: Set image tarball
         run: |
