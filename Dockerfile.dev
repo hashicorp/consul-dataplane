@@ -1,0 +1,4 @@
+FROM hashicorp/consul-dataplane as cache
+ARG TARGETARCH
+
+COPY dist/linux/${TARGETARCH}/consul-dataplane /usr/local/bin/
