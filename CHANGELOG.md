@@ -1,3 +1,14 @@
+## 1.3.0 (November 6, 2023)
+
+SECURITY:
+
+* Update Envoy version to 1.27.2 to address [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-315](https://github.com/hashicorp/consul-dataplane/pull/315)]
+* Upgrade `google.golang.org/grpc` to 1.56.3.
+  This resolves vulnerability [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-323](https://github.com/hashicorp/consul-dataplane/pull/323)]
+* Upgrade to use Go 1.20.10 and `x/net` 0.17.0.
+  This resolves [CVE-2023-39325](https://nvd.nist.gov/vuln/detail/CVE-2023-39325)
+  / [CVE-2023-44487](https://nvd.nist.gov/vuln/detail/CVE-2023-44487). [[GH-299](https://github.com/hashicorp/consul-dataplane/pull/299)]
+
 ## 1.3.0-rc1 (October 10, 2023)
 
 SECURITY:
