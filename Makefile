@@ -66,6 +66,15 @@ docker/$(1)/run: docker/$(1)
 	docker run --rm $$(TAG)
 endef
 
+# DANGER: this target is experimental and could be modified/removed at any time.
+# Build consul-dataplane dev Docker image for use with skaffold or local development.
+.PHONY: skaffold
+skaffold: dev
+	@docker build -t '$(DEV_IMAGE)' \
+       --build-arg 'TARGETARCH=$(ARCH)' \
+       -f $(CURDIR)/Dockerfile.dev .
+ 
+
 # Create docker/<target>[/run] targets.
 $(eval $(call DOCKER_TARGET,release-default,bin))
 $(eval $(call DOCKER_TARGET,release-ubi,bin))
