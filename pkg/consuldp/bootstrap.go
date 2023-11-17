@@ -126,6 +126,8 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		args.PrometheusBackendPort = strconv.Itoa(prom.MergePort)
 	}
 
+	bootstrapConfig.Logger = cdp.logger.Named("bootstrap-config")
+
 	// Note: we pass true for omitDeprecatedTags here - consul-dataplane is clean
 	// slate, and we don't need to maintain this legacy behavior.
 	cfg, err := bootstrapConfig.GenerateJSON(args, true)

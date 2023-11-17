@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	pbmesh "github.com/hashicorp/consul/proto-public/pbmesh/v2beta1"
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -203,6 +204,41 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 			},
 		},
+		"custom-prometheus-scrape-path-with-query": {
+			&Config{
+				Proxy: &ProxyConfig{
+					ProxyID:  "web-proxy",
+					NodeName: nodeName,
+				},
+				Envoy: &EnvoyConfig{
+					AdminBindAddress: "127.0.0.1",
+					AdminBindPort:    19000,
+				},
+				Telemetry: &TelemetryConfig{
+					UseCentralConfig: true,
+					Prometheus: PrometheusTelemetryConfig{
+						MergePort: 20100,
+						// Expect query is _not_ included in xDS path match
+						ScrapePath: "/custom/scrape/path?usedonly",
+					},
+				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
+			},
+			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Service:  "web",
+				NodeName: nodeName,
+				Config: makeStruct(map[string]any{
+					"envoy_prometheus_bind_addr": "0.0.0.0:20200",
+				}),
+			},
+			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Identity: "web",
+				NodeName: nodeName,
+				BootstrapConfig: &pbmesh.BootstrapConfig{
+					PrometheusBindAddr: "0.0.0.0:20200",
+				},
+			},
+		},
 		"ready-listener": {
 			&Config{
 				Proxy: &ProxyConfig{
@@ -278,6 +314,7 @@ func TestBootstrapConfig(t *testing.T) {
 			dp := &ConsulDataplane{
 				cfg:             tc.cfg,
 				dpServiceClient: client,
+				logger:          hclog.NewNullLogger(),
 			}
 
 			if strings.HasPrefix(tc.cfg.XDSServer.BindAddress, "unix://") {
@@ -310,6 +347,7 @@ func TestBootstrapConfig(t *testing.T) {
 			dp := &ConsulDataplane{
 				cfg:             tc.cfg,
 				dpServiceClient: client,
+				logger:          hclog.NewNullLogger(),
 			}
 
 			if strings.HasPrefix(tc.cfg.XDSServer.BindAddress, "unix://") {

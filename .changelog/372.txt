@@ -1,0 +1,6 @@
+```release-note:improvement
+Propagate merged metrics request query params to Envoy to enable metrics filtering.
+```
+```release-note:bug
+Exclude Prometheus scrape path query params from Envoy path match s.t. it does not break merged metrics request routing.
+```
