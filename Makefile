@@ -47,6 +47,13 @@ bin: dist ## Build the binary
 dev: bin ## Build binary and copy to the destination
 	cp $(BIN) $(GOBIN)/$(BIN_NAME)
 
+# DANGER: this target is experimental and could be modified/removed at any time.
+.PHONY: skaffold
+skaffold: dev ## Build consul-dataplane dev Docker image for use with skaffold or local development.
+	@docker build -t '$(DEV_IMAGE)' \
+       --build-arg 'TARGETARCH=$(ARCH)' \
+       -f $(CURDIR)/Dockerfile.dev .
+
 .PHONY: docker
 docker: bin ## build the release-target docker image
 	$(eval TARGET := release-default) # there are many targets in the Dockerfile, add more build if you need to customize the target
