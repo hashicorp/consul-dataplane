@@ -29,11 +29,15 @@ REVISION = $(shell git rev-parse HEAD)
 # Docker Stuff.
 export DOCKER_BUILDKIT=1
 BUILD_ARGS = BIN_NAME=$(BIN_NAME) PRODUCT_VERSION=$(VERSION) PRODUCT_REVISION=$(REVISION)
-TAG        = $(PRODUCT_NAME)/$(TARGET):$(VERSION)
+TAG        = $(PRODUCT_NAME):$(VERSION)
 BA_FLAGS   = $(addprefix --build-arg=,$(BUILD_ARGS))
 FLAGS      = --target $(TARGET) --platform $(PLATFORM) --tag $(TAG) $(BA_FLAGS)
 
 ##@ Build
+
+dist: ## make dist directory and ignore everything
+	mkdir -p $(DIST)
+	echo '*' > dist/.gitignore
 
 .PHONY: bin
 bin: dist ## Build the binary
@@ -43,36 +47,19 @@ bin: dist ## Build the binary
 dev: bin ## Build binary and copy to the destination
 	cp $(BIN) $(GOBIN)/$(BIN_NAME)
 
-# Set OS to linux for all docker/* targets.
-docker/%: OS = linux## build docker images depending on the target
-
-# DOCKER_TARGET is a macro that generates the build and run make targets
-# for a given Dockerfile target.
-# Args: 1) Dockerfile target name (required).
-#       2) Build prerequisites (optional).
-define DOCKER_TARGET
-.PHONY: docker/$(1)
-docker/$(1): TARGET=$(1)
-docker/$(1): $(2)
-	docker build $$(FLAGS) .
-	@echo 'Image built; run "docker run --rm $$(TAG)" to try it out.'
-
-.PHONY: docker/$(1)/run
-docker/$(1)/run: TARGET=$(1)
-docker/$(1)/run: docker/$(1)
-	docker run --rm $$(TAG)
-endef
-
-# Create docker/<target>[/run] targets.
-$(eval $(call DOCKER_TARGET,release-default,bin))
-$(eval $(call DOCKER_TARGET,release-ubi,bin))
-
 .PHONY: docker
-docker: docker/release-default ## build release-default target
+docker: bin ## build the release-target docker image
+	$(eval TARGET := release-default) # there are many targets in the Dockerfile, add more build if you need to customize the target
+	$(eval OS := linux)
+	docker build $(FLAGS) .
+	@echo 'Image built; run "docker run --rm $(TAG)" to try it out.'
+
+docker-run: docker ## run the image of $(TAG)
+	docker run --rm $(TAG)
 
 .PHONY: dev-docker
-dev-docker: docker/release-default ## build release-default target and tag the image to local
-	docker tag '$(PRODUCT_NAME)/release-default:$(VERSION)'  '$(PRODUCT_NAME):local'
+dev-docker: docker ## build docker image and tag the image to local
+	docker tag '$(PRODUCT_NAME):$(VERSION)'  '$(PRODUCT_NAME):local'
 
 ##@ Testing
 
@@ -102,10 +89,6 @@ integration-tests: docker/release-default expand-integration-tests-output-dir ##
 .PHONY: version
 version: ## display version
 	@echo $(VERSION)
-
-dist: ## make dist directory and ignore everything
-	mkdir -p $(DIST)
-	echo '*' > dist/.gitignore
 
 ##@ Tools
 
