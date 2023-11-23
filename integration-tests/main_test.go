@@ -50,7 +50,7 @@ var (
 func TestMain(m *testing.M) {
 	flag.StringVar(&opts.ServerImage, "server-image", "hashicorppreview/consul:1.15-dev", "")
 	flag.StringVar(&opts.ServerVersion, "server-version", "v1.15.0-dev", "")
-	flag.StringVar(&opts.DataplaneImage, "dataplane-image", "consul-dataplane/release-default:1.0.0-dev", "")
+	flag.StringVar(&opts.DataplaneImage, "dataplane-image", "consul-dataplane:1.0.0-dev", "")
 	flag.StringVar(&opts.OutputDir, "output-dir", "", "")
 	flag.BoolVar(&opts.DisableReaper, "disable-reaper", false, "")
 	flag.Parse()
