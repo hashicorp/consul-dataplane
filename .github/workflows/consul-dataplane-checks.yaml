@@ -51,7 +51,7 @@ jobs:
       - run: make docker
       #  Currently the server version below is set to 1.15-dev: integration-tests/main_test.go
       - run: echo "VERSION=$(make version)" >> $GITHUB_ENV
-      - run: cd integration-tests && go test -dataplane-image="consul-dataplane/release-default:${{ env.VERSION }}"
+      - run: cd integration-tests && go test -dataplane-image="consul-dataplane:${{ env.VERSION }}"
   golangci:
     name: lint
     needs:
