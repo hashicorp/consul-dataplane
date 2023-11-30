@@ -72,15 +72,6 @@ func init() {
 		"The Consul Enterprise namespace in which the proxy service instance (V1 API) or workload (V2 API) is registered.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.Partition, "proxy-partition", "DP_PROXY_PARTITION",
 		"The Consul Enterprise partition in which the proxy service instance (V1 API) or workload (V2 API) is registered.")
-	// TODO this should be a subcommand, not a janky flag
-	BoolVar(flags, &flagOpts.dataplaneConfig.IsUp, "isup", "IS_UP", "asdfasdfasdf")
-
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeName, "service-node-name", "DP_SERVICE_NODE_NAME", "The name of the Consul node to which the proxy service instance is registered.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.NodeID, "service-node-id", "DP_SERVICE_NODE_ID", "The ID of the Consul node to which the proxy service instance is registered.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.ServiceID, "proxy-service-id", "DP_PROXY_SERVICE_ID", "The proxy service instance's ID.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.ServiceIDPath, "proxy-service-id-path", "DP_PROXY_SERVICE_ID_PATH", "The path to a file containing the proxy service instance's ID.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.Namespace, "service-namespace", "DP_SERVICE_NAMESPACE", "The Consul Enterprise namespace in which the proxy service instance is registered.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Service.Partition, "service-partition", "DP_SERVICE_PARTITION", "The Consul Enterprise partition in which the proxy service instance is registered.")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Credentials.Type, "credential-type", "DP_CREDENTIAL_TYPE", "The type of credentials, either static or login, used to authenticate with Consul servers.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Credentials.Static.Token, "static-token", "DP_CREDENTIAL_STATIC_TOKEN", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
