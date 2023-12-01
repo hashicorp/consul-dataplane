@@ -72,6 +72,7 @@ func (cdp *ConsulDataplane) setupXDSServer() error {
 	newGRPCServer := grpc.NewServer(
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(cdp.director)),
 		grpc.StreamInterceptor(cdp.streamInterceptor()),
+		grpc.MaxRecvMsgSize(50*1024*1024),
 	)
 
 	cdp.xdsServer = &xdsServer{
@@ -104,7 +105,7 @@ func (cdp *ConsulDataplane) startXDSServer(ctx context.Context) {
 func (cdp *ConsulDataplane) stopXDSServer() {
 	if cdp.xdsServer.gRPCServer != nil {
 		cdp.logger.Debug("stopping xDS server")
-		cdp.xdsServer.gRPCServer.Stop()
+		cdp.xdsServer.gRPCServer.GracefulStop()
 	}
 }
 
