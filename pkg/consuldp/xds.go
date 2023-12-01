@@ -70,10 +70,12 @@ func (cdp *ConsulDataplane) setupXDSServer() error {
 	// However, we needed this fix (https://github.com/mwitkow/grpc-proxy/pull/62) which was available on the fork we are using.
 	// TODO: Switch to the main library once the fix is merged to keep upto date.
 	newGRPCServer := grpc.NewServer(
+		grpc.MaxRecvMsgSize(1024*1024*1024),
+		grpc.MaxSendMsgSize(1024*1024*1024),
 		grpc.UnknownServiceHandler(proxy.TransparentHandler(cdp.director)),
 		grpc.StreamInterceptor(cdp.streamInterceptor()),
-		grpc.MaxRecvMsgSize(50*1024*1024),
 	)
+	cdp.logger.Info("Set max recv message size to 1GB")
 
 	cdp.xdsServer = &xdsServer{
 		listener:        lis,

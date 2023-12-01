@@ -2,6 +2,10 @@ module github.com/hashicorp/consul-dataplane
 
 go 1.20
 
+replace (
+	github.com/adamthesax/grpc-proxy => ../../adamthesax/grpc-proxy
+)
+
 require (
 	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/armon/go-metrics v0.4.1
