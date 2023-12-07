@@ -1,0 +1,3 @@
+```release-note:bug
+Fix issue where the internal grpc-proxy would hit the max message size limit for xDS streams with a large amount of configuration.
+```

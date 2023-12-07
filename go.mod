@@ -7,8 +7,8 @@ replace github.com/hashicorp/consul/proto-public v0.4.1 => github.com/hashicorp/
 
 require (
 	dario.cat/mergo v1.0.0
-	github.com/adamthesax/grpc-proxy v0.0.0-20220525203857-13e92d14f87a
 	github.com/armon/go-metrics v0.4.1
+	github.com/hashi-derek/grpc-proxy v0.0.0-20231207191910-191266484d75
 	github.com/hashicorp/consul-server-connection-manager v0.1.6
 	github.com/hashicorp/consul/proto-public v0.4.1
 	github.com/hashicorp/go-hclog v1.2.2
@@ -45,7 +45,7 @@ require (
 	github.com/stretchr/objx v0.5.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
+	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230526203410-71b5a4ffd15e // indirect
