@@ -9,8 +9,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/adamthesax/grpc-proxy/proxy"
 	"github.com/armon/go-metrics"
+	"github.com/hashi-derek/grpc-proxy/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -20,6 +20,7 @@ import (
 const (
 	metadataKeyToken   = "x-consul-token"
 	envoyADSMethodName = "envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources"
+	maxRecvSize        = 50 * 1024 * 1024
 )
 
 // director is the helper called by the unknown service gRPC handler. This helper is responsible for injecting the ACL token
@@ -73,7 +74,9 @@ func (cdp *ConsulDataplane) setupXDSServer() error {
 	// However, we needed this fix (https://github.com/mwitkow/grpc-proxy/pull/62) which was available on the fork we are using.
 	// TODO: Switch to the main library once the fix is merged to keep upto date.
 	newGRPCServer := grpc.NewServer(
-		grpc.UnknownServiceHandler(proxy.TransparentHandler(cdp.director)),
+		// Increase the maximum message size due to large proxies sometimes exceeding the default 4MB limit.
+		grpc.MaxRecvMsgSize(maxRecvSize),
+		grpc.UnknownServiceHandler(proxy.TransparentHandlerWithOpts(cdp.director, grpc.MaxCallRecvMsgSize(maxRecvSize))),
 		grpc.StreamInterceptor(cdp.streamInterceptor()),
 	)
 
