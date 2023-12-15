@@ -1,3 +1,17 @@
+## 1.1.7 (December 18, 2023)
+
+SECURITY:
+
+* Upgrade to use Go 1.20.12. This resolves CVEs
+  [CVE-2023-45283](https://nvd.nist.gov/vuln/detail/CVE-2023-45283): (`path/filepath`) recognize \??\ as a Root Local Device path prefix (Windows)
+  [CVE-2023-45284](https://nvd.nist.gov/vuln/detail/CVE-2023-45285): recognize device names with trailing spaces and superscripts (Windows)
+  [CVE-2023-39326](https://nvd.nist.gov/vuln/detail/CVE-2023-39326): (`net/http`) limit chunked data overhead
+  [CVE-2023-45285](https://nvd.nist.gov/vuln/detail/CVE-2023-45285): (`cmd/go`) go get may unexpectedly fallback to insecure git [[GH-353](https://github.com/hashicorp/consul-dataplane/pull/353)]
+
+BUG FIXES:
+
+* Fix issue where the internal grpc-proxy would hit the max message size limit for xDS streams with a large amount of configuration. [[GH-357](https://github.com/hashicorp/consul-dataplane/pull/357)]
+
 ## 1.1.6 (November 1, 2023)
 
 SECURITY:
