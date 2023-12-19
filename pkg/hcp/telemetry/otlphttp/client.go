@@ -9,8 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
-	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
@@ -22,7 +20,6 @@ import (
 )
 
 const (
-	headerRetryAfter         = "Retry-After"
 	maxHTTPResponseReadBytes = 64 * 1024
 
 	protobufContentType = "application/x-protobuf"
@@ -126,48 +123,7 @@ func (c *Client) export(ctx context.Context, url string, body []byte) error {
 			url, resp.StatusCode)
 	}
 
-	if isRetryableStatusCode(resp.StatusCode) {
-		var retryAfter time.Duration
-
-		// Check if the server is overwhelmed.
-		// See spec https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/otlp.md#otlphttp-throttling
-		isThrottleError := resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable
-		if val := resp.Header.Get(headerRetryAfter); isThrottleError && val != "" {
-			if seconds, err2 := strconv.Atoi(val); err2 == nil {
-				retryAfter = time.Duration(seconds) * time.Second
-			}
-		}
-
-		return RetryableError{err: formattedErr, After: time.Now().Add(retryAfter)}
-	}
-
 	return formattedErr
-}
-
-type RetryableError struct {
-	After time.Time
-	err   error
-}
-
-func (e RetryableError) Error() string {
-	return e.err.Error()
-}
-
-// Determine if the status code is retryable according to the specification.
-// For more, see https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/protocol/otlp.md#failures-1
-func isRetryableStatusCode(code int) bool {
-	switch code {
-	case http.StatusTooManyRequests:
-		return true
-	case http.StatusBadGateway:
-		return true
-	case http.StatusServiceUnavailable:
-		return true
-	case http.StatusGatewayTimeout:
-		return true
-	default:
-		return false
-	}
 }
 
 func readResponseBody(resp *http.Response) ([]byte, error) {
@@ -212,7 +168,6 @@ func readResponseStatus(resp *http.Response) *status.Status {
 		// "Response body for all HTTP 4xx and HTTP 5xx responses MUST be a
 		// Protobuf-encoded Status message that describes the problem."
 		respBytes, err := readResponseBody(resp)
-
 		if err != nil {
 			return nil
 		}

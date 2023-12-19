@@ -23,17 +23,17 @@ var parserPool = sync.Pool{
 	},
 }
 
-type Scraper struct {
-	Logger             hclog.Logger
-	EnvoyAdminHostPort string
-	Client             http.RoundTripper
+type scraper struct {
+	logger             hclog.Logger
+	envoyAdminHostPort string
+	client             http.RoundTripper
 }
 
-func (s *Scraper) scrapeURLs(filters []string) []string {
+func (s *scraper) scrapeURLs(filters []string) []string {
 	urls := make([]string, len(filters))
 	for i, f := range filters {
 		urls[i] = fmt.Sprintf(
-			"http://%s/stats/prometheus?%s", s.EnvoyAdminHostPort,
+			"http://%s/stats/prometheus?%s", s.envoyAdminHostPort,
 			url.Values(map[string][]string{
 				"filter": {f},
 			}).Encode())
@@ -41,7 +41,7 @@ func (s *Scraper) scrapeURLs(filters []string) []string {
 	return urls
 }
 
-func (s *Scraper) Scrape(ctx context.Context, filters []string, labels pcommon.Map) (pmetric.Metrics, error) {
+func (s *scraper) scrape(ctx context.Context, filters []string, labels pcommon.Map) (pmetric.Metrics, error) {
 	metrics := pmetric.NewMetrics()
 	rm := metrics.ResourceMetrics().AppendEmpty()
 	labels.CopyTo(rm.Resource().Attributes())
@@ -58,20 +58,20 @@ func (s *Scraper) Scrape(ctx context.Context, filters []string, labels pcommon.M
 	return metrics, nil
 }
 
-func (s *Scraper) scrapeURL(ctx context.Context, url string) (map[string]*prompb.MetricFamily, error) {
+func (s *scraper) scrapeURL(ctx context.Context, url string) (map[string]*prompb.MetricFamily, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := s.Client.RoundTrip(req)
+	resp, err := s.client.RoundTrip(req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		err := resp.Body.Close()
 		if err != nil {
-			s.Logger.Warn("failed to close metrics request", "error", err)
+			s.logger.Warn("failed to close metrics request", "error", err)
 		}
 	}()
 

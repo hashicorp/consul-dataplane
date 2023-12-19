@@ -2,7 +2,6 @@ package telemetry
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -10,37 +9,39 @@ import (
 
 	"github.com/hashicorp/consul/proto-public/pbresource"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/hcp-sdk-go/config"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 
-	"github.com/hashicorp/consul-dataplane/pkg/hcp/auth"
 	"github.com/hashicorp/consul-dataplane/pkg/hcp/telemetry/otlphttp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
 )
 
-const defaultScrapeIntervalSecs = 10
+const defaultScrapeIntervalSecs = 60
 
 type Worker struct {
-	resourceClient pbresource.ResourceServiceClient
-	scrapeInterval time.Duration
-	logger         hclog.Logger
+	envoyAdminHostPort string
+	logger             hclog.Logger
+	resourceClient     pbresource.ResourceServiceClient
+	scrapeInterval     time.Duration
 
 	exporter *otlphttp.Client
 }
 
-func New(resourceClient pbresource.ResourceServiceClient, logger hclog.Logger) *Worker {
+func New(resourceClient pbresource.ResourceServiceClient, logger hclog.Logger, envoyAdminHostPort string) *Worker {
 	return &Worker{
-		resourceClient: resourceClient,
-		scrapeInterval: time.Duration(defaultScrapeIntervalSecs) * time.Second,
-		logger:         logger,
+		envoyAdminHostPort: envoyAdminHostPort,
+		logger:             logger,
+		resourceClient:     resourceClient,
+		scrapeInterval:     time.Duration(defaultScrapeIntervalSecs) * time.Second,
 	}
 }
 
 func (w *Worker) Run(ctx context.Context) {
 	ticker := time.NewTicker(w.scrapeInterval)
-	scraper := &Scraper{
-		Logger:             w.logger.Named("metrics_scrape"),
-		EnvoyAdminHostPort: "TODO",
-		Client:             http.DefaultTransport,
+	scraper := &scraper{
+		logger:             w.logger.Named("metrics_scrape"),
+		envoyAdminHostPort: w.envoyAdminHostPort,
+		client:             http.DefaultTransport,
 	}
 
 	stateTracker := NewStateTracker(w.resourceClient, w.logger.Named("state_tracker"))
@@ -67,23 +68,21 @@ func (w *Worker) Run(ctx context.Context) {
 				labels.PutStr(k, v)
 			}
 
-			metrics, err := scraper.Scrape(ctx, state.Metrics.IncludeList, labels)
+			metrics, err := scraper.scrape(ctx, state.Metrics.IncludeList, labels)
 			if err != nil {
 				w.logger.Error("failed to scrape envoy stats", "error", err)
 				continue
 			}
 
 			if err := w.exporter.ExportMetrics(ctx, metrics); err != nil {
-				if retryErr, ok := err.(otlphttp.RetryableError); ok && retryErr.After.After(time.Now()) {
-					//TODO schedule future retry
-				}
-				//TODO backoff? buffer?
+				w.logger.Error("failed to export metrics", "error", err)
 			}
-
 		case <-notifyCh:
 			//telemetrystate changed, labels and filters will be picked up on next scrape interval
 			if state, ok := stateTracker.State(); ok {
-				w.updateExporter(state)
+				if err := w.updateExporter(state); err != nil {
+					w.logger.Error("failed to update exporter", "error", err)
+				}
 			} else {
 				w.exporter = nil
 			}
@@ -93,10 +92,18 @@ func (w *Worker) Run(ctx context.Context) {
 }
 
 func (w *Worker) updateExporter(state State) error {
+	hcpConfig, err := config.NewHCPConfig(
+		config.FromEnv(),
+		config.WithClientCredentials(state.ClientID, state.ClientSecret),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to build hcp config: %w", err)
+	}
+
 	cfg := &otlphttp.Config{
 		MetricsEndpoint: state.MetricsEndpoint(),
-		TLSConfig:       &tls.Config{},
-		TokenSource:     auth.TokenSource(state.ClientID, state.ClientSecret),
+		TLSConfig:       hcpConfig.APITLSConfig(),
+		TokenSource:     hcpConfig,
 		Middleware: []otlphttp.MiddlewareOption{otlphttp.WithRequestHeaders(map[string]string{
 			"X-HCP-Resource-ID":    state.ResourceID,
 			"X-HCP-Source-Channel": fmt.Sprintf("consul-dataplane %s", version.GetHumanVersion()),
