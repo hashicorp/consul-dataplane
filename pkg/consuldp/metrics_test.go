@@ -27,7 +27,9 @@ var (
 	dogStatsdAddr    = "127.0.0.1"
 	envoyMetricsPort = 19000
 	envoyMetricsAddr = "127.0.0.1"
-	envoyMetricsUrl  = fmt.Sprintf("http://%s:%v/stats/prometheus", envoyMetricsAddr, envoyMetricsPort)
+
+	// net/url encodes value-less query params with an '='
+	envoyMetricsUrl = fmt.Sprintf("http://%s:%v/stats/prometheus?usedonly=", envoyMetricsAddr, envoyMetricsPort)
 
 	emptyTags = []metrics.Label{}
 )
@@ -199,7 +201,8 @@ func TestMetricsServerEnabled(t *testing.T) {
 			require.NotEqual(t, port, 0, "test failed to figure out metrics server port")
 			log.Printf("port = %v", port)
 
-			url := fmt.Sprintf("http://127.0.0.1:%d/stats/prometheus", port)
+			// Include a query to test that it is propagated _only_ to Envoy's stats endpoint.
+			url := fmt.Sprintf("http://127.0.0.1:%d/stats/prometheus?usedonly", port)
 			resp, err := http.Get(url)
 			require.NoError(t, err)
 			require.NotNil(t, resp)

@@ -16,6 +16,8 @@ import (
 	"path"
 	"strings"
 	"text/template"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -159,6 +161,17 @@ type BootstrapConfig struct {
 	// the bootstrap config. It's format may vary based on Envoy version used.
 	// See https://www.envoyproxy.io/docs/envoy/v1.9.0/api-v2/config/trace/v2/trace.proto.
 	TracingConfigJSON string `mapstructure:"envoy_tracing_json"`
+
+	Logger hclog.Logger
+}
+
+// log returns the Logger for BootstrapConfig or a null Logger if none is configured.
+// This method is meant to support tests that do not configure a Logger.
+func (c *BootstrapConfig) log() hclog.Logger {
+	if c.Logger == nil {
+		return hclog.NewNullLogger()
+	}
+	return c.Logger
 }
 
 // Template returns the bootstrap template to use as a base.
@@ -640,6 +653,24 @@ func (c *BootstrapConfig) generateListenerConfig(args *BootstrapTplArgs, bindAdd
 	if prometheusBackendPort != "" {
 		clusterPort = prometheusBackendPort
 		clusterName = "prometheus_backend"
+	}
+	
+	if !strings.HasPrefix(matchValue, "/") {
+		// Must begin with '/' for match to work and to support request URL parsing.
+		//
+		// Warn rather than returning an error for the sake of backwards compatibility.
+		c.log().Warn(fmt.Sprintf("%s path %s must begin with '/', adding for path match", name, matchValue))
+		matchValue = "/" + matchValue
+	}
+	if u, err := url.ParseRequestURI(matchValue); err == nil && u.RawQuery != "" {
+		// Strip query params from the match value (prefix or path), since Envoy does
+		// not expect a query and will strip the query from a request path before
+		// comparing against the configured value (i.e. the match value must not ever
+		// have a query in order to work).
+		//
+		// Warn rather than returning an error for the sake of backwards compatibility.
+		c.log().Warn(fmt.Sprintf("%s path %s must not contain a query, stripping for path match", name, matchValue))
+		matchValue = u.Path
 	}
 
 	clusterJSON := `{

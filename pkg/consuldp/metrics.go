@@ -61,6 +61,37 @@ const (
 	Statsd
 )
 
+type urlFn func(*http.Request) string
+
+// staticUrlFn returns a urlFn that redirects to the given URL (not validated) unmodified.
+func staticUrlFn(redirectUrl string) urlFn {
+	return func(_ *http.Request) string {
+		return redirectUrl
+	}
+}
+
+// retainQueryUrlFn returns a urlFn that retains the original query params of the inbound
+// request when redirecting.
+func retainQueryUrlFn(redirectUrl string) (urlFn, error) {
+	parsedUrl, err := url.Parse(redirectUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse redirect URL: %w", err)
+	}
+
+	return func(req *http.Request) string {
+		targetUrl := *parsedUrl
+		// Add and re-encode to sanitize invalid query params.
+		targetQuery := targetUrl.Query()
+		for k, vs := range req.URL.Query() {
+			for _, v := range vs {
+				targetQuery.Add(k, v)
+			}
+		}
+		targetUrl.RawQuery = targetQuery.Encode()
+		return targetUrl.String()
+	}, nil
+}
+
 // metricsConfig handles all configuration related to merging
 // the metrics and presenting them on promScrapeServer
 type metricsConfig struct {
@@ -80,7 +111,7 @@ type metricsConfig struct {
 	// merged metrics config
 	promScrapeServer *http.Server // the server that will serve all the merged metrics
 	client           httpClient   // the client that will scrape the urls
-	urls             []string     // the urls that will be scraped
+	urls             []urlFn      // the urls that will be scraped
 
 	// consuldp metrics server
 	cdpMetricsServer *http.Server // cdp metrics prometheus scrape server
@@ -147,9 +178,15 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			// will actually scrape.
 			mux := http.NewServeMux()
 			mux.HandleFunc("/stats/prometheus", m.mergedMetricsHandler)
-			m.urls = []string{cdpMetricsUrl, fmt.Sprintf("http://%s:%v/stats/prometheus", m.envoyAdminAddr, m.envoyAdminBindPort)}
+			// Retain request query for Envoy endpoint to enable customizing response (see
+			// https://www.envoyproxy.io/docs/envoy/latest/operations/admin#get--stats?format=prometheus&usedonly).
+			envoyUrlFn, err := retainQueryUrlFn(fmt.Sprintf("http://%s:%v/stats/prometheus", m.envoyAdminAddr, m.envoyAdminBindPort))
+			if err != nil {
+				return err
+			}
+			m.urls = []urlFn{staticUrlFn(cdpMetricsUrl), envoyUrlFn}
 			if m.cfg != nil && m.cfg.Prometheus.ServiceMetricsURL != "" {
-				m.urls = append(m.urls, m.cfg.Prometheus.ServiceMetricsURL)
+				m.urls = append(m.urls, staticUrlFn(m.cfg.Prometheus.ServiceMetricsURL))
 			}
 
 			// 3. Determine what the merged metrics bind port is. It can be set as a flag.
@@ -249,11 +286,12 @@ func (m *metricsConfig) metricsServerExited() <-chan struct{} {
 // Consul Dataplane, Envoy and (optionally) the service/application. The Envoy
 // and service metrics are scraped synchronously during the handling of this
 // request.
-func (m *metricsConfig) mergedMetricsHandler(rw http.ResponseWriter, _ *http.Request) {
-	for _, url := range m.urls {
-		m.logger.Debug("scraping url for merging", "url", url)
-		if err := m.scrapeMetrics(rw, url); err != nil {
-			m.scrapeError(rw, url, err)
+func (m *metricsConfig) mergedMetricsHandler(rw http.ResponseWriter, req *http.Request) {
+	for _, urlFn := range m.urls {
+		urlStr := urlFn(req)
+		m.logger.Debug("scraping url for merging", "url", urlStr)
+		if err := m.scrapeMetrics(rw, urlStr); err != nil {
+			m.scrapeError(rw, urlStr, err)
 			return
 		}
 	}
