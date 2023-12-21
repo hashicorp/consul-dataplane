@@ -333,7 +333,6 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
 
-
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
     needs:
@@ -350,8 +349,6 @@ jobs:
             image: hashicorppreview/consul:1.16-dev
           - version: v1.17.0-dev
             image: hashicorppreview/consul:1.17-dev
-          - version: v1.18.0-dev
-            image: hashicorppreview/consul:1.18-dev
         dataplane:
           - image_suffix: ""
             docker_target: "release-default"
