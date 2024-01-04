@@ -203,6 +203,8 @@ func (d *DNSServer) queryConsulAndRespondUDP(buf []byte, addr net.Addr) {
 		return
 	}
 	logger.Debug("dns messaged received from consul", "length", len(resp.Msg))
+	logger.Debug("dns message", "message", string(resp.GetMsg()))
+	logger.Debug("writing to addr", "addr", addr.String())
 	_, err = d.connUDP.WriteTo(resp.Msg, addr)
 	if err != nil {
 		logger.Error("error sending response", "error", err)
