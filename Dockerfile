@@ -33,6 +33,7 @@ FROM debian:bullseye-slim AS setcap-envoy-fips-binary
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
 ARG TARGETOS
+ARG GOLANG_VERSION
 
 COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
@@ -43,7 +44,7 @@ RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
 # go-discover builds the discover binary (which we don't currently publish
 # either).
-FROM golang:1.20.12-alpine as go-discover
+FROM golang:${GOLANG_VERSION}-alpine as go-discover
 RUN CGO_ENABLED=0 go install github.com/hashicorp/go-discover/cmd/discover@214571b6a5309addf3db7775f4ee8cf4d264fd5f
 
 # Pull in dumb-init from alpine, as our distroless release image doesn't have a
