@@ -153,6 +153,7 @@ jobs:
   build-docker-default:
     name: Docker ${{ matrix.arch }} ${{ matrix.fips }} default release build
     needs:
+      - get-go-version
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
@@ -168,7 +169,7 @@ jobs:
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
-
+      golang_version: ${{ needs.get-go-version.outputs.go-version }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -229,6 +230,7 @@ jobs:
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
     needs:
+      - get-go-version
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
@@ -237,11 +239,10 @@ jobs:
         include:
           - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
           - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1402" }
-
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
-
+      golang_version: ${{ needs.get-go-version.outputs.go-version }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - uses: hashicorp/actions-docker-build@v1
@@ -254,6 +255,7 @@ jobs:
   build-docker-ubi-dockerhub:
     name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
     needs:
+      - get-go-version
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
@@ -265,6 +267,7 @@ jobs:
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
+      golang_version: ${{ needs.get-go-version.outputs.go-version }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       # This naming convention will be used ONLY for per-commit dev images
