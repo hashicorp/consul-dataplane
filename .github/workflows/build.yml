@@ -183,7 +183,7 @@ jobs:
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
         #uses: hashicorp/actions-docker-build@v1
-        uses: hashicorp/actions-docker-build@77e57540ea82ba242fcf31147fef7aa526b69f9c
+        uses: hashicorp/actions-docker-build@f79ab0cb9f34268182d23890f462e658a3fdd99e
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -209,7 +209,7 @@ jobs:
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
         #uses: hashicorp/actions-docker-build@v1
-        uses: hashicorp/actions-docker-build@77e57540ea82ba242fcf31147fef7aa526b69f9c
+        uses: hashicorp/actions-docker-build@f79ab0cb9f34268182d23890f462e658a3fdd99e
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -250,7 +250,7 @@ jobs:
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       #- uses: hashicorp/actions-docker-build@v1
-      - uses: hashicorp/actions-docker-build@77e57540ea82ba242fcf31147fef7aa526b69f9c
+        uses: hashicorp/actions-docker-build@f79ab0cb9f34268182d23890f462e658a3fdd99e
         with:
           version: ${{env.version}}
           target: ${{ matrix.target-name }}
@@ -287,7 +287,7 @@ jobs:
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
         #uses: hashicorp/actions-docker-build@v1
-        uses: hashicorp/actions-docker-build@77e57540ea82ba242fcf31147fef7aa526b69f9c
+        uses: hashicorp/actions-docker-build@f79ab0cb9f34268182d23890f462e658a3fdd99e
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -313,7 +313,7 @@ jobs:
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
         #uses: hashicorp/actions-docker-build@v1
-        uses: hashicorp/actions-docker-build@77e57540ea82ba242fcf31147fef7aa526b69f9c
+        uses: hashicorp/actions-docker-build@f79ab0cb9f34268182d23890f462e658a3fdd99e
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
