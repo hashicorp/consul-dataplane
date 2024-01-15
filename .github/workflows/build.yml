@@ -182,9 +182,8 @@ jobs:
 
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
-        env:
-          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
+        #uses: hashicorp/actions-docker-build@v1
+        uses: curtbushko/actions-docker-build@ede2f97f0944a271ccd8797ee07aef8252305174
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -204,12 +203,13 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.full_dev_tag }}-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
-        env:
-          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
+        #uses: hashicorp/actions-docker-build@v1
+        uses: curtbushko/actions-docker-build@ede2f97f0944a271ccd8797ee07aef8252305174
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -229,6 +229,8 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.full_dev_tag }}-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
@@ -247,14 +249,15 @@ jobs:
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: hashicorp/actions-docker-build@v1
-        env:
-          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
+      #- uses: hashicorp/actions-docker-build@v1
+      - uses: curtbushko/actions-docker-build@ede2f97f0944a271ccd8797ee07aef8252305174
         with:
           version: ${{env.version}}
           target: ${{ matrix.target-name }}
           arch: amd64
           redhat_tag: quay.io/redhat-isv-containers/${{matrix.registry-id}}:${{env.version}}-ubi
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
   build-docker-ubi-dockerhub:
     name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
@@ -283,9 +286,8 @@ jobs:
 
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
-        env:
-          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
+        #uses: hashicorp/actions-docker-build@v1
+        uses: curtbushko/actions-docker-build@ede2f97f0944a271ccd8797ee07aef8252305174
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -305,12 +307,13 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.full_dev_tag }}-ubi-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
-        env:
-          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
+        #uses: hashicorp/actions-docker-build@v1
+        uses: curtbushko/actions-docker-build@ede2f97f0944a271ccd8797ee07aef8252305174
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -330,7 +333,8 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.full_dev_tag }}-ubi-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
-
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
