@@ -169,7 +169,6 @@ jobs:
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
-      golang_version: ${{ needs.get-go-version.outputs.go-version }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -184,6 +183,8 @@ jobs:
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
+        env:
+          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -207,6 +208,8 @@ jobs:
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
+        env:
+          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -242,10 +245,11 @@ jobs:
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
-      golang_version: ${{ needs.get-go-version.outputs.go-version }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - uses: hashicorp/actions-docker-build@v1
+        env:
+          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
         with:
           version: ${{env.version}}
           target: ${{ matrix.target-name }}
@@ -267,7 +271,6 @@ jobs:
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
-      golang_version: ${{ needs.get-go-version.outputs.go-version }}
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       # This naming convention will be used ONLY for per-commit dev images
@@ -281,6 +284,8 @@ jobs:
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
+        env:
+          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -304,6 +309,8 @@ jobs:
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
         uses: hashicorp/actions-docker-build@v1
+        env:
+          BA_FLAGS: "GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}"
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
