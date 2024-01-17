@@ -16,19 +16,7 @@ env:
 
 jobs:
   get-go-version:
-    name: "Determine Go toolchain version"
-    runs-on: ubuntu-latest
-    outputs:
-      go-version: ${{ steps.get-go-version.outputs.go-version }}
-    steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - name: Determine Go version
-        id: get-go-version
-        # We use .go-version as our source of truth for current Go
-        # version, because "goenv" can react to it automatically.
-        run: |
-          echo "Building with Go $(cat .go-version)"
-          echo "go-version=$(cat .go-version)" >> $GITHUB_OUTPUT
+    uses: ./.github/workflows/reusable-get-go-version.yml
 
   get-product-version:
     runs-on: ubuntu-latest
@@ -76,7 +64,6 @@ jobs:
           - {goos: "linux", goarch: "amd64"}
           - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402", pkg_suffix: "-fips" }
           - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402", pkg_suffix: "-fips" }
-
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} ${{ matrix.fips }} build
@@ -165,6 +152,7 @@ jobs:
   build-docker-default:
     name: Docker ${{ matrix.arch }} ${{ matrix.fips }} default release build
     needs:
+      - get-go-version
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
@@ -180,7 +168,6 @@ jobs:
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
-
     steps:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
 
@@ -195,7 +182,7 @@ jobs:
 
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
+        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -215,10 +202,12 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.full_dev_tag }}-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
+        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -238,10 +227,13 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.full_dev_tag }}-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
     needs:
+      - get-go-version
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
@@ -250,23 +242,24 @@ jobs:
         include:
           - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
           - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1402" }
-
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
-
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-      - uses: hashicorp/actions-docker-build@v1
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
         with:
           version: ${{env.version}}
           target: ${{ matrix.target-name }}
           arch: amd64
           redhat_tag: quay.io/redhat-isv-containers/${{matrix.registry-id}}:${{env.version}}-ubi
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
   build-docker-ubi-dockerhub:
     name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
     needs:
+      - get-go-version
       - get-product-version
       - build-linux
     runs-on: ubuntu-latest
@@ -291,7 +284,7 @@ jobs:
 
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
+        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -311,10 +304,12 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.full_dev_tag }}-ubi-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@v1
+        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -334,6 +329,8 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.full_dev_tag }}-ubi-${{ github.sha }}
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
+          extra_build_args: |
+            GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
@@ -341,6 +338,7 @@ jobs:
       - build-docker-default
       - build-docker-ubi-dockerhub
       - get-product-version
+      - get-go-version
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -375,12 +373,7 @@ jobs:
       - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
       - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
         with:
-          # pinning this to 1.20.5 because this issue in go-testcontainers occurs
-          # in 1.20.6 with the error "http: invalid Host header, host port waiting failed"
-          # https://github.com/testcontainers/testcontainers-go/issues/1359
-          # remove setting this when the above issue is fixed so that the job will
-          # just get the go version from .go-version.
-          go-version: 1.20.5
+          go-version: ${{ needs.get-go-version.outputs.go-version }}
       - id: run-tests
         run: cd integration-tests && go test -v -output-dir=./output -dataplane-image=hashicorppreview/${{env.repo}}:${{env.dev_tag}}-${{github.sha}} -server-image=${{matrix.server.image}} -server-version=${{matrix.server.version}}
         continue-on-error: true
