@@ -62,23 +62,8 @@ jobs:
           - { goos: "linux", goarch: "arm64" }
           - { goos: "linux", goarch: "386" }
           - { goos: "linux", goarch: "amd64" }
-          - {
-              goos: "linux",
-              goarch: "amd64",
-              gotags: "fips",
-              env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto",
-              fips: "+fips1402",
-              pkg_suffix: "-fips",
-            }
-          - {
-              goos: "linux",
-              goarch: "arm64",
-              gotags: "fips",
-              env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc",
-              fips: "+fips1402",
-              pkg_suffix: "-fips",
-            }
-
+          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402", pkg_suffix: "-fips" }
+          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402", pkg_suffix: "-fips" }
       fail-fast: true
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} ${{ matrix.fips }} build
@@ -255,15 +240,8 @@ jobs:
     strategy:
       matrix:
         include:
-          - {
-              target-name: "release-ubi",
-              registry-id: "631f805e0d15f623c5996c2e",
-            }
-          - {
-              target-name: "release-fips-ubi",
-              registry-id: "649cced3e093d1cc7f3d9b61",
-              fips: "+fips1402",
-            }
+          - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
+          - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1402" }
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
@@ -360,6 +338,7 @@ jobs:
       - build-docker-default
       - build-docker-ubi-dockerhub
       - get-product-version
+      - get-go-version
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -403,7 +382,7 @@ jobs:
         with:
           name: consul-${{matrix.server.version}}-integration-tests-output
           path: integration-tests/output/
-          if-no-files-found: "error"
+          if-no-files-found: 'error'
       - name: Check for failures
         if: ${{ steps.run-tests.outcome != 'success' }}
         run: exit 1
