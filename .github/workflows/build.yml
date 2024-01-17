@@ -337,6 +337,7 @@ jobs:
       - build-docker-default
       - build-docker-ubi-dockerhub
       - get-product-version
+      - get-go-version
     runs-on: ubuntu-latest
     strategy:
       matrix:
