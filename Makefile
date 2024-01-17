@@ -1,7 +1,6 @@
 SHELL := /usr/bin/env bash -euo pipefail -c
 
-REPO_NAME    ?= $(shell basename "$(CURDIR)")
-PRODUCT_NAME ?= $(REPO_NAME)
+PRODUCT_NAME ?= consul-dataplane
 BIN_NAME     ?= $(PRODUCT_NAME)
 GOPATH       ?= $(shell go env GOPATH)
 GOBIN        ?= $(GOPATH)/bin
@@ -9,12 +8,14 @@ GOBIN        ?= $(GOPATH)/bin
 # Get local ARCH; on Intel Mac, 'uname -m' returns x86_64 which we turn into amd64.
 # Not using 'go env GOOS/GOARCH' here so 'make docker' will work without local Go install.
 ARCH     ?= $(shell A=$$(uname -m); [ $$A = x86_64 ] && A=amd64; echo $$A)
-OS       ?= $(shell uname | tr [[:upper:]] [[:lower:]])
+# Only build for linux so that building the docker image works on M1 Macs.
+OS       ?= linux
 PLATFORM = $(OS)/$(ARCH)
 DIST     = dist/$(PLATFORM)
 BIN      = $(DIST)/$(BIN_NAME)
 
 VERSION = $(shell ./build-scripts/version.sh pkg/version/version.go)
+GOLANG_VERSION ?= $(shell head -n 1 .go-version)
 BOOTSTRAP_PACKAGE_DIR=internal/bootstrap
 INTEGRATION_TESTS_SERVER_IMAGE    ?= hashicorppreview/consul:1.15-dev
 INTEGRATION_TESTS_DATAPLANE_IMAGE ?= $(PRODUCT_NAME)/release-default:$(VERSION)
@@ -28,7 +29,7 @@ REVISION = $(shell git rev-parse HEAD)
 
 # Docker Stuff.
 export DOCKER_BUILDKIT=1
-BUILD_ARGS = BIN_NAME=$(BIN_NAME) PRODUCT_VERSION=$(VERSION) PRODUCT_REVISION=$(REVISION)
+BUILD_ARGS = BIN_NAME=$(BIN_NAME) PRODUCT_VERSION=$(VERSION) PRODUCT_REVISION=$(REVISION) GOLANG_VERSION=$(GOLANG_VERSION)
 TAG        = $(PRODUCT_NAME):$(VERSION)
 BA_FLAGS   = $(addprefix --build-arg=,$(BUILD_ARGS))
 FLAGS      = --target $(TARGET) --platform $(PLATFORM) --tag $(TAG) $(BA_FLAGS)
@@ -51,13 +52,13 @@ dev: bin ## Build binary and copy to the destination
 .PHONY: skaffold
 skaffold: dev ## Build consul-dataplane dev Docker image for use with skaffold or local development.
 	@docker build -t '$(DEV_IMAGE)' \
+       --build-arg 'GOLANG_VERSION=$(GOLANG_VERSION)' \
        --build-arg 'TARGETARCH=$(ARCH)' \
        -f $(CURDIR)/Dockerfile.dev .
 
 .PHONY: docker
 docker: bin ## build the release-target docker image
 	$(eval TARGET := release-default) # there are many targets in the Dockerfile, add more build if you need to customize the target
-	$(eval OS := linux)
 	docker build $(FLAGS) .
 	@echo 'Image built; run "docker run --rm $(TAG)" to try it out.'
 
