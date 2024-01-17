@@ -2,8 +2,8 @@ name: consul-dataplane-checks
 on:
   push:
     branches:
-      - main
-      - "release/*.*.x"
+    - main
+    - "release/*.*.x"
   pull_request:
 
 jobs:
