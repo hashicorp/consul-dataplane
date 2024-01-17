@@ -6,6 +6,7 @@
 
 # envoy-binary pulls in the latest Envoy binary, as Envoy don't publish
 # prebuilt binaries in any other form.
+ARG GOLANG_VERSION
 FROM envoyproxy/envoy-distroless:v1.25.11 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
@@ -24,7 +25,8 @@ RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
 # go-discover builds the discover binary (which we don't currently publish
 # either).
-FROM golang:1.20.12-alpine as go-discover
+ARG GOLANG_VERSION
+FROM golang:${GOLANG_VERSION}-alpine as go-discover
 RUN CGO_ENABLED=0 go install github.com/hashicorp/go-discover/cmd/discover@214571b6a5309addf3db7775f4ee8cf4d264fd5f
 
 # Pull in dumb-init from alpine, as our distroless release image doesn't have a
