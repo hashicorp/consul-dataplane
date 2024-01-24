@@ -120,16 +120,34 @@ copy-bootstrap-config: ## copy bootstrap config
 
 .PHONY: changelog
 changelog: ## build change log
-ifdef LAST_RELEASE_GIT_TAG
+ifdef DP_LAST_RELEASE_GIT_TAG
 	@changelog-build \
-		-last-release $(LAST_RELEASE_GIT_TAG) \
+		-last-release $(DP_LAST_RELEASE_GIT_TAG) \
 		-entries-dir .changelog/ \
 		-changelog-template .changelog/changelog.tmpl \
 		-note-template .changelog/note.tmpl \
 		-this-release $(REVISION)
 else
-	$(error Cannot generate changelog without LAST_RELEASE_GIT_TAG)
+	$(error Cannot generate changelog without DP_LAST_RELEASE_GIT_TAG)
 endif
+
+.PHONY: check-env
+check-env: ## check env
+	@printenv | grep "DP"
+
+.PHONY: prepare-release
+prepare-release:
+ifndef DP_RELEASE_VERSION
+	$(error DP_RELEASE_VERSION is required)
+endif
+	@$(CURDIR)/build-scripts/prepare-release.sh $(CURDIR)/pkg/version/version.go $(DP_RELEASE_VERSION) ""
+
+.PHONY: prepare-dev
+prepare-dev:
+ifndef DP_NEXT_RELEASE_VERSION
+	$(error DP_NEXT_RELEASE_VERSION is required)
+endif
+	@$(CURDIR)/build-scripts/prepare-release.sh $(CURDIR)/pkg/version/version.go $(DP_NEXT_RELEASE_VERSION) "dev"
 
 ##@ Help
 
