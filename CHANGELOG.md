@@ -1,4 +1,14 @@
-## 1.3.1 (December 18th, 2023)
+## 1.3.2 (January 24, 2024)
+
+SECURITY:
+
+* Upgrade OpenShift container images to use `ubi9-minimal:9.3` as the base image. [[GH-373](https://github.com/hashicorp/consul-dataplane/pull/373)]
+
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.21.6. [[GH-384](https://github.com/hashicorp/consul-dataplane/pull/384)]
+
+## 1.3.1 (December 18, 2023)
 
 SECURITY:
 
