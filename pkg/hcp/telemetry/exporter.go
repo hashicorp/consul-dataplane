@@ -14,15 +14,17 @@ const exporterDefaultScrapeInterval = time.Minute
 // Exporter is a telemetry exporter that is specific to HCP. If enabled via the hcp.v2.TelemetryState resource,
 // this exporter periodically scrapes Envoy metrics from its admin endpoint and pushes the metrics up to HCP.
 type Exporter struct {
+	envoyProxyID   string
 	logger         hclog.Logger
 	scrapeInterval time.Duration
 	scraper        scraper
 	stateTracker   stateTracker
 }
 
-// New creates a new HCP telemetry exporter.
-func New(resourceClient pbresource.ResourceServiceClient, logger hclog.Logger, envoyAdminHostPort string) *Exporter {
+// NewHCPExporter creates a new HCP telemetry exporter.
+func NewHCPExporter(resourceClient pbresource.ResourceServiceClient, logger hclog.Logger, envoyAdminHostPort, envoyProxyID string) *Exporter {
 	return &Exporter{
+		envoyProxyID:   envoyProxyID,
 		logger:         logger,
 		scrapeInterval: exporterDefaultScrapeInterval,
 		scraper:        newScraper(envoyAdminHostPort, logger.Named("scraper")),
@@ -48,6 +50,7 @@ func (w *Exporter) Run(ctx context.Context) {
 			for k, v := range state.labels {
 				labels.PutStr(k, v)
 			}
+			labels.PutStr("node.id", w.envoyProxyID)
 
 			metrics, err := w.scraper.scrape(ctx, state.includeList, labels)
 			if err != nil {

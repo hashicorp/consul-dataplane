@@ -221,7 +221,12 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
-	cdp.hcpTelemetry = telemetry.New(cdp.resourceClient, cdp.logger.Named("hcp_telemetry"), fmt.Sprintf("%s:%d", cdp.cfg.Envoy.AdminBindAddress, cdp.cfg.Envoy.AdminBindPort))
+	cdp.hcpTelemetry = telemetry.NewHCPExporter(
+		cdp.resourceClient,
+		cdp.logger.Named("hcp_telemetry"),
+		fmt.Sprintf("%s:%d", cdp.cfg.Envoy.AdminBindAddress, cdp.cfg.Envoy.AdminBindPort),
+		cdp.cfg.Proxy.ProxyID,
+	)
 	go cdp.hcpTelemetry.Run(ctx)
 
 	doneCh := make(chan error)

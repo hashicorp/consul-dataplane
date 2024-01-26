@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-uuid"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
@@ -50,6 +51,7 @@ func (s *fakeStateTracker) GetState() (*state, bool) {
 
 type fakeClient struct {
 	exportCalled atomic.Bool
+	exportLabels atomic.Value
 	exportErr    error
 }
 
@@ -103,7 +105,9 @@ func Test_Worker(t *testing.T) {
 			r := require.New(t)
 
 			// Create a worker. We don't use the client or envoy admin addr for anything.
-			worker := New(NewMockResourceServiceClient(t), hclog.NewNullLogger(), "localhost:1234")
+			proxyID, err := uuid.GenerateUUID()
+			r.NoError(err)
+			worker := NewHCPExporter(NewMockResourceServiceClient(t), hclog.NewNullLogger(), "localhost:1234", proxyID)
 			worker.scrapeInterval = time.Millisecond * 10
 
 			// Create fake exporter and state.
