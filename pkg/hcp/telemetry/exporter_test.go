@@ -51,7 +51,6 @@ func (s *fakeStateTracker) GetState() (*state, bool) {
 
 type fakeClient struct {
 	exportCalled atomic.Bool
-	exportLabels atomic.Value
 	exportErr    error
 }
 
