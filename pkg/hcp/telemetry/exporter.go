@@ -32,7 +32,7 @@ func NewHCPExporter(resourceClient pbresource.ResourceServiceClient, logger hclo
 	}
 }
 
-// Run starts the exporter's worker goroutine that periodically scrapes Envoy metrics and pushes them to HCP.
+// Run starts the exporter's exporter goroutine that periodically scrapes Envoy metrics and pushes them to HCP.
 func (w *Exporter) Run(ctx context.Context) {
 	go w.stateTracker.Run(ctx) // start syncing state from consul.
 	ticker := time.NewTicker(w.scrapeInterval)

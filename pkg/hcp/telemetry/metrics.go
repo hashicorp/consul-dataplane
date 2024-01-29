@@ -44,7 +44,7 @@ func newScraper(envoyAdminHostPort string, logger hclog.Logger) scraper {
 	}
 }
 
-// scrape is called by the worker goroutine to scrape metrics from the Envoy admin API.
+// scrape is called by the exporter goroutine to scrape metrics from the Envoy admin API.
 //
 // This calls Envoy's /stats/prometheus endpoint with filter set to OR'ed combination of regexp filters.
 // https://www.envoyproxy.io/docs/envoy/latest/operations/admin#get--stats-prometheus

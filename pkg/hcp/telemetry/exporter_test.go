@@ -64,7 +64,7 @@ func (e *fakeClient) ExportMetrics(ctx context.Context, metrics pmetric.Metrics)
 	return nil
 }
 
-func Test_Worker(t *testing.T) {
+func Test_Exporter(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct {
@@ -103,18 +103,18 @@ func Test_Worker(t *testing.T) {
 			t.Parallel()
 			r := require.New(t)
 
-			// Create a worker. We don't use the client or envoy admin addr for anything.
+			// Create a exporter. We don't use the client or envoy admin addr for anything.
 			proxyID, err := uuid.GenerateUUID()
 			r.NoError(err)
-			worker := NewHCPExporter(NewMockResourceServiceClient(t), hclog.NewNullLogger(), "localhost:1234", proxyID)
-			worker.scrapeInterval = time.Millisecond * 10
+			exporter := NewHCPExporter(NewMockResourceServiceClient(t), hclog.NewNullLogger(), "localhost:1234", proxyID)
+			exporter.scrapeInterval = time.Millisecond * 10
 
-			// Create fake exporter and state.
-			exporter := &fakeClient{
+			// Create fake client and state.
+			client := &fakeClient{
 				exportErr: tc.exportErr,
 			}
 			state := &state{
-				client:   exporter,
+				client:   client,
 				disabled: false,
 				labels: map[string]string{
 					"foo": "bar",
@@ -135,21 +135,21 @@ func Test_Worker(t *testing.T) {
 			stateTracker := &fakeStateTracker{
 				state: state,
 			}
-			worker.scraper = scraper
-			worker.stateTracker = stateTracker
+			exporter.scraper = scraper
+			exporter.stateTracker = stateTracker
 
-			// Run the worker.
+			// Run the exporter.
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			go worker.Run(ctx)
-			time.Sleep(worker.scrapeInterval * 5)
+			go exporter.Run(ctx)
+			time.Sleep(exporter.scrapeInterval * 5)
 			cancel()
 
 			r.True(stateTracker.runCalled.Load())
 			r.True(stateTracker.getStateCalled.Load())
 			r.Equal(tc.expectScrape, scraper.scrapeCalled.Load())
-			r.Equal(tc.expectExport, exporter.exportCalled.Load())
+			r.Equal(tc.expectExport, client.exportCalled.Load())
 		})
 	}
 }
