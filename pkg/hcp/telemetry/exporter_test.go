@@ -68,8 +68,7 @@ func Test_Exporter(t *testing.T) {
 	t.Parallel()
 
 	for name, tc := range map[string]struct {
-		modState  func(*state)
-		nilState  bool // nil state entirely
+		modState  func(*state) *state
 		scrapeErr error
 		exportErr error
 
@@ -81,12 +80,15 @@ func Test_Exporter(t *testing.T) {
 			expectExport: true,
 		},
 		"disabled": {
-			modState: func(s *state) {
+			modState: func(s *state) *state {
 				s.disabled = true
+				return s
 			},
 		},
 		"disabled nil state": {
-			nilState: true,
+			modState: func(s *state) *state {
+				return nil
+			},
 		},
 		"failure scrape": {
 			scrapeErr:    errors.New("failed to scrape"),
@@ -122,10 +124,7 @@ func Test_Exporter(t *testing.T) {
 				includeList: []string{"a", "b"},
 			}
 			if tc.modState != nil {
-				tc.modState(state)
-			}
-			if tc.nilState {
-				state = nil
+				state = tc.modState(state)
 			}
 
 			// Create fake scraper and state tracker.
