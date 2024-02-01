@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
+
+	"github.com/hashicorp/consul-dataplane/internal/mocks/pbresourcemock"
 )
 
 type fakeScraper struct {
@@ -108,7 +110,7 @@ func Test_Exporter(t *testing.T) {
 			// Create a exporter. We don't use the client or envoy admin addr for anything.
 			proxyID, err := uuid.GenerateUUID()
 			r.NoError(err)
-			exporter := NewHCPExporter(NewMockResourceServiceClient(t), hclog.NewNullLogger(), "localhost:1234", proxyID)
+			exporter := NewHCPExporter(pbresourcemock.NewMockResourceServiceClient(t), hclog.NewNullLogger(), "localhost:1234", proxyID)
 			exporter.scrapeInterval = time.Millisecond * 10
 
 			// Create fake client and state.

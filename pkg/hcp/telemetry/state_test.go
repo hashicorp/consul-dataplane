@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul-dataplane/internal/mocks/pbresourcemock"
 	hcp_v2 "github.com/hashicorp/consul/proto-public/pbhcp/v2"
 	pbresource "github.com/hashicorp/consul/proto-public/pbresource"
 	"github.com/hashicorp/go-hclog"
@@ -13,13 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/anypb"
 )
-
-/*
-The mocks in the adjacent files were created with:
-
-mockery --srcpkg=github.com/hashicorp/consul/proto-public/pbresource --name=ResourceServiceClient --output ./pkg/hcp/telemetry --outpkg telemetry --case underscore --testonly --structname MockResourceServiceClient
-mockery --srcpkg=github.com/hashicorp/consul/proto-public/pbresource --name=ResourceService_WatchListClient --output ./pkg/hcp/telemetry --outpkg telemetry --case underscore --testonly --structname MockResourceService_WatchListClient
-*/
 
 func Test_stateTracker(t *testing.T) {
 	t.Parallel()
@@ -118,8 +112,8 @@ func Test_stateTracker(t *testing.T) {
 			}
 
 			// Set up mocks.
-			watchListM := NewMockResourceService_WatchListClient(t)
-			resourceM := NewMockResourceServiceClient(t)
+			watchListM := pbresourcemock.NewResourceService_WatchListClient(t)
+			resourceM := pbresourcemock.NewResourceServiceClient(t)
 			func() {
 				// Call WatchList on consul.
 				if tc.fail == "WatchList" {
