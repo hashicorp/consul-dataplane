@@ -50,7 +50,6 @@ type ConsulDataplane struct {
 	aclToken        string
 	metricsConfig   *metricsConfig
 	lifecycleConfig *lifecycleConfig
-	hcpTelemetry    *telemetry.Exporter
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -221,13 +220,12 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
-	cdp.hcpTelemetry = telemetry.NewHCPExporter(
+	go telemetry.NewHCPExporter(
 		cdp.resourceClient,
 		cdp.logger.Named("hcp_telemetry"),
 		fmt.Sprintf("%s:%d", cdp.cfg.Envoy.AdminBindAddress, cdp.cfg.Envoy.AdminBindPort),
 		cdp.cfg.Proxy.ProxyID,
-	)
-	go cdp.hcpTelemetry.Run(ctx)
+	).Run(ctx)
 
 	doneCh := make(chan error)
 	go func() {
