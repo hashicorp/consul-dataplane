@@ -21,6 +21,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+/*
+The mock in the adjacent file was created with:
+
+mockery --srcpkg=github.com/hashicorp/consul/proto-public/pbdns --name=DNSServiceClient --output ./pkg/dns --outpkg dns --case underscore --testonly --structname MockDNSServiceClient
+*/
+
 type MockedNetConn struct {
 	net.Conn
 	mock.Mock
