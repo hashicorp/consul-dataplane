@@ -149,6 +149,15 @@ ifndef DP_NEXT_RELEASE_VERSION
 endif
 	@$(CURDIR)/build-scripts/prepare-release.sh $(CURDIR)/pkg/version/version.go $(DP_NEXT_RELEASE_VERSION) "dev"
 
+# This generates mocks against public proto packages in consul. At the time of writing,
+# only the dns and resource packages are used in consul-dataplane so only mocks for their
+# interfaces are generated here.
+.PHONY: mocks
+mocks:
+	for pkg in pbdns pbresource; do \
+		mockery --srcpkg=github.com/hashicorp/consul/proto-public/$$pkg --output ./internal/mocks/$${pkg}mock --outpkg $${pkg}mock --case underscore --all; \
+	done
+
 ##@ Help
 
 # The help target prints out all targets with their descriptions organized
