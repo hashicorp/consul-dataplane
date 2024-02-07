@@ -89,6 +89,8 @@ func (st *stateTrackerImpl) GetState() (*state, bool) {
 
 func (st *stateTrackerImpl) Run(ctx context.Context) {
 	for {
+		st.logger.Debug("starting watch for hcp.v2.TelemetryState resource")
+
 		stream, err := st.client.WatchList(ctx, &pbresource.WatchListRequest{
 			Type:       hcp_v2.TelemetryStateType,
 			Tenancy:    &pbresource.Tenancy{},
@@ -136,20 +138,19 @@ func (st *stateTrackerImpl) recvStream(stream pbresource.ResourceService_WatchLi
 		}
 
 		st.stateMu.Lock()
-		switch ev.Operation {
-		case pbresource.WatchEvent_OPERATION_UPSERT:
-			state, err := resourceToState(ev.GetResource(), st.logger)
+		if ev.GetUpsert() != nil {
+			state, err := resourceToState(ev.GetUpsert().GetResource(), st.logger)
 			if err != nil {
 				st.logger.Error("failed to convert resource to state", "error", err)
 			} else {
 				st.logger.Info("updated hcp telemetry exporter config")
 				st.state = state
 			}
-		case pbresource.WatchEvent_OPERATION_DELETE:
+		} else if ev.GetDelete() != nil {
 			st.logger.Info("hcp.v2.TelemetryState resource deleted, clearing from state")
 			st.state = nil
-		default:
-			st.logger.Error("unexpected operation type received from WatchList stream", "operation", ev.Operation)
+		} else {
+			st.logger.Error("unexpected operation type received from WatchList stream")
 		}
 		st.stateMu.Unlock()
 

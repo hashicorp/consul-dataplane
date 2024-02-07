@@ -22,32 +22,32 @@ func Test_stateTracker(t *testing.T) {
 		modTelemetryState func(*hcp_v2.TelemetryState)
 		modResource       func(*pbresource.Resource)
 		fail              string // cases for mocks
-		operation         pbresource.WatchEvent_Operation
+		event             string
 		expectedState     bool
 		expectedDisabled  bool
 	}{
 		"success": {
-			operation:     pbresource.WatchEvent_OPERATION_UPSERT,
+			event:         "upsert",
 			expectedState: true,
 		},
 		"success delete": {
-			operation: pbresource.WatchEvent_OPERATION_DELETE,
+			event: "delete",
 		},
 		"success despite initial watch list failure": {
 			fail:          "WatchListOnce",
-			operation:     pbresource.WatchEvent_OPERATION_UPSERT,
+			event:         "upsert",
 			expectedState: true,
 		},
 		"success despite initial stream recv failure": {
 			fail:          "Recv",
-			operation:     pbresource.WatchEvent_OPERATION_UPSERT,
+			event:         "upsert",
 			expectedState: true,
 		},
 		"success disabled": {
 			modTelemetryState: func(ts *hcp_v2.TelemetryState) {
 				ts.Metrics.Disabled = true
 			},
-			operation:        pbresource.WatchEvent_OPERATION_UPSERT,
+			event:            "upsert",
 			expectedState:    true,
 			expectedDisabled: true,
 		},
@@ -55,18 +55,18 @@ func Test_stateTracker(t *testing.T) {
 			modResource: func(r *pbresource.Resource) {
 				r.Data = nil
 			},
-			operation: pbresource.WatchEvent_OPERATION_UPSERT,
+			event: "upsert",
 		},
 		"fail watch list": {
-			fail:      "WatchList", // the consul WatchList call fails
-			operation: pbresource.WatchEvent_OPERATION_UNSPECIFIED,
+			fail:  "WatchList", // the consul WatchList call fails
+			event: "unspecified",
 		},
 		"fail unknown operation": {
-			operation: pbresource.WatchEvent_OPERATION_UNSPECIFIED,
+			event: "unspecified",
 		},
 		"fail empty resource": {
-			fail:      "NilResourceData",
-			operation: pbresource.WatchEvent_OPERATION_UPSERT,
+			fail:  "NilResourceData",
+			event: "upsert",
 		},
 	} {
 		tc := tc
@@ -101,6 +101,7 @@ func Test_stateTracker(t *testing.T) {
 			data, err := resourceState.MarshalBinary()
 			r.NoError(err)
 
+			// Create a fake resource.
 			resource := &pbresource.Resource{
 				Data: &anypb.Any{
 					TypeUrl: "hashicorp.consul.hcp.v2.TelemetryState",
@@ -109,6 +110,25 @@ func Test_stateTracker(t *testing.T) {
 			}
 			if tc.modResource != nil {
 				tc.modResource(resource)
+			}
+			event := &pbresource.WatchEvent{}
+			switch tc.event {
+			case "upsert":
+				event.Event = &pbresource.WatchEvent_Upsert_{
+					Upsert: &pbresource.WatchEvent_Upsert{
+						Resource: resource,
+					},
+				}
+			case "delete":
+				event.Event = &pbresource.WatchEvent_Delete_{
+					Delete: &pbresource.WatchEvent_Delete{
+						Resource: resource,
+					},
+				}
+			case "unspecified":
+				break
+			default:
+				r.Fail("unknown event: %q", event)
 			}
 
 			// Set up mocks.
@@ -139,8 +159,11 @@ func Test_stateTracker(t *testing.T) {
 				watchListM.On("Context").Return(ctx)
 				if tc.fail == "NilResourceData" {
 					watchListM.On("Recv").Return(&pbresource.WatchEvent{
-						Operation: tc.operation,
-						Resource:  &pbresource.Resource{Data: nil}, // this is the test, Data is nil
+						Event: &pbresource.WatchEvent_Upsert_{
+							Upsert: &pbresource.WatchEvent_Upsert{
+								Resource: &pbresource.Resource{Data: nil},
+							},
+						},
 					}, nil)
 					return
 				}
@@ -148,10 +171,7 @@ func Test_stateTracker(t *testing.T) {
 					// This is a single failure. Because the tracker retries, subsequent calls with succeed.
 					watchListM.On("Recv").Once().Return(nil, errors.New("boom"))
 				}
-				watchListM.On("Recv").Return(&pbresource.WatchEvent{
-					Operation: tc.operation,
-					Resource:  resource,
-				}, nil)
+				watchListM.On("Recv").Return(event, nil)
 			}()
 
 			// Create tracker.
