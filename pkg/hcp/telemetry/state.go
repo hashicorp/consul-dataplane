@@ -208,8 +208,8 @@ func resourceToState(res *pbresource.Resource, logger hclog.Logger) (*state, err
 		TLSConfig:       hcpConfig.APITLSConfig(),
 		TokenSource:     hcpConfig,
 		Middleware: []otlphttp.MiddlewareOption{otlphttp.WithRequestHeaders(map[string]string{
-			"X-HCP-Resource-ID":    telemetryState.GetResourceId(),
-			"X-HCP-Source-Channel": fmt.Sprintf("consul-dataplane %s", version.GetHumanVersion()),
+			"X-HCP-Resource-ID": telemetryState.GetResourceId(),
+			"X-Channel":         fmt.Sprintf("consul-dataplane/%s", version.GetHumanVersion()),
 		})},
 		UserAgent:  fmt.Sprintf("consul-dataplane/%s (%s/%s)", version.GetHumanVersion(), runtime.GOOS, runtime.GOARCH),
 		Logger:     logger.Named("otlphttp"),
