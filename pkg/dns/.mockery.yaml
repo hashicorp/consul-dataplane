@@ -1,14 +1,9 @@
 # Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: BUSL-1.1
+# SPDX-License-Identifier: MPL-2.0
 
 with-expecter: true
 recursive: true
 include-regex: ".*"
-exclude-regex: "(serverStream|Is(Inmem|Cloning).*Client)"
-# We don't want the mocks within proto-public to prevent forcing a dependency
-# of the testify library on the modules usage. The mocks are only for
-# internal testing purposes. Other consumers can generated the mocks into
-# their own code base.
 dir: "mocks/"
 outpkg: "mocks"
 mockname: "{{.InterfaceName}}"
