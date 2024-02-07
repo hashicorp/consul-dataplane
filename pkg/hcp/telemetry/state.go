@@ -149,8 +149,8 @@ func (st *stateTrackerImpl) recvStream(stream pbresource.ResourceService_WatchLi
 		} else if ev.GetDelete() != nil {
 			st.logger.Info("hcp.v2.TelemetryState resource deleted, clearing from state")
 			st.state = nil
-		} else {
-			st.logger.Error("unexpected operation type received from WatchList stream")
+		} else if ev.GetEndOfSnapshot() == nil {
+			st.logger.Error("unexpected event operation type received from WatchList stream")
 		}
 		st.stateMu.Unlock()
 
