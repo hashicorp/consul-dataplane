@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/pprof"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
+	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -191,13 +192,10 @@ func run() error {
 	go func() {
 		// Configure debug and runtime metrics endpoints.
 		// TODO: this is just for testing a PR - remove.
-		http.HandleFunc("/debug/pprof", pprof.Index)
-		http.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		http.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		http.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		http.HandleFunc("/debug/pprof/trace", pprof.Trace)
 		http.Handle("/debug/metrics", promhttp.Handler())
-		http.ListenAndServe(":2112", nil)
+		if err := http.ListenAndServe(":2112", nil); err != nil {
+			hclog.Default().Error("failed to start debug metrics server", "error", err)
+		}
 	}()
 
 	return consuldpInstance.Run(ctx)
