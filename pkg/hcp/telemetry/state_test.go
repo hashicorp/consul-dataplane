@@ -30,6 +30,13 @@ func Test_stateTracker(t *testing.T) {
 			event:         "upsert",
 			expectedState: true,
 		},
+		"success no auth url": {
+			modTelemetryState: func(ts *hcp_v2.TelemetryState) {
+				ts.HcpConfig.AuthUrl = ""
+			},
+			event:         "upsert",
+			expectedState: true,
+		},
 		"success delete": {
 			event: "delete",
 		},
@@ -197,4 +204,13 @@ func Test_stateTracker(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getAuthEndpoint(t *testing.T) {
+	t.Parallel()
+	r := require.New(t)
+
+	r.Equal("https://auth.idp.hcp.dev", getAuthEndpoint("https://consul-telemetry.hcp.dev/otlp/v1/metrics"))
+	r.Equal("https://auth.idp.hcp.to", getAuthEndpoint("https://consul-telemetry.hcp.to/otlp/v1/metrics"))
+	r.Equal("https://auth.idp.hashicorp.com", getAuthEndpoint("https://consul-telemetry.cloud.hashicorp.com/otlp/v1/metrics"))
 }

@@ -184,12 +184,18 @@ func resourceToState(res *pbresource.Resource, logger hclog.Logger) (*state, err
 		}, nil
 	}
 
+	// Get the endpoint for HCP auth. If this is empty, ie not set in any env var in consul, we infer it from
+	// the metrics endpoint.
+	authURL := telemetryState.GetHcpConfig().GetAuthUrl()
+	if authURL == "" {
+		authURL = getAuthEndpoint(telemetryState.GetMetrics().GetEndpoint())
+		logger = logger.With("hcp_auth_endpoint_inferred", true)
+	}
+
 	// Create an HCP configuration.
 	hcpConfig, err := config.NewHCPConfig(
 		config.WithClientCredentials(telemetryState.GetClientId(), telemetryState.GetClientSecret()),
-		config.WithAuth(telemetryState.GetHcpConfig().GetAuthUrl(), &tls.Config{
-			InsecureSkipVerify: telemetryState.GetHcpConfig().GetTlsInsecureSkipVerify(),
-		}),
+		config.WithAuth(authURL, &tls.Config{}),
 		config.WithoutBrowserLogin(),
 	)
 	if err != nil {
@@ -220,7 +226,7 @@ func resourceToState(res *pbresource.Resource, logger hclog.Logger) (*state, err
 		"disabled", false,
 		"hcp_resource_id", telemetryState.GetResourceId(),
 		"hcp_client_id", telemetryState.GetClientId(),
-		"hcp_auth_endpoint", telemetryState.GetHcpConfig().GetAuthUrl(),
+		"hcp_auth_endpoint", authURL,
 		"labels", telemetryState.GetMetrics().GetLabels(),
 		"include_list", telemetryState.GetMetrics().GetIncludeList(),
 		"http_proxy", telemetryState.GetProxy().GetHttpProxy(),
@@ -234,4 +240,15 @@ func resourceToState(res *pbresource.Resource, logger hclog.Logger) (*state, err
 		disabled:    telemetryState.GetMetrics().GetDisabled(),
 		includeList: telemetryState.GetMetrics().GetIncludeList(),
 	}, nil
+}
+
+func getAuthEndpoint(metricsEndpoint string) string {
+	switch {
+	case strings.Contains(metricsEndpoint, "hcp.dev"):
+		return "https://auth.idp.hcp.dev"
+	case strings.Contains(metricsEndpoint, "hcp.to"):
+		return "https://auth.idp.hcp.to"
+	default:
+		return "https://auth.idp.hashicorp.com"
+	}
 }
