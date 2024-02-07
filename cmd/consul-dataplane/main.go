@@ -191,7 +191,7 @@ func run() error {
 	go func() {
 		// Configure debug and runtime metrics endpoints.
 		// TODO: this is just for testing a PR - remove.
-		http.HandleFunc("/debug/pprof/", pprof.Index)
+		http.HandleFunc("/debug/pprof", pprof.Index)
 		http.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		http.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		http.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
