@@ -1,3 +1,17 @@
+## 1.4.0-rc1 (February 7, 2024) 
+
+SECURITY:
+
+* Update Envoy version to 1.27.2 to address [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-310](https://github.com/hashicorp/consul-dataplane/pull/310)]
+
+IMPROVEMENTS:
+
+* Propagate merged metrics request query params to Envoy to enable metrics filtering. [[GH-372](https://github.com/hashicorp/consul-dataplane/pull/372)]
+
+BUG FIXES:
+
+* Exclude Prometheus scrape path query params from Envoy path match s.t. it does not break merged metrics request routing. [[GH-372](https://github.com/hashicorp/consul-dataplane/pull/372)]
+
 ## 1.3.2 (January 24, 2024)
 
 SECURITY:

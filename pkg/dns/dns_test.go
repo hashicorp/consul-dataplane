@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul-dataplane/pkg/dns/mocks"
 	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/mock"
@@ -40,7 +41,7 @@ func genRandomBytes(size int) (blk []byte) {
 }
 
 func (s *DNSTestSuite) Test_DisabledServer() {
-	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	server, err := NewDNSServer(DNSServerParams{
 		BindAddr: "127.0.0.1",
 		Port:     -1, // disabled server
@@ -62,7 +63,7 @@ func (s *DNSTestSuite) Test_DisabledServer() {
 }
 
 func (s *DNSTestSuite) Test_AlreadyRunning() {
-	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	server, err := NewDNSServer(DNSServerParams{
 		BindAddr: "127.0.0.1",
 		Port:     0, // disabled server
@@ -81,7 +82,7 @@ func (s *DNSTestSuite) Test_AlreadyRunning() {
 }
 
 func (s *DNSTestSuite) Test_ServerStop() {
-	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	server, err := NewDNSServer(DNSServerParams{
 		BindAddr: "127.0.0.1",
 		Port:     0, // let the os choose a port
@@ -120,7 +121,7 @@ func (s *DNSTestSuite) Test_ServerStop() {
 }
 
 func (s *DNSTestSuite) Test_UDPProxy() {
-	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	connUdp, err := net.ListenUDP("udp", addr)
 	s.Require().NoError(err)
@@ -208,7 +209,7 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 }
 
 func (s *DNSTestSuite) Test_ProxydnsTCP() {
-	mockedDNSConsulClient := pbdns.NewMockDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	addr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	listenerTCP, err := net.ListenTCP("tcp", addr)
 	s.Require().NoError(err)
