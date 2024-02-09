@@ -8,18 +8,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
-	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -187,15 +182,6 @@ func run() error {
 		<-sigCh
 
 		consuldpInstance.GracefulShutdown(cancel)
-	}()
-
-	go func() {
-		// Configure debug and runtime metrics endpoints.
-		// TODO: this is just for testing a PR - remove.
-		http.Handle("/debug/metrics", promhttp.Handler())
-		if err := http.ListenAndServe(":2112", nil); err != nil {
-			hclog.Default().Error("failed to start debug metrics server", "error", err)
-		}
 	}()
 
 	return consuldpInstance.Run(ctx)
