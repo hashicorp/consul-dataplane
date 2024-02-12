@@ -1,0 +1,3 @@
+```release-note:feature
+Add metrics exporting directly to HCP when configured in core.
+```

@@ -51,7 +51,7 @@ func assertServerMatchesExpected(t *testing.T, server *net.UDPConn, buf []byte, 
 	n, _ := server.Read(buf)
 	msg := string(buf[:n])
 
-	require.Equal(t, msg, expected, fmt.Sprintf("Line %s does not match expected: %s", msg, expected))
+	require.Equal(t, expected, msg, fmt.Sprintf("Line %s does not match expected: %s", msg, expected))
 
 }
 
@@ -317,14 +317,14 @@ func TestMetricsDatadogWithoutGlobalTags(t *testing.T) {
 		Tags     []metrics.Label
 		Expected string
 	}{
-		{"SetGauge", []string{"foo", "bar"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar:42|g", prefix)},
-		{"SetGauge", []string{"foo", "bar", "baz"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar.baz:42|g", prefix)},
-		{"AddSample", []string{"sample", "thing"}, float32(4), emptyTags, fmt.Sprintf("%v.sample.thing:4.000000|ms", prefix)},
-		{"IncrCounter", []string{"count", "me"}, float32(3), emptyTags, fmt.Sprintf("%v.count.me:3|c", prefix)},
+		{"SetGauge", []string{"foo", "bar"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar:42|g\n", prefix)},
+		{"SetGauge", []string{"foo", "bar", "baz"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar.baz:42|g\n", prefix)},
+		{"AddSample", []string{"sample", "thing"}, float32(4), emptyTags, fmt.Sprintf("%v.sample.thing:4.000000|ms\n", prefix)},
+		{"IncrCounter", []string{"count", "me"}, float32(3), emptyTags, fmt.Sprintf("%v.count.me:3|c\n", prefix)},
 
-		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: ""}}, fmt.Sprintf("%v.foo.baz:42|g|#my_tag", prefix)},
-		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}}, fmt.Sprintf("%v.foo.baz:42|g|#my_tag:my_value", prefix)},
-		{"SetGauge", []string{"foo", "bar"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}, {Name: "other_tag", Value: "other_value"}}, fmt.Sprintf("%v.foo.bar:42|g|#my_tag:my_value,other_tag:other_value", prefix)},
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: ""}}, fmt.Sprintf("%v.foo.baz:42|g|#my_tag\n", prefix)},
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}}, fmt.Sprintf("%v.foo.baz:42|g|#my_tag:my_value\n", prefix)},
+		{"SetGauge", []string{"foo", "bar"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}, {Name: "other_tag", Value: "other_value"}}, fmt.Sprintf("%v.foo.bar:42|g|#my_tag:my_value,other_tag:other_value\n", prefix)},
 	}
 
 	server, buf := setupTestServerAndBuffer(t)
@@ -384,14 +384,14 @@ func TestMetricsDatadogWithGlobalTags(t *testing.T) {
 		Tags     []metrics.Label
 		Expected string
 	}{
-		{"SetGauge", []string{"foo", "bar"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar:42|g|#%v", prefix, globalTags)},
-		{"SetGauge", []string{"foo", "bar", "baz"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar.baz:42|g|#%v", prefix, globalTags)},
-		{"AddSample", []string{"sample", "thing"}, float32(4), emptyTags, fmt.Sprintf("%v.sample.thing:4.000000|ms|#%v", prefix, globalTags)},
-		{"IncrCounter", []string{"count", "me"}, float32(3), emptyTags, fmt.Sprintf("%v.count.me:3|c|#%v", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "bar"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar:42|g|#%v\n", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "bar", "baz"}, float32(42), emptyTags, fmt.Sprintf("%v.foo.bar.baz:42|g|#%v\n", prefix, globalTags)},
+		{"AddSample", []string{"sample", "thing"}, float32(4), emptyTags, fmt.Sprintf("%v.sample.thing:4.000000|ms|#%v\n", prefix, globalTags)},
+		{"IncrCounter", []string{"count", "me"}, float32(3), emptyTags, fmt.Sprintf("%v.count.me:3|c|#%v\n", prefix, globalTags)},
 
-		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: ""}}, fmt.Sprintf("%v.foo.baz:42|g|#%v,my_tag", prefix, globalTags)},
-		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}}, fmt.Sprintf("%v.foo.baz:42|g|#%v,my_tag:my_value", prefix, globalTags)},
-		{"SetGauge", []string{"foo", "bar"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}, {Name: "other_tag", Value: "other_value"}}, fmt.Sprintf("%v.foo.bar:42|g|#%v,my_tag:my_value,other_tag:other_value", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: ""}}, fmt.Sprintf("%v.foo.baz:42|g|#%v,my_tag\n", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "baz"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}}, fmt.Sprintf("%v.foo.baz:42|g|#%v,my_tag:my_value\n", prefix, globalTags)},
+		{"SetGauge", []string{"foo", "bar"}, float32(42), []metrics.Label{{Name: tag, Value: tagValue}, {Name: "other_tag", Value: "other_value"}}, fmt.Sprintf("%v.foo.bar:42|g|#%v,my_tag:my_value,other_tag:other_value\n", prefix, globalTags)},
 	}
 
 	server, buf := setupTestServerAndBuffer(t)

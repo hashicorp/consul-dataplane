@@ -16,11 +16,13 @@ import (
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/hashicorp/consul/proto-public/pbdns"
+	"github.com/hashicorp/consul/proto-public/pbresource"
 	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 
 	"github.com/hashicorp/consul-dataplane/pkg/dns"
 	"github.com/hashicorp/consul-dataplane/pkg/envoy"
+	"github.com/hashicorp/consul-dataplane/pkg/hcp/telemetry"
 	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
 )
 
@@ -43,6 +45,7 @@ type ConsulDataplane struct {
 	cfg             *Config
 	serverConn      *grpc.ClientConn
 	dpServiceClient pbdataplane.DataplaneServiceClient
+	resourceClient  pbresource.ResourceServiceClient
 	xdsServer       *xdsServer
 	aclToken        string
 	metricsConfig   *metricsConfig
@@ -175,6 +178,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.serverConn = state.GRPCConn
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
+	cdp.resourceClient = pbresource.NewResourceServiceClient(state.GRPCConn)
 
 	err = cdp.setupXDSServer()
 	if err != nil {
@@ -215,6 +219,13 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	go telemetry.NewHCPExporter(
+		cdp.resourceClient,
+		cdp.logger.Named("hcp_telemetry"),
+		fmt.Sprintf("%s:%d", cdp.cfg.Envoy.AdminBindAddress, cdp.cfg.Envoy.AdminBindPort),
+		cdp.cfg.Proxy.ProxyID,
+	).Run(ctx)
 
 	doneCh := make(chan error)
 	go func() {
