@@ -1,0 +1,3 @@
+```release-note:security
+  Upgrade `consul-dataplane-fips` OpenShift container image to use `ubi9-minimal:9.3` as the base image.
+  ```
