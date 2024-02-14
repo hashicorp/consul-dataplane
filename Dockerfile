@@ -27,7 +27,7 @@ RUN apt-get update && apt install -y libcap2-bin
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
-FROM hashicorp/envoy-fips:1.27.2-fips1402 as envoy-fips-binary
+FROM hashicorp/envoy-fips:1.27.3-fips1402 as envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
 FROM debian:bullseye-slim AS setcap-envoy-fips-binary
