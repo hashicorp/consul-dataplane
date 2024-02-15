@@ -1,3 +1,24 @@
+## 1.4.0 (February 28, 2024)
+
+SECURITY:
+
+* Update Envoy version to 1.27.2 to address [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-310](https://github.com/hashicorp/consul-dataplane/pull/310)]
+* Update Envoy version to 1.28.1 to address [CVE-2024-23324](https://github.com/envoyproxy/envoy/security/advisories/GHSA-gq3v-vvhj-96j6), [CVE-2024-23325](https://github.com/envoyproxy/envoy/security/advisories/GHSA-5m7c-mrwr-pm26), [CVE-2024-23322](https://github.com/envoyproxy/envoy/security/advisories/GHSA-6p83-mfmh-qv38), [CVE-2024-23323](https://github.com/envoyproxy/envoy/security/advisories/GHSA-x278-4w4x-r7ch), [CVE-2024-23327](https://github.com/envoyproxy/envoy/security/advisories/GHSA-4h5x-x9vh-m29j), and [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-416](https://github.com/hashicorp/consul-dataplane/pull/416)]
+* Upgrade `consul-dataplane-fips` OpenShift container image to use `ubi9-minimal:9.3` as the base image. [[GH-434](https://github.com/hashicorp/consul-dataplane/pull/434)]
+
+FEATURES:
+
+* Add metrics exporting directly to HCP when configured in core. [[GH-370](https://github.com/hashicorp/consul-dataplane/pull/370)]
+
+IMPROVEMENTS:
+
+* Propagate merged metrics request query params to Envoy to enable metrics filtering. [[GH-372](https://github.com/hashicorp/consul-dataplane/pull/372)]
+* Update Envoy version from 1.27 to 1.28 [[GH-416](https://github.com/hashicorp/consul-dataplane/pull/416)]
+
+BUG FIXES:
+
+* Exclude Prometheus scrape path query params from Envoy path match s.t. it does not break merged metrics request routing. [[GH-372](https://github.com/hashicorp/consul-dataplane/pull/372)]
+
 ## 1.3.2 (January 24, 2024)
 
 SECURITY:
