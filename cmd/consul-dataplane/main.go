@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/hashicorp/consul-dataplane/internal/debug"
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
 )
@@ -128,6 +129,10 @@ func init() {
 	BoolVar(flags, &flagOpts.dataplaneConfig.Envoy.DumpEnvoyConfigOnExitEnabled, "dump-envoy-config-on-exit", "DP_DUMP_ENVOY_CONFIG_ON_EXIT", "Call the Envoy /config_dump endpoint during consul-dataplane controlled shutdown.")
 
 	flags.StringVar(&flagOpts.configFile, "config-file", "", "The json config file for configuring consul data plane")
+
+	// Debug flags.
+	BoolVar(flags, &flagOpts.dataplaneConfig.Debug.ServerEnabled, "debug-server-enabled", "DP_DEBUG_SERVER_ENABLED", "Enabled the local debug server.")
+	IntVar(flags, &flagOpts.dataplaneConfig.Debug.ServerPort, "debug-server-port", "DP_DEBUG_SERVER_PORT", "The HTTP port to expose the debug server on.")
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -183,6 +188,10 @@ func run() error {
 
 		consuldpInstance.GracefulShutdown(cancel)
 	}()
+
+	if *flagOpts.dataplaneConfig.Debug.ServerEnabled {
+		go debug.EnableDebugServer(ctx, *flagOpts.dataplaneConfig.Debug.ServerPort)
+	}
 
 	return consuldpInstance.Run(ctx)
 }

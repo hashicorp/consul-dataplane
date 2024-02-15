@@ -29,6 +29,7 @@ type DataplaneConfigFlags struct {
 	DNSServer DNSServerFlags `json:"dnsServer,omitempty"`
 	Telemetry TelemetryFlags `json:"telemetry,omitempty"`
 	Envoy     EnvoyFlags     `json:"envoy,omitempty"`
+	Debug     DebugFlags     `json:"debug,omitempty"`
 }
 
 type ConsulFlags struct {
@@ -145,6 +146,11 @@ type EnvoyFlags struct {
 	StartupGracePeriodSeconds *int `json:"startupGracePeriodSeconds,omitempty"`
 	//Endpoint for graceful startup function.
 	GracefulStartupPath *string `json:"gracefulStartupPath,omitempty"`
+}
+
+type DebugFlags struct {
+	ServerEnabled *bool `json:"serverEnabled,omitempty"`
+	ServerPort    *int  `json:"serverPort,omitempty"`
 }
 
 const (
