@@ -18,14 +18,14 @@ func EnableDebugServer(ctx context.Context, port int) {
 
 	router := http.NewServeMux()
 
-	// Configure debug endpoints.
+	// Expose pprof debug endpoints.
 	router.HandleFunc("/debug/pprof/", pprof.Index)
 	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	router.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
-	// Expose the registered metrics via HTTP.
+	// Expose default runtime metrics.
 	router.Handle("/debug/metrics", promhttp.Handler())
 
 	addr := fmt.Sprintf(":%d", port)
@@ -44,7 +44,9 @@ func EnableDebugServer(ctx context.Context, port int) {
 		}
 	}()
 
-	// Wait for service to exit and shutdown.
+	// Wait for dataplane to exit, and shutdown the server.
 	<-ctx.Done()
-	_ = srv.Shutdown(context.Background())
+	if err := srv.Shutdown(context.Background()); err != nil {
+		log.Error("error shutting down debug server", "error", err)
+	}
 }
