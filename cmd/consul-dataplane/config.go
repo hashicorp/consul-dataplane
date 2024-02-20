@@ -21,15 +21,15 @@ type FlagOpts struct {
 }
 
 type DataplaneConfigFlags struct {
-	Consul    ConsulFlags    `json:"consul,omitempty"`
-	Service   ServiceFlags   `json:"service,omitempty"`
-	Proxy     ProxyFlags     `json:"proxy,omitempty"`
-	Logging   LogFlags       `json:"logging,omitempty"`
-	XDSServer XDSServerFlags `json:"xdsServer,omitempty"`
-	DNSServer DNSServerFlags `json:"dnsServer,omitempty"`
-	Telemetry TelemetryFlags `json:"telemetry,omitempty"`
-	Envoy     EnvoyFlags     `json:"envoy,omitempty"`
-	Debug     DebugFlags     `json:"debug,omitempty"`
+	Consul      ConsulFlags      `json:"consul,omitempty"`
+	Service     ServiceFlags     `json:"service,omitempty"`
+	Proxy       ProxyFlags       `json:"proxy,omitempty"`
+	Logging     LogFlags         `json:"logging,omitempty"`
+	XDSServer   XDSServerFlags   `json:"xdsServer,omitempty"`
+	DNSServer   DNSServerFlags   `json:"dnsServer,omitempty"`
+	Telemetry   TelemetryFlags   `json:"telemetry,omitempty"`
+	Envoy       EnvoyFlags       `json:"envoy,omitempty"`
+	DebugServer DebugServerFlags `json:"debugServer,omitempty"`
 }
 
 type ConsulFlags struct {
@@ -148,9 +148,9 @@ type EnvoyFlags struct {
 	GracefulStartupPath *string `json:"gracefulStartupPath,omitempty"`
 }
 
-type DebugFlags struct {
-	ServerEnabled *bool `json:"serverEnabled,omitempty"`
-	ServerPort    *int  `json:"serverPort,omitempty"`
+type DebugServerFlags struct {
+	BindAddr *string `json:"bindAddress,omitempty"`
+	BindPort *int    `json:"bindPort,omitempty"`
 }
 
 const (
@@ -256,6 +256,10 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			"bindPort": 0
 		},
 		"dnsServer": {
+			"bindAddress": "127.0.0.1",
+			"bindPort": -1
+		},
+		"debugServer": {
 			"bindAddress": "127.0.0.1",
 			"bindPort": -1
 		}
@@ -364,6 +368,10 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 		DNSServer: &consuldp.DNSServerConfig{
 			BindAddr: stringVal(cfg.DNSServer.BindAddr),
 			Port:     intVal(cfg.DNSServer.BindPort),
+		},
+		DebugServer: &consuldp.DebugServer{
+			BindAddress: stringVal(cfg.DebugServer.BindAddr),
+			BindPort:    intVal(cfg.DebugServer.BindPort),
 		},
 	}, nil
 }

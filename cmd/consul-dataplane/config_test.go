@@ -100,6 +100,10 @@ func TestConfigGeneration(t *testing.T) {
 							KeyFile:       "prom-key.pem",
 						},
 					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
+					},
 				}
 			},
 			wantErr: false,
@@ -177,6 +181,10 @@ func TestConfigGeneration(t *testing.T) {
 							CertFile:      "prom-ca-cert.pem",
 							KeyFile:       "prom-key.pem",
 						},
+					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
 					},
 				}
 			},
@@ -282,6 +290,10 @@ func TestConfigGeneration(t *testing.T) {
 							KeyFile:       "prom-key.pem",
 						},
 					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
+					},
 				}
 			},
 			wantErr: false,
@@ -386,6 +398,10 @@ func TestConfigGeneration(t *testing.T) {
 							KeyFile:       "prom-key.pem",
 						},
 					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
+					},
 				}
 			},
 			wantErr: false,
@@ -474,6 +490,10 @@ func TestConfigGeneration(t *testing.T) {
 							CertFile:      "prom-ca-cert.pem",
 							KeyFile:       "prom-key.pem",
 						},
+					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
 					},
 				}
 			},
@@ -570,6 +590,10 @@ func TestConfigGeneration(t *testing.T) {
 							ScrapePath:    "/metrics",
 							MergePort:     20100,
 						},
+					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
 					},
 				}
 			},
@@ -698,6 +722,10 @@ func TestConfigGeneration(t *testing.T) {
 							KeyFile:       "prom-key.pem",
 						},
 					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
+					},
 				}
 			},
 			wantErr: false,
@@ -824,6 +852,10 @@ func TestConfigGeneration(t *testing.T) {
 							CertFile:      "prom-ca-cert.pem",
 							KeyFile:       "prom-key.pem",
 						},
+					},
+					DebugServer: &consuldp.DebugServer{
+						BindAddress: "127.0.0.1",
+						BindPort:    -1,
 					},
 				}
 			},

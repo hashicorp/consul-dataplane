@@ -3,6 +3,7 @@ package debug
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 // EnableDebugServer starts a local HTTP server on a given port.
 // By default, it will register pprof and runtime metrics endpoints.
-func EnableDebugServer(ctx context.Context, port int) {
+func EnableDebugServer(ctx context.Context, addr string, port int) {
 	log := hclog.FromContext(ctx).Named("debug_server")
 
 	router := http.NewServeMux()
@@ -28,17 +29,20 @@ func EnableDebugServer(ctx context.Context, port int) {
 	// Expose default runtime metrics.
 	router.Handle("/debug/metrics", promhttp.Handler())
 
-	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{
-		Addr:         addr,
 		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
 	go func() {
-		log.Info("starting local debug server", "address", addr)
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d", addr, port))
+		if err != nil {
+			log.Error("local debug server tcp error", "error", err)
+			return
+		}
+		log.Info("starting local debug server", "address", ln.Addr().String())
+		if err := srv.Serve(ln); err != http.ErrServerClosed {
 			log.Error("local debug server error", "error", err)
 			return
 		}

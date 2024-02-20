@@ -131,8 +131,9 @@ func init() {
 	flags.StringVar(&flagOpts.configFile, "config-file", "", "The json config file for configuring consul data plane")
 
 	// Debug flags.
-	BoolVar(flags, &flagOpts.dataplaneConfig.Debug.ServerEnabled, "debug-server-enabled", "DP_DEBUG_SERVER_ENABLED", "Enabled the local debug server.")
-	IntVar(flags, &flagOpts.dataplaneConfig.Debug.ServerPort, "debug-server-port", "DP_DEBUG_SERVER_PORT", "The HTTP port to expose the debug server on.")
+	StringVar(flags, &flagOpts.dataplaneConfig.DebugServer.BindAddr, "debug-bind-addr", "DP_DEBUG_BIND_ADDR", "The address on which the debug server is available.")
+	IntVar(flags, &flagOpts.dataplaneConfig.DebugServer.BindPort, "debug-bind-port", "DP_DEBUG_BIND_PORT", "The port on which the debug server is available.")
+
 }
 
 // validateFlags performs semantic validation of the flag values
@@ -189,8 +190,8 @@ func run() error {
 		consuldpInstance.GracefulShutdown(cancel)
 	}()
 
-	if *flagOpts.dataplaneConfig.Debug.ServerEnabled {
-		go debug.EnableDebugServer(ctx, *flagOpts.dataplaneConfig.Debug.ServerPort)
+	if *flagOpts.dataplaneConfig.DebugServer.BindPort >= 0 {
+		go debug.EnableDebugServer(ctx, *flagOpts.dataplaneConfig.DebugServer.BindAddr, *flagOpts.dataplaneConfig.DebugServer.BindPort)
 	}
 
 	return consuldpInstance.Run(ctx)

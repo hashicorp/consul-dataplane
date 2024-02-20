@@ -313,14 +313,23 @@ type XDSServer struct {
 	BindPort int
 }
 
+// DebugServer contains the configuration of the debug server.
+type DebugServer struct {
+	// BindAddress is the address on which the debug server will be available.
+	BindAddress string
+	// BindPort is the address on which the debug port will be available.
+	BindPort int
+}
+
 // Config is the configuration used by consul-dataplane, consolidated
 // from various sources - CLI flags, env vars, config file settings.
 type Config struct {
-	DNSServer *DNSServerConfig
-	Consul    *ConsulConfig
-	Proxy     *ProxyConfig
-	Logging   *LoggingConfig
-	Telemetry *TelemetryConfig
-	Envoy     *EnvoyConfig
-	XDSServer *XDSServer
+	DNSServer   *DNSServerConfig
+	Consul      *ConsulConfig
+	Proxy       *ProxyConfig
+	Logging     *LoggingConfig
+	Telemetry   *TelemetryConfig
+	Envoy       *EnvoyConfig
+	XDSServer   *XDSServer
+	DebugServer *DebugServer
 }
