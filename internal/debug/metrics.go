@@ -29,10 +29,14 @@ func EnableDebugServer(ctx context.Context, addr string, port int) {
 	// Expose default runtime metrics.
 	router.Handle("/debug/metrics", promhttp.Handler())
 
+	// Configure HTTP server with sane defaults.
+	timeout := 10 * time.Second
 	srv := &http.Server{
-		Handler:      router,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Handler:           router,
+		ReadTimeout:       timeout,
+		ReadHeaderTimeout: timeout,
+		WriteTimeout:      timeout,
+		IdleTimeout:       timeout,
 	}
 
 	go func() {
@@ -48,9 +52,7 @@ func EnableDebugServer(ctx context.Context, addr string, port int) {
 		}
 	}()
 
-	// Wait for dataplane to exit, and shutdown the server.
+	// Wait for dataplane to exit, and shutdown the server immediately.
 	<-ctx.Done()
-	if err := srv.Shutdown(context.Background()); err != nil {
-		log.Error("error shutting down debug server", "error", err)
-	}
+	_ = srv.Close()
 }
