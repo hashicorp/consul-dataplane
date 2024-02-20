@@ -1,0 +1,3 @@
+```release-note:improvement
+Add debug server for exposing pprof and runtime metrics.
+```
