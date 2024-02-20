@@ -1,4 +1,4 @@
-## 1.2.5 (February 14, 2024)
+## 1.2.6 (February 14, 2024)
 
 SECURITY:
 
