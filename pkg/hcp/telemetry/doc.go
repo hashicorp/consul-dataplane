@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 // Package telemetry is for scraping and sending Envoy metrics to HCP in OTLP format.
 //
 // This exists to let customers send mesh telemetry to HCP without having to deploy
