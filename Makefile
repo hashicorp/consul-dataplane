@@ -5,6 +5,8 @@ BIN_NAME     ?= $(PRODUCT_NAME)
 GOPATH       ?= $(shell go env GOPATH)
 GOBIN        ?= $(GOPATH)/bin
 
+GO_MODULES := $(shell find . -name go.mod -exec dirname {} \; | sort)
+
 # Get local ARCH; on Intel Mac, 'uname -m' returns x86_64 which we turn into amd64.
 # Not using 'go env GOOS/GOARCH' here so 'make docker' will work without local Go install.
 ARCH     ?= $(shell A=$$(uname -m); [ $$A = x86_64 ] && A=amd64; echo $$A)
@@ -148,6 +150,19 @@ ifndef DP_NEXT_RELEASE_VERSION
 	$(error DP_NEXT_RELEASE_VERSION is required)
 endif
 	@$(CURDIR)/build-scripts/prepare-release.sh $(CURDIR)/pkg/version/version.go $(DP_NEXT_RELEASE_VERSION) "dev"
+
+.PHONY: go-mod-get
+go-mod-get: $(foreach mod,$(GO_MODULES),go-mod-get/$(mod)) ## Run go get and go mod tidy in every module for the given dependency
+
+.PHONY: go-mod-get/%
+go-mod-get/%:
+ifndef DEP_VERSION
+	$(error DEP_VERSION is undefined: set this to <dependency>@<version>, e.g. github.com/hashicorp/go-hclog@v1.5.0)
+endif
+	@echo "--> Running go get ${DEP_VERSION} ($*)"
+	@cd $* && go get $(DEP_VERSION)
+	@echo "--> Running go mod tidy ($*)"
+	@cd $* && go mod tidy
 
 ##@ Help
 
