@@ -1,3 +1,33 @@
+## 1.3.3 (February 14, 2023)
+
+SECURITY:
+
+* Update Envoy version to 1.27.3 to address [CVE-2024-23324](https://github.com/envoyproxy/envoy/security/advisories/GHSA-gq3v-vvhj-96j6), [CVE-2024-23325](https://github.com/envoyproxy/envoy/security/advisories/GHSA-5m7c-mrwr-pm26), [CVE-2024-23322](https://github.com/envoyproxy/envoy/security/advisories/GHSA-6p83-mfmh-qv38), [CVE-2024-23323](https://github.com/envoyproxy/envoy/security/advisories/GHSA-x278-4w4x-r7ch), [CVE-2024-23327](https://github.com/envoyproxy/envoy/security/advisories/GHSA-4h5x-x9vh-m29j), and [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-421](https://github.com/hashicorp/consul-dataplane/pull/421)]
+
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.21.7. [[GH-411](https://github.com/hashicorp/consul-dataplane/pull/411)]
+
+## 1.2.5 (February 14, 2023)
+
+SECURITY:
+
+* Update Envoy version to 1.26.7 to address [CVE-2024-23324](https://github.com/envoyproxy/envoy/security/advisories/GHSA-gq3v-vvhj-96j6), [CVE-2024-23325](https://github.com/envoyproxy/envoy/security/advisories/GHSA-5m7c-mrwr-pm26), [CVE-2024-23322](https://github.com/envoyproxy/envoy/security/advisories/GHSA-6p83-mfmh-qv38), [CVE-2024-23323](https://github.com/envoyproxy/envoy/security/advisories/GHSA-x278-4w4x-r7ch), [CVE-2024-23327](https://github.com/envoyproxy/envoy/security/advisories/GHSA-4h5x-x9vh-m29j), and [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-417](https://github.com/hashicorp/consul-dataplane/pull/417)]
+
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.21.7. [[GH-411](https://github.com/hashicorp/consul-dataplane/pull/411)]
+
+## 1.1.9 (February 14, 2023)
+
+SECURITY:
+
+* Update Envoy version to 1.26.7 to address [CVE-2024-23324](https://github.com/envoyproxy/envoy/security/advisories/GHSA-gq3v-vvhj-96j6), [CVE-2024-23325](https://github.com/envoyproxy/envoy/security/advisories/GHSA-5m7c-mrwr-pm26), [CVE-2024-23322](https://github.com/envoyproxy/envoy/security/advisories/GHSA-6p83-mfmh-qv38), [CVE-2024-23323](https://github.com/envoyproxy/envoy/security/advisories/GHSA-x278-4w4x-r7ch), [CVE-2024-23327](https://github.com/envoyproxy/envoy/security/advisories/GHSA-4h5x-x9vh-m29j), and [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) (note: upgrades to Envoy 1.26 for security patches due to 1.25 EOL) [[GH-418](https://github.com/hashicorp/consul-dataplane/pull/418)]
+
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.21.7. [[GH-411](https://github.com/hashicorp/consul-dataplane/pull/411)]
+
 ## 1.3.2 (January 24, 2024)
 
 SECURITY:
