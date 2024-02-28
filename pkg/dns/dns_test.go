@@ -14,11 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul-dataplane/internal/mocks/pbdnsmock"
 	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/hashicorp/consul-dataplane/pkg/dns/mocks"
 )
 
 type MockedNetConn struct {
@@ -41,7 +42,7 @@ func genRandomBytes(size int) (blk []byte) {
 }
 
 func (s *DNSTestSuite) Test_DisabledServer() {
-	mockedDNSConsulClient := pbdnsmock.NewDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	server, err := NewDNSServer(DNSServerParams{
 		BindAddr: "127.0.0.1",
 		Port:     -1, // disabled server
@@ -63,7 +64,7 @@ func (s *DNSTestSuite) Test_DisabledServer() {
 }
 
 func (s *DNSTestSuite) Test_AlreadyRunning() {
-	mockedDNSConsulClient := pbdnsmock.NewDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	server, err := NewDNSServer(DNSServerParams{
 		BindAddr: "127.0.0.1",
 		Port:     0, // disabled server
@@ -82,7 +83,7 @@ func (s *DNSTestSuite) Test_AlreadyRunning() {
 }
 
 func (s *DNSTestSuite) Test_ServerStop() {
-	mockedDNSConsulClient := pbdnsmock.NewDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	server, err := NewDNSServer(DNSServerParams{
 		BindAddr: "127.0.0.1",
 		Port:     0, // let the os choose a port
@@ -121,7 +122,7 @@ func (s *DNSTestSuite) Test_ServerStop() {
 }
 
 func (s *DNSTestSuite) Test_UDPProxy() {
-	mockedDNSConsulClient := pbdnsmock.NewDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	addr := &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	connUdp, err := net.ListenUDP("udp", addr)
 	s.Require().NoError(err)
@@ -209,7 +210,7 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 }
 
 func (s *DNSTestSuite) Test_ProxydnsTCP() {
-	mockedDNSConsulClient := pbdnsmock.NewDNSServiceClient(s.T())
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	addr := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 0}
 	listenerTCP, err := net.ListenTCP("tcp", addr)
 	s.Require().NoError(err)
