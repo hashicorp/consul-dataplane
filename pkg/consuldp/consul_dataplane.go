@@ -48,7 +48,7 @@ type ConsulDataplane struct {
 	metricsConfig   *metricsConfig
 	lifecycleConfig *lifecycleConfig
 
-	resolvedService ServiceConfig
+	resolvedProxyConfig ProxyConfig
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -261,8 +261,8 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 		Port:      cdp.cfg.DNSServer.Port,
 		Client:    dnsClientInterface,
 		Logger:    cdp.logger,
-		Partition: cdp.resolvedService.Partition,
-		Namespace: cdp.resolvedService.Namespace,
+		Partition: cdp.resolvedProxyConfig.Partition,
+		Namespace: cdp.resolvedProxyConfig.Namespace,
 		Token:     cdp.aclToken,
 	})
 	if err == dns.ErrServerDisabled {

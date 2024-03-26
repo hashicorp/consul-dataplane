@@ -55,10 +55,9 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	}
 
 	// store the final resolved service for others to use.
-	cdp.resolvedService = ServiceConfig{
+	cdp.resolvedProxyConfig = ProxyConfig{
 		NodeName:  rsp.NodeName,
-		NodeID:    rsp.NodeId,
-		ServiceID: cdp.cfg.Service.ServiceID,
+		ProxyID:   cdp.cfg.Proxy.ProxyID,
 		Namespace: rsp.Namespace,
 		Partition: rsp.Partition,
 	}
