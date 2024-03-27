@@ -1,0 +1,3 @@
+```release-note:improvement
+dns: queries proxied by consul-dataplane now assume the same namespace/partition/ACL token as the service registered to the dataplane instance.
+```
