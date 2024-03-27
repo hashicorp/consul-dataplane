@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
+	"google.golang.org/grpc/metadata"
 )
 
 // ErrServerDisabled is returned when the server is disabled
@@ -30,6 +31,10 @@ type DNSServerParams struct {
 	Port     int
 	Logger   hclog.Logger
 	Client   pbdns.DNSServiceClient
+
+	Partition string
+	Namespace string
+	Token     string
 }
 
 // DNSServerInterface is the interface for athe DNSServer
@@ -53,6 +58,10 @@ type DNSServer struct {
 	client      pbdns.DNSServiceClient
 	connUDP     net.PacketConn
 	listenerTCP net.Listener
+
+	partition string
+	namespace string
+	token     string
 }
 
 // NewDNSServer creates a new DNS proxy server
@@ -68,6 +77,9 @@ func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
 	s.port = p.Port
 	s.client = p.Client
 	s.logger = p.Logger.Named("dns-proxy")
+	s.partition = p.Partition
+	s.namespace = p.Namespace
+	s.token = p.Token
 	return s, nil
 }
 
@@ -196,6 +208,12 @@ func (d *DNSServer) queryConsulAndRespondUDP(buf []byte, addr net.Addr) {
 
 	ctx, done := context.WithTimeout(context.Background(), time.Minute*1)
 	defer done()
+
+	ctx = metadata.AppendToOutgoingContext(ctx,
+		"x-consul-partition", d.partition,
+		"x-consul-namespace", d.namespace,
+		"x-consul-token", d.token,
+	)
 
 	resp, err := d.client.Query(ctx, req)
 	if err != nil {
