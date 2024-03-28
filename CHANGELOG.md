@@ -1,3 +1,16 @@
+## 1.2.7 (March 28, 2024)
+
+SECURITY:
+
+* Update `google.golang.org/protobuf` to v1.33.0 to address [CVE-2024-24786](https://nvd.nist.gov/vuln/detail/CVE-2024-24786). [[GH-460](https://github.com/hashicorp/consul-dataplane/pull/460)]
+* Upgrade `consul-dataplane-fips` OpenShift container image to use `ubi9-minimal:9.3` as the base image. [[GH-434](https://github.com/hashicorp/consul-dataplane/pull/434)]
+* Upgrade to use Go `1.21.8`. This resolves CVEs
+  [CVE-2024-24783](https://nvd.nist.gov/vuln/detail/CVE-2024-24783) (`crypto/x509`).
+  [CVE-2023-45290](https://nvd.nist.gov/vuln/detail/CVE-2023-45290) (`net/http`).
+  [CVE-2023-45289](https://nvd.nist.gov/vuln/detail/CVE-2023-45289) (`net/http`, `net/http/cookiejar`).
+  [CVE-2024-24785](https://nvd.nist.gov/vuln/detail/CVE-2024-24785) (`html/template`).
+  [CVE-2024-24784](https://nvd.nist.gov/vuln/detail/CVE-2024-24784) (`net/mail`). [[GH-465](https://github.com/hashicorp/consul-dataplane/pull/465)]
+
 ## 1.2.6 (February 14, 2024)
 
 SECURITY:
