@@ -1,3 +1,9 @@
+## 1.1.10 (March 28, 2024)
+
+SECURITY:
+
+* Update `google.golang.org/protobuf` to v1.33.0 to address [CVE-2024-24786](https://nvd.nist.gov/vuln/detail/CVE-2024-24786). [[GH-460](https://github.com/hashicorp/consul-dataplane/pull/460)]
+
 ## 1.1.9 (February 14, 2024)
 
 SECURITY:
