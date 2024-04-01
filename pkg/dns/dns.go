@@ -295,6 +295,12 @@ func (d *DNSServer) proxyTCPAcceptedConn(ctx context.Context, conn net.Conn, cli
 		ctx, done := context.WithTimeout(context.Background(), time.Minute*1)
 		defer done()
 
+		ctx = metadata.AppendToOutgoingContext(ctx,
+			"x-consul-partition", d.partition,
+			"x-consul-namespace", d.namespace,
+			"x-consul-token", d.token,
+		)
+
 		resp, err := client.Query(ctx, req)
 		if err != nil {
 			logger.Error("error resolving consul request", "error", err)

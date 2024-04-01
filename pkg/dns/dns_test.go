@@ -17,7 +17,9 @@ import (
 	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/hashicorp/consul-dataplane/pkg/dns/mocks"
 )
@@ -130,9 +132,12 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 	defer cancel()
 
 	server := DNSServer{
-		client:  mockedDNSConsulClient,
-		connUDP: connUdp,
-		logger:  hclog.Default(),
+		client:    mockedDNSConsulClient,
+		connUDP:   connUdp,
+		logger:    hclog.Default(),
+		partition: "test-partition",
+		namespace: "test-namespace",
+		token:     "test-token",
 	}
 
 	go server.proxyUDP(runCtx)
@@ -175,6 +180,17 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 			}
 
 			mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+				Run(func(args mock.Arguments) {
+					ctx, ok := args.Get(0).(context.Context)
+					require.True(s.T(), ok, "error casting to context.Context")
+
+					md, ok := metadata.FromOutgoingContext(ctx)
+					require.True(s.T(), ok, "error getting metadata from context")
+
+					require.Equal(s.T(), "test-token", md.Get("x-consul-token")[0], "token not set in context")
+					require.Equal(s.T(), "test-namespace", md.Get("x-consul-namespace")[0], "namespace not set in context")
+					require.Equal(s.T(), "test-partition", md.Get("x-consul-partition")[0], "partition not set in context")
+				}).
 				Return(clientResp, tc.expectedGRPC).Once()
 			addr := fmt.Sprintf("127.0.0.1:%v", server.UdpPort())
 
@@ -222,6 +238,9 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 		client:      mockedDNSConsulClient,
 		listenerTCP: listenerTCP,
 		logger:      hclog.Default(),
+		partition:   "test-partition",
+		namespace:   "test-namespace",
+		token:       "test-token",
 	}
 
 	go server.proxyTCP(runCtx)
@@ -263,6 +282,17 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 			}
 
 			mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+				Run(func(args mock.Arguments) {
+					ctx, ok := args.Get(0).(context.Context)
+					require.True(s.T(), ok, "error casting to context.Context")
+
+					md, ok := metadata.FromOutgoingContext(ctx)
+					require.True(s.T(), ok, "error getting metadata from context")
+
+					require.Equal(s.T(), "test-token", md.Get("x-consul-token")[0], "token not set in context")
+					require.Equal(s.T(), "test-namespace", md.Get("x-consul-namespace")[0], "namespace not set in context")
+					require.Equal(s.T(), "test-partition", md.Get("x-consul-partition")[0], "partition not set in context")
+				}).
 				Return(clientResp, tc.expectedGRPC).
 				Once()
 			addr := fmt.Sprintf("127.0.0.1:%v", server.TcpPort())

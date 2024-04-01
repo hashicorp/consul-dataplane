@@ -41,12 +41,13 @@ func TestBootstrapConfig(t *testing.T) {
 	}
 
 	testCases := map[string]struct {
-		cfg   *Config
-		rsp   *pbdataplane.GetEnvoyBootstrapParamsResponse
-		rspV2 *pbdataplane.GetEnvoyBootstrapParamsResponse
+		cfg                 *Config
+		rsp                 *pbdataplane.GetEnvoyBootstrapParamsResponse
+		rspV2               *pbdataplane.GetEnvoyBootstrapParamsResponse
+		resolvedProxyConfig *ProxyConfig
 	}{
 		"access-logs": {
-			&Config{
+			cfg: &Config{
 				Proxy: &ProxyConfig{
 					ProxyID:  "web-proxy",
 					NodeName: nodeName,
@@ -60,7 +61,7 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
 				Config: makeStruct(map[string]any{
@@ -68,7 +69,7 @@ func TestBootstrapConfig(t *testing.T) {
 				}),
 				AccessLogs: []string{"{\"name\":\"Consul Listener Filter Log\",\"typedConfig\":{\"@type\":\"type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog\",\"logFormat\":{\"jsonFormat\":{\"custom_field\":\"%START_TIME%\"}}}}"},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Identity: "web",
 				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
@@ -78,7 +79,7 @@ func TestBootstrapConfig(t *testing.T) {
 			},
 		},
 		"basic": {
-			&Config{
+			cfg: &Config{
 				Proxy: &ProxyConfig{
 					ProxyID:  "web-proxy",
 					NodeName: nodeName,
@@ -92,14 +93,14 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
 				Config: makeStruct(map[string]any{
 					"envoy_dogstatsd_url": "this-should-not-appear-in-generated-config",
 				}),
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Identity: "web",
 				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
@@ -108,7 +109,7 @@ func TestBootstrapConfig(t *testing.T) {
 			},
 		},
 		"central-telemetry-config": {
-			&Config{
+			cfg: &Config{
 				Proxy: &ProxyConfig{
 					ProxyID:  "web-proxy",
 					NodeName: nodeName,
@@ -122,14 +123,14 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
 				Config: makeStruct(map[string]any{
 					"envoy_dogstatsd_url": "udp://127.0.0.1:9125",
 				}),
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Identity: "web",
 				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
@@ -171,7 +172,7 @@ func TestBootstrapConfig(t *testing.T) {
 			},
 		},
 		"custom-prometheus-scrape-path": {
-			&Config{
+			cfg: &Config{
 				Proxy: &ProxyConfig{
 					ProxyID:  "web-proxy",
 					NodeName: nodeName,
@@ -189,14 +190,14 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
 				Config: makeStruct(map[string]any{
 					"envoy_prometheus_bind_addr": "0.0.0.0:20200",
 				}),
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Identity: "web",
 				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
@@ -205,7 +206,7 @@ func TestBootstrapConfig(t *testing.T) {
 			},
 		},
 		"custom-prometheus-scrape-path-with-query": {
-			&Config{
+			cfg: &Config{
 				Proxy: &ProxyConfig{
 					ProxyID:  "web-proxy",
 					NodeName: nodeName,
@@ -224,14 +225,14 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
 				Config: makeStruct(map[string]any{
 					"envoy_prometheus_bind_addr": "0.0.0.0:20200",
 				}),
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Identity: "web",
 				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
@@ -239,8 +240,50 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 			},
 		},
+		"non-default tenancy": {
+			cfg: &Config{
+				Proxy: &ProxyConfig{
+					ProxyID:  "web-proxy",
+					NodeName: nodeName,
+					// No tenancy provided here to make sure it comes from the bootstrap call
+				},
+				Envoy: &EnvoyConfig{
+					AdminBindAddress: "127.0.0.1",
+					AdminBindPort:    19000,
+				},
+				Telemetry: &TelemetryConfig{
+					UseCentralConfig: false,
+				},
+				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
+			},
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Service:  "web",
+				NodeName: nodeName,
+				Config: makeStruct(map[string]any{
+					"envoy_dogstatsd_url": "this-should-not-appear-in-generated-config",
+				}),
+				Namespace: "test-namespace",
+				Partition: "test-partition",
+			},
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
+				Identity: "web",
+				NodeName: nodeName,
+				BootstrapConfig: &pbmesh.BootstrapConfig{
+					DogstatsdUrl: "this-should-not-appear-in-generated-config",
+				},
+				Namespace: "test-namespace",
+				Partition: "test-partition",
+			},
+			// We want to ensure cdp is configured with the resolved tenancy
+			resolvedProxyConfig: &ProxyConfig{
+				NodeName:  nodeName,
+				ProxyID:   "web-proxy",
+				Namespace: "test-namespace",
+				Partition: "test-partition",
+			},
+		},
 		"ready-listener": {
-			&Config{
+			cfg: &Config{
 				Proxy: &ProxyConfig{
 					ProxyID:  "web-proxy",
 					NodeName: nodeName,
@@ -256,17 +299,17 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 				XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: xdsBindPort},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Identity: "web",
 				NodeName: nodeName,
 			},
 		},
 		"unix-socket-xds-server": {
-			&Config{
+			cfg: &Config{
 				Proxy: &ProxyConfig{
 					ProxyID:  "web-proxy",
 					NodeName: nodeName,
@@ -280,14 +323,14 @@ func TestBootstrapConfig(t *testing.T) {
 				},
 				XDSServer: &XDSServer{BindAddress: fmt.Sprintf("unix://%s", socketPath)},
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rsp: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Service:  "web",
 				NodeName: nodeName,
 				Config: makeStruct(map[string]any{
 					"envoy_dogstatsd_url": "this-should-not-appear-in-generated-config",
 				}),
 			},
-			&pbdataplane.GetEnvoyBootstrapParamsResponse{
+			rspV2: &pbdataplane.GetEnvoyBootstrapParamsResponse{
 				Identity: "web",
 				NodeName: nodeName,
 				BootstrapConfig: &pbmesh.BootstrapConfig{
@@ -328,6 +371,10 @@ func TestBootstrapConfig(t *testing.T) {
 
 			golden(t, bsCfg)
 			validateBootstrapConfig(t, bsCfg)
+
+			if tc.resolvedProxyConfig != nil {
+				require.Equal(t, *tc.resolvedProxyConfig, dp.resolvedProxyConfig)
+			}
 		})
 
 		t.Run(desc+"-v2", func(t *testing.T) {
@@ -361,6 +408,10 @@ func TestBootstrapConfig(t *testing.T) {
 
 			golden(t, bsCfg)
 			validateBootstrapConfig(t, bsCfg)
+
+			if tc.resolvedProxyConfig != nil {
+				require.Equal(t, *tc.resolvedProxyConfig, dp.resolvedProxyConfig)
+			}
 		})
 	}
 }
