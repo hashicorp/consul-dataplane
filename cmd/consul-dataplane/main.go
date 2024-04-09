@@ -93,6 +93,8 @@ func init() {
 	StringVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.ScrapePath, "telemetry-prom-scrape-path", "DP_TELEMETRY_PROM_SCRAPE_PATH", "The URL path where Envoy serves Prometheus metrics.")
 	IntVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.MergePort, "telemetry-prom-merge-port", "DP_TELEMETRY_PROM_MERGE_PORT", "The port to serve merged Prometheus metrics.")
 
+	// TODO(NET-8958): make a cohesive mode for running as a sidecar or DNS proxy / turning off envoy and xds together.
+	BoolVarWithDefault(flags, &flagOpts.dataplaneConfig.XDSServer.Enabled, true, "envoy-enabled", "DP_ENVOY_ENABLED", "Indicates whether the Envoy is run within dataplane.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.AdminBindAddr, "envoy-admin-bind-address", "DP_ENVOY_ADMIN_BIND_ADDRESS", "The address on which the Envoy admin server is available.")
 	IntVar(flags, &flagOpts.dataplaneConfig.Envoy.AdminBindPort, "envoy-admin-bind-port", "DP_ENVOY_ADMIN_BIND_PORT", "The port on which the Envoy admin server is available.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.ReadyBindAddr, "envoy-ready-bind-address", "DP_ENVOY_READY_BIND_ADDRESS", "The address on which Envoy's readiness probe is available.")
@@ -101,6 +103,7 @@ func init() {
 	IntVar(flags, &flagOpts.dataplaneConfig.Envoy.DrainTimeSeconds, "envoy-drain-time-seconds", "DP_ENVOY_DRAIN_TIME", "The time in seconds for which Envoy will drain connections.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.DrainStrategy, "envoy-drain-strategy", "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
 
+	BoolVarWithDefault(flags, &flagOpts.dataplaneConfig.XDSServer.Enabled, true, "xds-enabled", "DP_XDS_ENABLED", "Indicates whether the Envoy xDS server is run within dataplane.")
 	StringVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindAddr, "xds-bind-addr", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
 	IntVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindPort, "xds-bind-port", "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
 

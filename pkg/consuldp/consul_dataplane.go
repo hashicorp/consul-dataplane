@@ -93,8 +93,8 @@ func validateConfig(cfg *Config) error {
 		return errors.New("envoy xDS bind address not specified")
 	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
-	case cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
-		return errors.New("non-local DNS proxy bind address not allowed")
+		//case cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
+		//	return errors.New("non-local DNS proxy bind address not allowed")
 	}
 
 	creds := cfg.Consul.Credentials
@@ -176,78 +176,82 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
-	err = cdp.setupXDSServer()
-	if err != nil {
-		return err
-	}
-	go cdp.startXDSServer(ctx)
-
-	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
-	if err != nil {
-		cdp.logger.Error("failed to get bootstrap config", "error", err)
-		return fmt.Errorf("failed to get bootstrap config: %w", err)
-	}
-	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
-
 	if err = cdp.startDNSProxy(ctx); err != nil {
 		cdp.logger.Error("failed to start the dns proxy", "error", err)
 		return err
 	}
 
-	proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
-	if err != nil {
-		cdp.logger.Error("failed to create new proxy", "error", err)
-		return fmt.Errorf("failed to create new proxy: %w", err)
-	}
-	if err := proxy.Run(ctx); err != nil {
-		cdp.logger.Error("failed to run proxy", "error", err)
-		return fmt.Errorf("failed to run proxy: %w", err)
-	}
-
-	cdp.metricsConfig = NewMetricsConfig(cdp.cfg, cacheSink)
-	err = cdp.metricsConfig.startMetrics(ctx, bootstrapCfg)
-	if err != nil {
-		return err
-	}
-
-	cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
-	err = cdp.lifecycleConfig.startLifecycleManager(ctx)
-	if err != nil {
-		return err
-	}
-
 	doneCh := make(chan error)
-	go func() {
-		select {
-		case <-ctx.Done():
-			doneCh <- nil
-		case err := <-proxy.Exited():
-			if err != nil {
-				cdp.logger.Error("envoy proxy exited with error", "error", err)
-			}
-			doneCh <- err
-		case <-cdp.xdsServerExited():
-			// Initiate graceful shutdown of Envoy, kill if error
-			if err := proxy.Quit(); err != nil {
-				cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", err)
-				if err := proxy.Kill(); err != nil {
-					cdp.logger.Error("failed to kill proxy", "error", err)
-				}
-			}
-			doneCh <- errors.New("xDS server exited unexpectedly")
-		case <-cdp.metricsConfig.metricsServerExited():
-			doneCh <- errors.New("metrics server exited unexpectedly")
-		case <-cdp.lifecycleConfig.lifecycleServerExited():
-			// Initiate graceful shutdown of Envoy, kill if error
-			if err := proxy.Quit(); err != nil {
-				cdp.logger.Error("failed to stop proxy", "error", err)
-				if err := proxy.Kill(); err != nil {
-					cdp.logger.Error("failed to kill proxy", "error", err)
-				}
-			}
-			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
+	// TODO(NET-8958): this is just in POC.  Refactor this so there is a
+	// comprehensive mode for this and not two separate flags.
+	if cdp.cfg.XDSServer.Enabled && cdp.cfg.Envoy.Enabled {
+		err = cdp.setupXDSServer()
+		if err != nil {
+			return err
 		}
-	}()
+		go cdp.startXDSServer(ctx)
+
+		bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
+		if err != nil {
+			cdp.logger.Error("failed to get bootstrap config", "error", err)
+			return fmt.Errorf("failed to get bootstrap config: %w", err)
+		}
+		cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
+
+		proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
+		if err != nil {
+			cdp.logger.Error("failed to create new proxy", "error", err)
+			return fmt.Errorf("failed to create new proxy: %w", err)
+		}
+		if err := proxy.Run(ctx); err != nil {
+			cdp.logger.Error("failed to run proxy", "error", err)
+			return fmt.Errorf("failed to run proxy: %w", err)
+		}
+
+		cdp.metricsConfig = NewMetricsConfig(cdp.cfg, cacheSink)
+		err = cdp.metricsConfig.startMetrics(ctx, bootstrapCfg)
+		if err != nil {
+			return err
+		}
+
+		cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
+		err = cdp.lifecycleConfig.startLifecycleManager(ctx)
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			select {
+			case <-ctx.Done():
+				doneCh <- nil
+			case err := <-proxy.Exited():
+				if err != nil {
+					cdp.logger.Error("envoy proxy exited with error", "error", err)
+				}
+				doneCh <- err
+			case <-cdp.xdsServerExited():
+				// Initiate graceful shutdown of Envoy, kill if error
+				if err := proxy.Quit(); err != nil {
+					cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", err)
+					if err := proxy.Kill(); err != nil {
+						cdp.logger.Error("failed to kill proxy", "error", err)
+					}
+				}
+				doneCh <- errors.New("xDS server exited unexpectedly")
+			case <-cdp.metricsConfig.metricsServerExited():
+				doneCh <- errors.New("metrics server exited unexpectedly")
+			case <-cdp.lifecycleConfig.lifecycleServerExited():
+				// Initiate graceful shutdown of Envoy, kill if error
+				if err := proxy.Quit(); err != nil {
+					cdp.logger.Error("failed to stop proxy", "error", err)
+					if err := proxy.Kill(); err != nil {
+						cdp.logger.Error("failed to kill proxy", "error", err)
+					}
+				}
+				doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
+			}
+		}()
+	}
 	return <-doneCh
 }
 

@@ -264,6 +264,8 @@ type PrometheusTelemetryConfig struct {
 
 // EnvoyConfig contains configuration for the Envoy process.
 type EnvoyConfig struct {
+	// Enabled configures whether Envoy is enabled.
+	Enabled bool
 	// AdminBindAddress is the address on which the Envoy admin server will be available.
 	AdminBindAddress string
 	// AdminBindPort is the port on which the Envoy admin server will be available.
@@ -307,6 +309,8 @@ type EnvoyConfig struct {
 
 // XDSServer contains the configuration of the xDS server.
 type XDSServer struct {
+	// Enabled configures whether xDS server is enabled.
+	Enabled bool
 	// BindAddress is the address on which the Envoy xDS server will be available.
 	BindAddress string
 	// BindPort is the address on which the Envoy xDS port will be available.

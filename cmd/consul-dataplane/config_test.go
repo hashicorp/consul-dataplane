@@ -73,10 +73,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -151,10 +153,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -254,10 +258,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    6060,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -358,10 +364,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    6060,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -448,10 +456,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    6060,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -547,10 +557,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     -1,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.0.1",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.0.1",
 						AdminBindPort:                 19000,
 						ReadyBindPort:                 0,
@@ -670,10 +682,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -797,10 +811,12 @@ func TestConfigGeneration(t *testing.T) {
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",

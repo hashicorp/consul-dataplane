@@ -37,6 +37,12 @@ func BoolVar(fs *flag.FlagSet, p **bool, name, env, usage string) {
 	*p = parseEnv(env, asBool)
 }
 
+func BoolVarWithDefault(fs *flag.FlagSet, p **bool, defaultVal bool, name, env, usage string) {
+	usage = includeEnvUsage(env, usage)
+	fs.Var(newBoolPtrValueWithDefault(p, defaultVal), name, usage)
+	*p = parseEnv(env, asBool)
+}
+
 func DurationVar(fs *flag.FlagSet, p **Duration, name, env, usage string) {
 	usage = includeEnvUsage(env, usage)
 	fs.Var(newDurationPtrValue(p), name, usage)
@@ -133,7 +139,11 @@ type boolPtrValue struct {
 }
 
 func newBoolPtrValue(p **bool) *boolPtrValue {
-	return &boolPtrValue{p, false}
+	return newBoolPtrValueWithDefault(p, false)
+}
+
+func newBoolPtrValueWithDefault(p **bool, defaultVal bool) *boolPtrValue {
+	return &boolPtrValue{p, defaultVal}
 }
 
 func (s *boolPtrValue) IsBoolFlag() bool { return true }
@@ -222,6 +232,13 @@ func intVal(v *int) int {
 func boolVal(v *bool) bool {
 	if v == nil {
 		return false
+	}
+	return *v
+}
+
+func boolValWithDefault(v *bool, defaultVal bool) bool {
+	if v == nil {
+		return defaultVal
 	}
 	return *v
 }

@@ -97,6 +97,7 @@ type ProxyFlags struct {
 }
 
 type XDSServerFlags struct {
+	Enabled  *bool   `json:"enabled,omitempty"`
 	BindAddr *string `json:"bindAddress,omitempty"`
 	BindPort *int    `json:"bindPort,omitempty"`
 }
@@ -128,6 +129,8 @@ type PrometheusTelemetryFlags struct {
 }
 
 type EnvoyFlags struct {
+	Enabled *bool `json:"enabled,omitempty"`
+
 	AdminBindAddr    *string `json:"adminBindAddress,omitempty"`
 	AdminBindPort    *int    `json:"adminBindPort,omitempty"`
 	ReadyBindAddr    *string `json:"readyBindAddress,omitempty"`
@@ -231,6 +234,7 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			}
 		},
 		"envoy": {
+			"enabled": true,
 			"adminBindAddress": "127.0.0.1",
 			"adminBindPort": 19000,
 			"readyBindPort": 0,
@@ -246,6 +250,7 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			"startupGracePeriodSeconds": 0
 		},
 		"xdsServer": {
+			"enabled": true,
 			"bindAddress": "127.0.0.1",
 			"bindPort": 0
 		},
@@ -323,6 +328,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			LogLevel: strings.ToUpper(stringVal(cfg.Logging.LogLevel)),
 		},
 		Envoy: &consuldp.EnvoyConfig{
+			Enabled:                       boolValWithDefault(cfg.Envoy.Enabled, true),
 			AdminBindAddress:              stringVal(cfg.Envoy.AdminBindAddr),
 			AdminBindPort:                 intVal(cfg.Envoy.AdminBindPort),
 			ReadyBindAddress:              stringVal(cfg.Envoy.ReadyBindAddr),
@@ -352,6 +358,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			},
 		},
 		XDSServer: &consuldp.XDSServer{
+			Enabled:     boolValWithDefault(cfg.XDSServer.Enabled, true),
 			BindAddress: stringVal(cfg.XDSServer.BindAddr),
 			BindPort:    intVal(cfg.XDSServer.BindPort),
 		},

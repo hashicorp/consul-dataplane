@@ -154,14 +154,16 @@ func TestNewConsulDPError(t *testing.T) {
 			},
 			expectErr: "non-local xDS bind address not allowed",
 		},
-		{
-			name: "non-local xds bind address",
-			modFn: func(c *Config) {
-				c.DNSServer.BindAddr = "1.2.3.4"
-				c.DNSServer.Port = 1
-			},
-			expectErr: "non-local DNS proxy bind address not allowed",
-		},
+		// TODO (NET-8958): Re-do this once we have cohesive mode where we can have a non-local bind address
+		// when not running as a sidecar and when running as a DNS proxy.
+		//{
+		//	name: "non-local xds bind address",
+		//	modFn: func(c *Config) {
+		//		c.DNSServer.BindAddr = "1.2.3.4"
+		//		c.DNSServer.Port = 1
+		//	},
+		//	expectErr: "non-local DNS proxy bind address not allowed",
+		//},
 		{
 			name: "no bearer token or path given",
 			modFn: func(c *Config) {
