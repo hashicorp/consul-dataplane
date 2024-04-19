@@ -74,7 +74,11 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
-      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
+      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
+      org.opencontainers.image.licenses="MPL-2.0"
+
+RUN mkdir -p /usr/share/doc/$PRODUCT_NAME
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
@@ -105,7 +109,11 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
-      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
+      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
+      org.opencontainers.image.licenses="MPL-2.0"
+
+RUN mkdir -p /usr/share/doc/$PRODUCT_NAME
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
@@ -138,7 +146,11 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane connects an application to a Consul service mesh." \
-      description="Consul dataplane connects an application to a Consul service mesh."
+      description="Consul dataplane connects an application to a Consul service mesh." \
+    org.opencontainers.image.licenses="MPL-2.0"
+
+RUN mkdir -p /usr/share/doc/$PRODUCT_NAME
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 RUN microdnf install -y shadow-utils
 
@@ -177,7 +189,11 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane connects an application to a Consul service mesh." \
-      description="Consul dataplane connects an application to a Consul service mesh."
+      description="Consul dataplane connects an application to a Consul service mesh." \
+      org.opencontainers.image.licenses="MPL-2.0"
+
+RUN mkdir -p /usr/share/doc/$PRODUCT_NAME
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 RUN microdnf install -y shadow-utils
 
