@@ -62,7 +62,7 @@ ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
-ARG PRODUCT_NAME=$BIN_NAME
+ENV PRODUCT_NAME=$BIN_NAME
 
 # TARGETARCH and TARGETOS are set automatically when --platform is provided.
 ARG TARGETOS TARGETARCH
@@ -74,7 +74,10 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
-      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
+      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
+      org.opencontainers.image.licenses="MPL-2.0"
+
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
@@ -93,7 +96,7 @@ FROM gcr.io/distroless/base-debian11 AS release-fips-default
 ARG BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
-ARG PRODUCT_NAME=$BIN_NAME
+ENV PRODUCT_NAME=$BIN_NAME
 
 # TARGETARCH and TARGETOS are set automatically when --platform is provided.
 ARG TARGETOS TARGETARCH
@@ -105,7 +108,10 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
-      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh."
+      description="Consul dataplane manages the proxy that runs within the data plane layer of Consul Service Mesh." \
+      org.opencontainers.image.licenses="MPL-2.0"
+
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
@@ -127,7 +133,7 @@ ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
-ARG PRODUCT_NAME=$BIN_NAME
+ENV PRODUCT_NAME=$BIN_NAME
 # TARGETARCH and TARGETOS are set automatically when --platform is provided.
 ARG TARGETOS TARGETARCH
 
@@ -138,7 +144,10 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane connects an application to a Consul service mesh." \
-      description="Consul dataplane connects an application to a Consul service mesh."
+      description="Consul dataplane connects an application to a Consul service mesh." \
+    org.opencontainers.image.licenses="MPL-2.0"
+
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 RUN microdnf install -y shadow-utils
 
@@ -166,7 +175,7 @@ ARG BIN_NAME
 ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
-ARG PRODUCT_NAME=$BIN_NAME
+ENV PRODUCT_NAME=$BIN_NAME
 # TARGETARCH and TARGETOS are set automatically when --platform is provided.
 ARG TARGETOS TARGETARCH
 
@@ -177,7 +186,10 @@ LABEL name=${BIN_NAME}\
       release=${PRODUCT_REVISION} \
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane connects an application to a Consul service mesh." \
-      description="Consul dataplane connects an application to a Consul service mesh."
+      description="Consul dataplane connects an application to a Consul service mesh." \
+      org.opencontainers.image.licenses="MPL-2.0"
+
+COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 RUN microdnf install -y shadow-utils
 
