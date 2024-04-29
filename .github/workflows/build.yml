@@ -80,7 +80,7 @@ jobs:
           arch: ${{ matrix.goarch }}
           reproducible: assert
           instructions: |
-            cp LICENSE $TARGET_DIR/
+            cp LICENSE $TARGET_DIR/LICENSE.txt
             if [[ "${{ matrix.fips }}" == "+fips1402" ]]
             then
               sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
@@ -157,7 +157,7 @@ jobs:
           arch: ${{ matrix.goarch }}
           reproducible: assert
           instructions:  |
-            cp LICENSE $TARGET_DIR/
+            cp LICENSE $TARGET_DIR/LICENSE.txt
             CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
   build-docker-default:
