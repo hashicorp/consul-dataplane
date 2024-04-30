@@ -75,7 +75,16 @@ jobs:
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
           reproducible: assert
-          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
+          instructions: |
+            cp LICENSE $TARGET_DIR/LICENSE.txt
+            CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
+
+      - name: Copy license file
+        env:
+          LICENSE_DIR: ".release/linux/package/usr/share/doc/${{ env.PKG_NAME }}"
+        run: |
+          mkdir -p "$LICENSE_DIR"
+          cp LICENSE "$LICENSE_DIR/LICENSE.txt"
 
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
@@ -91,6 +100,7 @@ jobs:
           binary: "dist/${{ env.PKG_NAME }}"
           deb_depends: "openssl"
           rpm_depends: "openssl"
+          config_dir: ".release/linux/package/"
 
       - name: Set Package Names
         if: ${{ matrix.goos == 'linux' }}
@@ -138,7 +148,9 @@ jobs:
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
           reproducible: assert
-          instructions: CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
+          instructions:  |
+            cp LICENSE $TARGET_DIR/LICENSE.txt
+            CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
   build-docker-default:
     name: Docker ${{ matrix.arch }} default release build
