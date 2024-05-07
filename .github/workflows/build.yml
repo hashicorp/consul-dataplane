@@ -23,7 +23,7 @@ jobs:
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: get product version
         id: get-product-version
         run: |
@@ -37,7 +37,7 @@ jobs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
     steps:
       - name: "Checkout directory"
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: Generate metadata file
         id: generate-metadata-file
         uses: hashicorp/actions-generate-metadata@v1
@@ -45,7 +45,7 @@ jobs:
           version: ${{ needs.get-product-version.outputs.product-version }}
           product: ${{ env.PKG_NAME }}
           repositoryOwner: "hashicorp"
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
@@ -70,7 +70,7 @@ jobs:
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} ${{ matrix.fips }} build
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       - uses: hashicorp/actions-go-build@v0.1.3
         with:
@@ -117,13 +117,13 @@ jobs:
           echo "RPM_PACKAGE=$(basename out/*.rpm)" >> $GITHUB_ENV
           echo "DEB_PACKAGE=$(basename out/*.deb)" >> $GITHUB_ENV
 
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ env.RPM_PACKAGE }}
           path: out/${{ env.RPM_PACKAGE }}
 
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ env.DEB_PACKAGE }}
@@ -147,7 +147,7 @@ jobs:
       GOARCH: ${{ matrix.goarch }}
 
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       - uses: hashicorp/actions-go-build@v0.1.3
         with:
@@ -181,7 +181,7 @@ jobs:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       # This naming convention will be used ONLY for per-commit dev images
       - name: Set docker dev tag
@@ -257,7 +257,7 @@ jobs:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
         with:
           version: ${{env.version}}
@@ -283,7 +283,7 @@ jobs:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       # This naming convention will be used ONLY for per-commit dev images
       - name: Set docker dev tag
         run: |
@@ -378,18 +378,18 @@ jobs:
       - name: Set image tarball
         run: |
           echo "image_tarball=${{env.repo}}_${{ matrix.dataplane.docker_target }}_linux_amd64_${{env.version}}_${{github.sha}}.docker.dev.tar" >> $GITHUB_ENV
-      - uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+      - uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: ${{env.image_tarball}}
       - run: docker load --input ${{env.image_tarball}}
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - id: run-tests
         run: cd integration-tests && go test -v -output-dir=./output -dataplane-image=hashicorppreview/${{env.repo}}:${{env.dev_tag}}-${{github.sha}} -server-image=${{matrix.server.image}} -server-version=${{matrix.server.version}}
         continue-on-error: true
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         continue-on-error: true
         with:
           name: consul-${{matrix.server.version}}-integration-tests-output
