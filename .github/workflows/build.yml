@@ -72,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
-      - uses: hashicorp/actions-go-build@v0.1.3
+      - uses: hashicorp/actions-go-build@v1
         with:
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -149,7 +149,7 @@ jobs:
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
-      - uses: hashicorp/actions-go-build@v0.1.3
+      - uses: hashicorp/actions-go-build@v1
         with:
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.get-product-version.outputs.product-version }}
@@ -193,7 +193,7 @@ jobs:
 
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
-        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
+        uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -218,7 +218,7 @@ jobs:
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
+        uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -258,7 +258,7 @@ jobs:
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      - uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
+      - uses: hashicorp/actions-docker-build@v2
         with:
           version: ${{env.version}}
           target: ${{ matrix.target-name }}
@@ -294,7 +294,7 @@ jobs:
 
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
-        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
+        uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
@@ -319,7 +319,7 @@ jobs:
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
-        uses: hashicorp/actions-docker-build@76d2fc91532d816ca2660d8f3139e432ac3700fd
+        uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
