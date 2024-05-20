@@ -1,3 +1,23 @@
+## 1.4.2 (May 21, 2024)
+
+SECURITY:
+
+* Upgrade Go to use 1.21.10. This addresses CVEs
+  [CVE-2024-24787](https://nvd.nist.gov/vuln/detail/CVE-2024-24787) and
+  [CVE-2024-24788](https://nvd.nist.gov/vuln/detail/CVE-2024-24788) [[GH-487](https://github.com/hashicorp/consul-dataplane/pull/487)]
+* Upgrade to support Envoy `1.28.2`. This resolves CVE
+  [CVE-2024-27919](https://nvd.nist.gov/vuln/detail/CVE-2024-27919) (`http2`). [[GH-474](https://github.com/hashicorp/consul-dataplane/pull/474)]
+* Upgrade to support Envoy `1.28.3`. This resolves CVE
+  [CVE-2024-32475](https://nvd.nist.gov/vuln/detail/CVE-2024-32475). [[GH-496](https://github.com/hashicorp/consul-dataplane/pull/496)]
+* Upgrade to use Go `1.21.9`. This resolves CVE
+  [CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`http2`). [[GH-474](https://github.com/hashicorp/consul-dataplane/pull/474)]
+* Upgrade to use golang.org/x/net `v0.24.0`. This resolves CVE
+  [CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`x/net`). [[GH-474](https://github.com/hashicorp/consul-dataplane/pull/474)]
+
+IMPROVEMENTS:
+
+* Upgrade Go to use 1.22.3. [[GH-501](https://github.com/hashicorp/consul-dataplane/pull/501)]
+
 ## 1.4.0 (February 28, 2024)
 
 SECURITY:
