@@ -1,4 +1,4 @@
-## 1.3.4 (May 24, 2024)
+## 1.3.5 (May 24, 2024)
 SECURITY:
 
 * Upgrade Go to use 1.21.10. This addresses CVEs 
