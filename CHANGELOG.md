@@ -1,3 +1,10 @@
+## 1.5.0 (June 12, 2024)
+
+IMPROVEMENTS:
+
+* Upgrade to support Envoy `1.29.4`. [[GH-521](https://github.com/hashicorp/consul-dataplane/pull/521)]
+* dns: queries proxied by consul-dataplane now assume the same namespace/partition/ACL token as the service registered to the dataplane instance. [[GH-172](https://github.com/hashicorp/consul-dataplane/pull/172)]
+
 ## 1.4.0 (February 28, 2024)
 
 SECURITY:
