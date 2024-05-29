@@ -212,10 +212,10 @@ type LoggingConfig struct {
 // ProxyConfig contains details of the proxy service instance.
 type ProxyConfig struct {
 	// NodeName is the name of the node to which the proxy service instance is
-	// registered. Ignored in Consul Catalog V2.
+	// registered.
 	NodeName string
 	// NodeName is the ID of the node to which the proxy service instance is
-	// registered. Ignored in Consul Catalog V2.
+	// registered.
 	NodeID string
 	// ProxyID is the ID of the proxy service instance or workload.
 	ProxyID string

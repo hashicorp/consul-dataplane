@@ -57,21 +57,17 @@ func init() {
 		"[Deprecated; use -proxy-partition instead] The Consul Enterprise partition in which the proxy service instance is registered.")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.NodeName, "proxy-node-name", "DP_PROXY_NODE_NAME",
-		"The name of the Consul node to which the proxy service instance is registered."+
-			"In Consul's V2 Catalog API, this value is ignored.")
+		"The name of the Consul node to which the proxy service instance is registered.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.NodeID, "proxy-node-id", "DP_PROXY_NODE_ID",
-		"The ID of the Consul node to which the proxy service instance is registered."+
-			"In Consul's V2 Catalog API, this value is ignored.")
+		"The ID of the Consul node to which the proxy service instance is registered.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.ID, "proxy-id", "DP_PROXY_ID",
-		"In Consul's V1 Catalog API, the proxy service instance's ID."+
-			"In Consul's V2 Catalog API, the workload ID associated with the proxy.")
+		"In Consul's V1 Catalog API, the proxy service instance's ID.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.IDPath, "proxy-id-path", "DP_PROXY_ID_PATH",
-		"In Consul's V1 Catalog API, the path to a file containing the proxy service instance's ID."+
-			"In Consul's V2 Catalog API, the path to a file containing the workload ID associated with the proxy.")
+		"In Consul's V1 Catalog API, the path to a file containing the proxy service instance's ID.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.Namespace, "proxy-namespace", "DP_PROXY_NAMESPACE",
-		"The Consul Enterprise namespace in which the proxy service instance (V1 API) or workload (V2 API) is registered.")
+		"The Consul Enterprise namespace in which the proxy service instance is registered.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Proxy.Partition, "proxy-partition", "DP_PROXY_PARTITION",
-		"The Consul Enterprise partition in which the proxy service instance (V1 API) or workload (V2 API) is registered.")
+		"The Consul Enterprise partition in which the proxy service instance is registered.")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Credentials.Type, "credential-type", "DP_CREDENTIAL_TYPE", "The type of credentials, either static or login, used to authenticate with Consul servers.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Credentials.Static.Token, "static-token", "DP_CREDENTIAL_STATIC_TOKEN", "The ACL token used to authenticate requests to Consul servers when -credential-type is set to static.")
