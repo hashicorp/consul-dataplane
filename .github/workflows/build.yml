@@ -355,12 +355,12 @@ jobs:
         server:
           - version: v1.15.0-dev
             image: hashicorppreview/consul:1.15-dev
-          - version: v1.16.0-dev
-            image: hashicorppreview/consul:1.16-dev
-          - version: v1.17.0-dev
-            image: hashicorppreview/consul:1.17-dev
           - version: v1.18.0-dev
             image: hashicorppreview/consul:1.18-dev
+          - version: v1.19.0-dev
+            image: hashicorppreview/consul:1.19-dev
+          - version: v1.20.0-dev
+            image: hashicorppreview/consul:1.20-dev
         dataplane:
           - image_suffix: ""
             docker_target: "release-default"
