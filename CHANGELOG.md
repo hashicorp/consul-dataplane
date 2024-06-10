@@ -1,4 +1,4 @@
-## 1.3.4 (May 24, 2024)
+## 1.3.5 (May 24, 2024)
 SECURITY:
 
 * Upgrade Go to use 1.21.10. This addresses CVEs 
@@ -16,14 +16,24 @@ SECURITY:
 IMPROVEMENTS:
 
 * Upgrade Go to use 1.22.3. [[GH-501](https://github.com/hashicorp/consul-dataplane/pull/501)]
-## 1.3.3 (February 14, 2024)
+
+## 1.3.4 (March 28, 2024)
 
 SECURITY:
 
+* Update `google.golang.org/protobuf` to v1.33.0 to address [CVE-2024-24786](https://nvd.nist.gov/vuln/detail/CVE-2024-24786). [[GH-460](https://github.com/hashicorp/consul-dataplane/pull/460)]
+* Upgrade `consul-dataplane-fips` OpenShift container image to use `ubi9-minimal:9.3` as the base image. [[GH-434](https://github.com/hashicorp/consul-dataplane/pull/434)]
+* Upgrade to use Go `1.21.8`. This resolves CVEs
+  [CVE-2024-24783](https://nvd.nist.gov/vuln/detail/CVE-2024-24783) (`crypto/x509`).
+  [CVE-2023-45290](https://nvd.nist.gov/vuln/detail/CVE-2023-45290) (`net/http`).
+  [CVE-2023-45289](https://nvd.nist.gov/vuln/detail/CVE-2023-45289) (`net/http`, `net/http/cookiejar`).
+  [CVE-2024-24785](https://nvd.nist.gov/vuln/detail/CVE-2024-24785) (`html/template`).
+  [CVE-2024-24784](https://nvd.nist.gov/vuln/detail/CVE-2024-24784) (`net/mail`). [[GH-465](https://github.com/hashicorp/consul-dataplane/pull/465)]
+
+## 1.3.3 (February 14, 2024)
+SECURITY:
 * Update Envoy version to 1.27.3 to address [CVE-2024-23324](https://github.com/envoyproxy/envoy/security/advisories/GHSA-gq3v-vvhj-96j6), [CVE-2024-23325](https://github.com/envoyproxy/envoy/security/advisories/GHSA-5m7c-mrwr-pm26), [CVE-2024-23322](https://github.com/envoyproxy/envoy/security/advisories/GHSA-6p83-mfmh-qv38), [CVE-2024-23323](https://github.com/envoyproxy/envoy/security/advisories/GHSA-x278-4w4x-r7ch), [CVE-2024-23327](https://github.com/envoyproxy/envoy/security/advisories/GHSA-4h5x-x9vh-m29j), and [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-421](https://github.com/hashicorp/consul-dataplane/pull/421)]
-
 IMPROVEMENTS:
-
 * Upgrade to use Go 1.21.7. [[GH-411](https://github.com/hashicorp/consul-dataplane/pull/411)]
 
 ## 1.3.2 (January 24, 2024)
