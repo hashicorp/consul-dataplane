@@ -7,7 +7,7 @@
 # envoy-binary pulls in the latest Envoy binary, as Envoy don't publish
 # prebuilt binaries in any other form.
 ARG GOLANG_VERSION
-FROM envoyproxy/envoy-distroless:v1.27.5 as envoy-binary
+FROM envoyproxy/envoy-distroless:v1.27.6 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM debian:bullseye-slim AS setcap-envoy-binary
