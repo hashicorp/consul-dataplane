@@ -398,3 +398,17 @@ jobs:
       - name: Check for failures
         if: ${{ steps.run-tests.outcome != 'success' }}
         run: exit 1
+
+  integration-tests-success:
+    needs:
+      - integration-tests
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: evaluate upstream job results
+        run: |
+          # exit 1 if failure or cancelled result for any upstream job
+          if printf '${{ toJSON(needs) }}' | grep -E -i '\"result\": \"(failure|cancelled)\"'; then
+            printf "Tests failed or workflow cancelled:\n\n${{ toJSON(needs) }}"
+            exit 1
+          fi
