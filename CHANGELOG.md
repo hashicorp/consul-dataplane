@@ -2,8 +2,136 @@
 
 IMPROVEMENTS:
 
-* Upgrade to support Envoy `1.29.4`. [[GH-521](https://github.com/hashicorp/consul-dataplane/pull/521)]
+* Upgrade Go to use 1.22.4. [[GH-529](https://github.com/hashicorp/consul-dataplane/pull/529)]
+* Upgrade to support Envoy `1.29.5`. [[GH-533](https://github.com/hashicorp/consul-dataplane/pull/533)]
 * dns: queries proxied by consul-dataplane now assume the same namespace/partition/ACL token as the service registered to the dataplane instance. [[GH-172](https://github.com/hashicorp/consul-dataplane/pull/172)]
+
+## 1.4.2 (May 21, 2024)
+
+SECURITY:
+
+* Upgrade Go to use 1.21.10. This addresses CVEs
+  [CVE-2024-24787](https://nvd.nist.gov/vuln/detail/CVE-2024-24787) and
+  [CVE-2024-24788](https://nvd.nist.gov/vuln/detail/CVE-2024-24788) [[GH-487](https://github.com/hashicorp/consul-dataplane/pull/487)]
+* Upgrade to support Envoy `1.28.2`. This resolves CVE
+  [CVE-2024-27919](https://nvd.nist.gov/vuln/detail/CVE-2024-27919) (`http2`). [[GH-474](https://github.com/hashicorp/consul-dataplane/pull/474)]
+* Upgrade to support Envoy `1.28.3`. This resolves CVE
+  [CVE-2024-32475](https://nvd.nist.gov/vuln/detail/CVE-2024-32475). [[GH-496](https://github.com/hashicorp/consul-dataplane/pull/496)]
+* Upgrade to use Go `1.21.9`. This resolves CVE
+  [CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`http2`). [[GH-474](https://github.com/hashicorp/consul-dataplane/pull/474)]
+* Upgrade to use golang.org/x/net `v0.24.0`. This resolves CVE
+  [CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`x/net`). [[GH-474](https://github.com/hashicorp/consul-dataplane/pull/474)]
+
+IMPROVEMENTS:
+
+* Upgrade Go to use 1.22.3. [[GH-501](https://github.com/hashicorp/consul-dataplane/pull/501)]
+
+## 1.3.5 (May 24, 2024)
+SECURITY:
+
+* Upgrade Go to use 1.21.10. This addresses CVEs 
+[CVE-2024-24787](https://nvd.nist.gov/vuln/detail/CVE-2024-24787) and
+[CVE-2024-24788](https://nvd.nist.gov/vuln/detail/CVE-2024-24788) [[GH-487](https://github.com/hashicorp/consul-dataplane/pull/487)]
+* Upgrade to support Envoy `1.27.4`. This resolves CVE
+[CVE-2024-27919](https://nvd.nist.gov/vuln/detail/CVE-2024-27919) (`http2`). [[GH-477](https://github.com/hashicorp/consul-dataplane/pull/477)]
+* Upgrade to support Envoy `1.27.5`. This resolves CVE
+[CVE-2024-32475](https://nvd.nist.gov/vuln/detail/CVE-2024-32475). [[GH-497](https://github.com/hashicorp/consul-dataplane/pull/497)]
+* Upgrade to use Go `1.21.9`. This resolves CVE
+[CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`http2`). [[GH-477](https://github.com/hashicorp/consul-dataplane/pull/477)]
+* Upgrade to use golang.org/x/net `v0.24.0`. This resolves CVE
+[CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`x/net`). [[GH-477](https://github.com/hashicorp/consul-dataplane/pull/477)]
+
+IMPROVEMENTS:
+
+* Upgrade Go to use 1.22.3. [[GH-501](https://github.com/hashicorp/consul-dataplane/pull/501)]
+
+## 1.2.8 (May 24, 2024)
+SECURITY:
+
+* Upgrade Go to use 1.21.10. This addresses CVEs 
+[CVE-2024-24787](https://nvd.nist.gov/vuln/detail/CVE-2024-24787) and
+[CVE-2024-24788](https://nvd.nist.gov/vuln/detail/CVE-2024-24788) [[GH-487](https://github.com/hashicorp/consul-dataplane/pull/487)]
+* Upgrade to support Envoy `1.26.8`. This resolves CVE
+[CVE-2024-27919](https://nvd.nist.gov/vuln/detail/CVE-2024-27919) (`http2`). [[GH-476](https://github.com/hashicorp/consul-dataplane/pull/476)]
+* Upgrade to support Envoy `1.27.5`. This resolves CVE
+[CVE-2024-32475](https://nvd.nist.gov/vuln/detail/CVE-2024-32475). [[GH-498](https://github.com/hashicorp/consul-dataplane/pull/498)]
+* Upgrade to use Go `1.21.9`. This resolves CVE
+[CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`http2`). [[GH-476](https://github.com/hashicorp/consul-dataplane/pull/476)]
+* Upgrade to use golang.org/x/net `v0.24.0`. This resolves CVE
+[CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`x/net`). [[GH-476](https://github.com/hashicorp/consul-dataplane/pull/476)]
+
+IMPROVEMENTS:
+
+* Upgrade Go to use 1.22.3. [[GH-501](https://github.com/hashicorp/consul-dataplane/pull/501)]
+
+## 1.1.11 (May 20, 2024)
+SECURITY:
+
+* Upgrade Go to use 1.21.10. This addresses CVEs 
+[CVE-2024-24787](https://nvd.nist.gov/vuln/detail/CVE-2024-24787) and
+[CVE-2024-24788](https://nvd.nist.gov/vuln/detail/CVE-2024-24788) [[GH-487](https://github.com/hashicorp/consul-dataplane/pull/487)]
+* Upgrade to support Envoy `1.26.8`. This resolves CVE
+[CVE-2024-27919](https://nvd.nist.gov/vuln/detail/CVE-2024-27919) (`http2`). [[GH-475](https://github.com/hashicorp/consul-dataplane/pull/475)]
+* Upgrade to support Envoy `1.27.5`. This resolves CVE
+[CVE-2024-32475](https://nvd.nist.gov/vuln/detail/CVE-2024-32475). [[GH-499](https://github.com/hashicorp/consul-dataplane/pull/499)]
+* Upgrade to use Go `1.21.9`. This resolves CVE
+[CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`http2`). [[GH-475](https://github.com/hashicorp/consul-dataplane/pull/475)]
+* Upgrade to use golang.org/x/net `v0.24.0`. This resolves CVE
+[CVE-2023-45288](https://nvd.nist.gov/vuln/detail/CVE-2023-45288) (`x/net`). [[GH-475](https://github.com/hashicorp/consul-dataplane/pull/475)]
+
+IMPROVEMENTS:
+
+* Upgrade Go to use 1.22.3. [[GH-501](https://github.com/hashicorp/consul-dataplane/pull/501)]
+
+## 1.4.1 (March 28, 2024)
+
+SECURITY:
+
+* Update `google.golang.org/protobuf` to v1.33.0 to address [CVE-2024-24786](https://nvd.nist.gov/vuln/detail/CVE-2024-24786). [[GH-460](https://github.com/hashicorp/consul-dataplane/pull/460)]
+* Upgrade to use Go `1.21.8`. This resolves CVEs
+  [CVE-2024-24783](https://nvd.nist.gov/vuln/detail/CVE-2024-24783) (`crypto/x509`).
+  [CVE-2023-45290](https://nvd.nist.gov/vuln/detail/CVE-2023-45290) (`net/http`).
+  [CVE-2023-45289](https://nvd.nist.gov/vuln/detail/CVE-2023-45289) (`net/http`, `net/http/cookiejar`).
+  [CVE-2024-24785](https://nvd.nist.gov/vuln/detail/CVE-2024-24785) (`html/template`).
+  [CVE-2024-24784](https://nvd.nist.gov/vuln/detail/CVE-2024-24784) (`net/mail`). [[GH-465](https://github.com/hashicorp/consul-dataplane/pull/465)]
+
+## 1.3.4 (March 28, 2024)
+
+SECURITY:
+
+* Update `google.golang.org/protobuf` to v1.33.0 to address [CVE-2024-24786](https://nvd.nist.gov/vuln/detail/CVE-2024-24786). [[GH-460](https://github.com/hashicorp/consul-dataplane/pull/460)]
+* Upgrade `consul-dataplane-fips` OpenShift container image to use `ubi9-minimal:9.3` as the base image. [[GH-434](https://github.com/hashicorp/consul-dataplane/pull/434)]
+* Upgrade to use Go `1.21.8`. This resolves CVEs
+  [CVE-2024-24783](https://nvd.nist.gov/vuln/detail/CVE-2024-24783) (`crypto/x509`).
+  [CVE-2023-45290](https://nvd.nist.gov/vuln/detail/CVE-2023-45290) (`net/http`).
+  [CVE-2023-45289](https://nvd.nist.gov/vuln/detail/CVE-2023-45289) (`net/http`, `net/http/cookiejar`).
+  [CVE-2024-24785](https://nvd.nist.gov/vuln/detail/CVE-2024-24785) (`html/template`).
+  [CVE-2024-24784](https://nvd.nist.gov/vuln/detail/CVE-2024-24784) (`net/mail`). [[GH-465](https://github.com/hashicorp/consul-dataplane/pull/465)]
+
+## 1.2.7 (March 28, 2024)
+
+SECURITY:
+
+* Update `google.golang.org/protobuf` to v1.33.0 to address [CVE-2024-24786](https://nvd.nist.gov/vuln/detail/CVE-2024-24786). [[GH-460](https://github.com/hashicorp/consul-dataplane/pull/460)]
+* Upgrade `consul-dataplane-fips` OpenShift container image to use `ubi9-minimal:9.3` as the base image. [[GH-434](https://github.com/hashicorp/consul-dataplane/pull/434)]
+* Upgrade to use Go `1.21.8`. This resolves CVEs
+  [CVE-2024-24783](https://nvd.nist.gov/vuln/detail/CVE-2024-24783) (`crypto/x509`).
+  [CVE-2023-45290](https://nvd.nist.gov/vuln/detail/CVE-2023-45290) (`net/http`).
+  [CVE-2023-45289](https://nvd.nist.gov/vuln/detail/CVE-2023-45289) (`net/http`, `net/http/cookiejar`).
+  [CVE-2024-24785](https://nvd.nist.gov/vuln/detail/CVE-2024-24785) (`html/template`).
+  [CVE-2024-24784](https://nvd.nist.gov/vuln/detail/CVE-2024-24784) (`net/mail`). [[GH-465](https://github.com/hashicorp/consul-dataplane/pull/465)]
+
+## 1.1.10 (March 28, 2024)
+
+SECURITY:
+
+* Update `google.golang.org/protobuf` to v1.33.0 to address [CVE-2024-24786](https://nvd.nist.gov/vuln/detail/CVE-2024-24786). [[GH-460](https://github.com/hashicorp/consul-dataplane/pull/460)]
+* Upgrade to use Go `1.21.8`. This resolves CVEs
+[CVE-2024-24783](https://nvd.nist.gov/vuln/detail/CVE-2024-24783) (`crypto/x509`).
+[CVE-2023-45290](https://nvd.nist.gov/vuln/detail/CVE-2023-45290) (`net/http`).
+[CVE-2023-45289](https://nvd.nist.gov/vuln/detail/CVE-2023-45289) (`net/http`, `net/http/cookiejar`).
+[CVE-2024-24785](https://nvd.nist.gov/vuln/detail/CVE-2024-24785) (`html/template`).
+[CVE-2024-24784](https://nvd.nist.gov/vuln/detail/CVE-2024-24784) (`net/mail`). [[GH-465](https://github.com/hashicorp/consul-dataplane/pull/465)]
 
 ## 1.4.0 (February 28, 2024)
 
@@ -41,6 +169,16 @@ IMPROVEMENTS:
 SECURITY:
 
 * Update Envoy version to 1.26.7 to address [CVE-2024-23324](https://github.com/envoyproxy/envoy/security/advisories/GHSA-gq3v-vvhj-96j6), [CVE-2024-23325](https://github.com/envoyproxy/envoy/security/advisories/GHSA-5m7c-mrwr-pm26), [CVE-2024-23322](https://github.com/envoyproxy/envoy/security/advisories/GHSA-6p83-mfmh-qv38), [CVE-2024-23323](https://github.com/envoyproxy/envoy/security/advisories/GHSA-x278-4w4x-r7ch), [CVE-2024-23327](https://github.com/envoyproxy/envoy/security/advisories/GHSA-4h5x-x9vh-m29j), and [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) [[GH-417](https://github.com/hashicorp/consul-dataplane/pull/417)]
+
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.21.7. [[GH-411](https://github.com/hashicorp/consul-dataplane/pull/411)]
+
+## 1.1.9 (February 14, 2024)
+
+SECURITY:
+
+* Update Envoy version to 1.26.7 to address [CVE-2024-23324](https://github.com/envoyproxy/envoy/security/advisories/GHSA-gq3v-vvhj-96j6), [CVE-2024-23325](https://github.com/envoyproxy/envoy/security/advisories/GHSA-5m7c-mrwr-pm26), [CVE-2024-23322](https://github.com/envoyproxy/envoy/security/advisories/GHSA-6p83-mfmh-qv38), [CVE-2024-23323](https://github.com/envoyproxy/envoy/security/advisories/GHSA-x278-4w4x-r7ch), [CVE-2024-23327](https://github.com/envoyproxy/envoy/security/advisories/GHSA-4h5x-x9vh-m29j), and [CVE-2023-44487](https://github.com/envoyproxy/envoy/security/advisories/GHSA-jhv4-f7mr-xx76) (note: upgrades to Envoy 1.26 for security patches due to 1.25 EOL) [[GH-418](https://github.com/hashicorp/consul-dataplane/pull/418)]
 
 IMPROVEMENTS:
 
