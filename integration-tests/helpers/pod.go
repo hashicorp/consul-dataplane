@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const pauseContainerImage = "google/pause:asm"
+const pauseContainerImage = "registry.k8s.io/pause"
 
 type Pod struct {
 	*Container
