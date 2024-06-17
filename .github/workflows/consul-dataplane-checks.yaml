@@ -7,7 +7,13 @@ on:
   pull_request:
 
 jobs:
+  conditional-skip:
+    uses: ./.github/workflows/reusable-conditional-skip.yml
+
   get-go-version:
+    # Cascades down to test jobs
+    needs: [conditional-skip]
+    if: needs.conditional-skip.outputs.skip-ci != 'true'
     uses: ./.github/workflows/reusable-get-go-version.yml
 
   unit-tests:
