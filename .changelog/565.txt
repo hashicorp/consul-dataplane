@@ -1,0 +1,3 @@
+```release-note:feature
+Removes the dependence on the v2 catalog and "resource-apis" experiment.
+```
