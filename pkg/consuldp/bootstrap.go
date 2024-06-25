@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
-	pbmesh "github.com/hashicorp/consul/proto-public/pbmesh/v2beta1"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"
@@ -117,12 +116,8 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	}
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
-		if rsp.BootstrapConfig != nil {
-			bootstrapConfig = bootstrapConfigFromCfg(rsp.BootstrapConfig)
-		} else {
-			if err := mapstructure.WeakDecode(rsp.Config.AsMap(), &bootstrapConfig); err != nil {
-				return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
-			}
+		if err := mapstructure.WeakDecode(rsp.Config.AsMap(), &bootstrapConfig); err != nil {
+			return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
 		}
 
 		// Envoy is configured with a listener that proxies metrics from its
@@ -140,23 +135,4 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	// slate, and we don't need to maintain this legacy behavior.
 	cfg, err := bootstrapConfig.GenerateJSON(args, true)
 	return &bootstrapConfig, cfg, err
-}
-
-func bootstrapConfigFromCfg(cfg *pbmesh.BootstrapConfig) bootstrap.BootstrapConfig {
-	return bootstrap.BootstrapConfig{
-		StatsdURL:                       cfg.StatsdUrl,
-		DogstatsdURL:                    cfg.DogstatsdUrl,
-		StatsTags:                       cfg.StatsTags,
-		TelemetryCollectorBindSocketDir: cfg.TelemetryCollectorBindSocketDir,
-		PrometheusBindAddr:              cfg.PrometheusBindAddr,
-		StatsBindAddr:                   cfg.StatsBindAddr,
-		ReadyBindAddr:                   cfg.ReadyBindAddr,
-		OverrideJSONTpl:                 cfg.OverrideJsonTpl,
-		StaticClustersJSON:              cfg.StaticClustersJson,
-		StaticListenersJSON:             cfg.StaticListenersJson,
-		StatsSinksJSON:                  cfg.StatsSinksJson,
-		StatsConfigJSON:                 cfg.StatsConfigJson,
-		StatsFlushInterval:              cfg.StatsFlushInterval,
-		TracingConfigJSON:               cfg.TracingConfigJson,
-	}
 }
