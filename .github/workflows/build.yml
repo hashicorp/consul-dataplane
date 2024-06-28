@@ -100,6 +100,7 @@ jobs:
             ${{ matrix.env }} go build -tags=${{ matrix.gotags }} -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
       - name: Copy license file
+        if: ${{ matrix.goos == 'linux' }}
         env:
           LICENSE_DIR: ".release/linux/package/usr/share/doc/${{ env.PKG_NAME }}"
         run: |
