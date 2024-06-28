@@ -133,7 +133,7 @@ jobs:
     needs:
       - get-go-version
       - get-product-version
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [darwin]
