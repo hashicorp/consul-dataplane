@@ -329,10 +329,4 @@ type Config struct {
 	Telemetry *TelemetryConfig
 	Envoy     *EnvoyConfig
 	XDSServer *XDSServer
-	// DNSProxyMode indicates that consul-dataplane is not running as a sidecar
-	// and will:
-	// - disable xDS.
-	// - disable Envoy.
-	// - disable validation that DNS can only listen on loopback address.
-	DNSProxyMode *bool
 }
