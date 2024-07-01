@@ -181,17 +181,12 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
-	if err = cdp.startDNSProxy(ctx); err != nil {
-		cdp.logger.Error("failed to start the dns proxy", "error", err)
-		return err
-	}
-
+	// start up DNS server if configured
 	if cdp.cfg.DNSServer.Enabled {
-		err = cdp.setupXDSServer()
-		if err != nil {
+		if err = cdp.startDNSProxy(ctx); err != nil {
+			cdp.logger.Error("failed to start the dns proxy", "error", err)
 			return err
 		}
-		go cdp.startXDSServer(ctx)
 	}
 
 	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
@@ -202,7 +197,14 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
 	doneCh := make(chan error)
+	// start up xDS server and Envoy if configured
 	if cdp.cfg.Envoy.Enabled && cdp.cfg.XDSServer.Enabled {
+		err = cdp.setupXDSServer()
+		if err != nil {
+			return err
+		}
+		go cdp.startXDSServer(ctx)
+
 		proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
 		if err != nil {
 			cdp.logger.Error("failed to create new proxy", "error", err)
@@ -257,6 +259,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			}
 		}()
 	} else {
+		// Envoy and xDS servers are not configured so only listen to the done channel from context.
 		go func() {
 			select {
 			case <-ctx.Done():
