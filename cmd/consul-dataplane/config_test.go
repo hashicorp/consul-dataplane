@@ -69,14 +69,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "WARN",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  true,
 						BindAddr: "127.0.0.1",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -147,14 +150,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "WARN",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  true,
 						BindAddr: "127.0.0.1",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -202,6 +208,10 @@ func TestConfigGeneration(t *testing.T) {
 				opts.dataplaneConfig.DNSServer.BindAddr = strReference("127.0.0.2")
 				opts.dataplaneConfig.XDSServer.BindPort = intReference(6060)
 				opts.dataplaneConfig.Envoy.DumpEnvoyConfigOnExitEnabled = boolReference(true)
+				opts.dataplaneConfig.Envoy.Enabled = boolReference(false)
+				opts.dataplaneConfig.XDSServer.Enabled = boolReference(false)
+				opts.dataplaneConfig.DNSServer.Enabled = boolReference(false)
+
 				return opts, nil
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
@@ -250,14 +260,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "WARN",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  false,
 						BindAddr: "127.0.0.2",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     false,
 						BindAddress: "127.0.1.0",
 						BindPort:    6060,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       false,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -354,14 +367,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "WARN",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  true,
 						BindAddr: "127.0.0.2",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    6060,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -444,14 +460,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "WARN",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  true,
 						BindAddr: "127.0.0.1",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    6060,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -500,8 +519,15 @@ func TestConfigGeneration(t *testing.T) {
 					  "partition": "default"
 					},
 					"envoy": {
+					  "enabled": false,
 					  "adminBindAddress": "127.0.0.1",
 					  "adminBindPort": 19000
+					},
+					"xdsServer": {
+					  "enabled": false
+					},
+					"dnsServer": {
+					  "enabled": false
 					},
 					"logging": {
 					  "logLevel": "info",
@@ -543,14 +569,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "INFO",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  false,
 						BindAddr: "127.0.0.1",
 						Port:     -1,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     false,
 						BindAddress: "127.0.0.1",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       false,
 						AdminBindAddress:              "127.0.0.1",
 						AdminBindPort:                 19000,
 						ReadyBindPort:                 0,
@@ -666,14 +695,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "INFO",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  true,
 						BindAddr: "127.0.0.1",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",
@@ -716,6 +748,9 @@ func TestConfigGeneration(t *testing.T) {
 				opts.dataplaneConfig.Consul.Credentials.Login.Meta = map[string]string{
 					"key1": "value1",
 				}
+				opts.dataplaneConfig.Envoy.Enabled = boolReference(true)
+				opts.dataplaneConfig.XDSServer.Enabled = boolReference(true)
+				opts.dataplaneConfig.DNSServer.Enabled = boolReference(true)
 
 				return opts, nil
 			},
@@ -733,8 +768,15 @@ func TestConfigGeneration(t *testing.T) {
 					  "partition": "default"
 					},
 					"envoy": {
+					  "enabled": false,
 					  "adminBindAddress": "127.0.0.1",
 					  "adminBindPort": 19000
+					},
+					"xdsServer": {
+					  "enabled": false
+					},
+					"dnsServer": {
+					  "enabled": false
 					},
 					"logging": {
 					  "logLevel": "warn",
@@ -793,14 +835,17 @@ func TestConfigGeneration(t *testing.T) {
 						LogLevel: "INFO",
 					},
 					DNSServer: &consuldp.DNSServerConfig{
+						Enabled:  true,
 						BindAddr: "127.0.0.1",
 						Port:     8604,
 					},
 					XDSServer: &consuldp.XDSServer{
+						Enabled:     true,
 						BindAddress: "127.0.1.0",
 						BindPort:    0,
 					},
 					Envoy: &consuldp.EnvoyConfig{
+						Enabled:                       true,
 						AdminBindAddress:              "127.0.1.0",
 						AdminBindPort:                 18000,
 						ReadyBindAddress:              "127.0.1.0",

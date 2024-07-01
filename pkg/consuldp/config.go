@@ -34,6 +34,8 @@ type ConsulConfig struct {
 
 // DNSServerConfig is the configuration for the transparent DNS proxy that will forward requests to consul
 type DNSServerConfig struct {
+	// Enabled configures whether DNS Server is enabled.
+	Enabled bool
 	// BindAddr is the address the DNS server will bind to. Default will be 127.0.0.1
 	BindAddr string
 	// Port is the port which the DNS server will bind to.
@@ -264,6 +266,8 @@ type PrometheusTelemetryConfig struct {
 
 // EnvoyConfig contains configuration for the Envoy process.
 type EnvoyConfig struct {
+	// Enabled configures whether Envoy is enabled.
+	Enabled bool
 	// AdminBindAddress is the address on which the Envoy admin server will be available.
 	AdminBindAddress string
 	// AdminBindPort is the port on which the Envoy admin server will be available.
@@ -307,6 +311,8 @@ type EnvoyConfig struct {
 
 // XDSServer contains the configuration of the xDS server.
 type XDSServer struct {
+	// Enabled configures whether xDS Server is enabled.
+	Enabled bool
 	// BindAddress is the address on which the Envoy xDS server will be available.
 	BindAddress string
 	// BindPort is the address on which the Envoy xDS port will be available.
@@ -323,4 +329,10 @@ type Config struct {
 	Telemetry *TelemetryConfig
 	Envoy     *EnvoyConfig
 	XDSServer *XDSServer
+	// DNSProxyMode indicates that consul-dataplane is not running as a sidecar
+	// and will:
+	// - disable xDS.
+	// - disable Envoy.
+	// - disable validation that DNS can only listen on loopback address.
+	DNSProxyMode *bool
 }

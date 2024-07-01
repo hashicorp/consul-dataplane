@@ -97,11 +97,13 @@ type ProxyFlags struct {
 }
 
 type XDSServerFlags struct {
+	Enabled  *bool   `json:"enabled,omitempty"`
 	BindAddr *string `json:"bindAddress,omitempty"`
 	BindPort *int    `json:"bindPort,omitempty"`
 }
 
 type DNSServerFlags struct {
+	Enabled  *bool   `json:"enabled,omitempty"`
 	BindAddr *string `json:"bindAddress,omitempty"`
 	BindPort *int    `json:"bindPort,omitempty"`
 }
@@ -128,6 +130,7 @@ type PrometheusTelemetryFlags struct {
 }
 
 type EnvoyFlags struct {
+	Enabled          *bool   `json:"enabled,omitempty"`
 	AdminBindAddr    *string `json:"adminBindAddress,omitempty"`
 	AdminBindPort    *int    `json:"adminBindPort,omitempty"`
 	ReadyBindAddr    *string `json:"readyBindAddress,omitempty"`
@@ -231,6 +234,7 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			}
 		},
 		"envoy": {
+			"enabled": true,
 			"adminBindAddress": "127.0.0.1",
 			"adminBindPort": 19000,
 			"readyBindPort": 0,
@@ -246,10 +250,12 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			"startupGracePeriodSeconds": 0
 		},
 		"xdsServer": {
+			"enabled": true,
 			"bindAddress": "127.0.0.1",
 			"bindPort": 0
 		},
 		"dnsServer": {
+			"enabled": true,
 			"bindAddress": "127.0.0.1",
 			"bindPort": -1
 		}
@@ -323,6 +329,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			LogLevel: strings.ToUpper(stringVal(cfg.Logging.LogLevel)),
 		},
 		Envoy: &consuldp.EnvoyConfig{
+			Enabled:                       boolVal(cfg.Envoy.Enabled),
 			AdminBindAddress:              stringVal(cfg.Envoy.AdminBindAddr),
 			AdminBindPort:                 intVal(cfg.Envoy.AdminBindPort),
 			ReadyBindAddress:              stringVal(cfg.Envoy.ReadyBindAddr),
@@ -352,10 +359,12 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			},
 		},
 		XDSServer: &consuldp.XDSServer{
+			Enabled:     boolVal(cfg.XDSServer.Enabled),
 			BindAddress: stringVal(cfg.XDSServer.BindAddr),
 			BindPort:    intVal(cfg.XDSServer.BindPort),
 		},
 		DNSServer: &consuldp.DNSServerConfig{
+			Enabled:  boolVal(cfg.DNSServer.Enabled),
 			BindAddr: stringVal(cfg.DNSServer.BindAddr),
 			Port:     intVal(cfg.DNSServer.BindPort),
 		},
