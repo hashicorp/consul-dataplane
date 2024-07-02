@@ -205,10 +205,8 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	// return before configuring them.
 	if cdp.cfg.Mode == ModeTypeDNSProxy {
 		go func() {
-			select {
-			case <-ctx.Done():
-				doneCh <- nil
-			}
+			<-ctx.Done()
+			doneCh <- nil
 		}()
 		return <-doneCh
 	}
