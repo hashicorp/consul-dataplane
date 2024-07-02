@@ -205,7 +205,6 @@ func TestConfigGeneration(t *testing.T) {
 				opts.dataplaneConfig.DNSServer.BindAddr = strReference("127.0.0.2")
 				opts.dataplaneConfig.XDSServer.BindPort = intReference(6060)
 				opts.dataplaneConfig.Envoy.DumpEnvoyConfigOnExitEnabled = boolReference(true)
-
 				return opts, nil
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
@@ -743,15 +742,8 @@ func TestConfigGeneration(t *testing.T) {
 					  "partition": "default"
 					},
 					"envoy": {
-					  "enabled": false,
 					  "adminBindAddress": "127.0.0.1",
 					  "adminBindPort": 19000
-					},
-					"xdsServer": {
-					  "enabled": false
-					},
-					"dnsServer": {
-					  "enabled": false
 					},
 					"logging": {
 					  "logLevel": "warn",
