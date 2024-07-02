@@ -233,7 +233,6 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			}
 		},
 		"envoy": {
-			"enabled": true,
 			"adminBindAddress": "127.0.0.1",
 			"adminBindPort": 19000,
 			"readyBindPort": 0,
@@ -249,12 +248,10 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			"startupGracePeriodSeconds": 0
 		},
 		"xdsServer": {
-			"enabled": true,
 			"bindAddress": "127.0.0.1",
 			"bindPort": 0
 		},
 		"dnsServer": {
-			"enabled": true,
 			"bindAddress": "127.0.0.1",
 			"bindPort": -1
 		}

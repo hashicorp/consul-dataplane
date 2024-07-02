@@ -192,76 +192,79 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
 	doneCh := make(chan error)
-	// start up xDS server and Envoy if configured as a sidecar
-	if cdp.cfg.Mode == ModeTypeSidecar {
-		err = cdp.setupXDSServer()
-		if err != nil {
-			return err
-		}
-		go cdp.startXDSServer(ctx)
 
-		proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
-		if err != nil {
-			cdp.logger.Error("failed to create new proxy", "error", err)
-			return fmt.Errorf("failed to create new proxy: %w", err)
-		}
-		if err := proxy.Run(ctx); err != nil {
-			cdp.logger.Error("failed to run proxy", "error", err)
-			return fmt.Errorf("failed to run proxy: %w", err)
-		}
+	if cdp.cfg.Mode == ModeTypeDNSProxy {
+		// Envoy and xDS servers are not configured so return before configuring them.
 
-		cdp.metricsConfig = NewMetricsConfig(cdp.cfg, cacheSink)
-		err = cdp.metricsConfig.startMetrics(ctx, bootstrapCfg)
-		if err != nil {
-			return err
-		}
-
-		cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
-		err = cdp.lifecycleConfig.startLifecycleManager(ctx)
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			select {
-			case <-ctx.Done():
-				doneCh <- nil
-			case err := <-proxy.Exited():
-				if err != nil {
-					cdp.logger.Error("envoy proxy exited with error", "error", err)
-				}
-				doneCh <- err
-			case <-cdp.xdsServerExited():
-				// Initiate graceful shutdown of Envoy, kill if error
-				if err := proxy.Quit(); err != nil {
-					cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", err)
-					if err := proxy.Kill(); err != nil {
-						cdp.logger.Error("failed to kill proxy", "error", err)
-					}
-				}
-				doneCh <- errors.New("xDS server exited unexpectedly")
-			case <-cdp.metricsConfig.metricsServerExited():
-				doneCh <- errors.New("metrics server exited unexpectedly")
-			case <-cdp.lifecycleConfig.lifecycleServerExited():
-				// Initiate graceful shutdown of Envoy, kill if error
-				if err := proxy.Quit(); err != nil {
-					cdp.logger.Error("failed to stop proxy", "error", err)
-					if err := proxy.Kill(); err != nil {
-						cdp.logger.Error("failed to kill proxy", "error", err)
-					}
-				}
-				doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
-			}
-		}()
-	} else {
-		// Envoy and xDS servers are not configured so only listen to the done channel from context.
 		go func() {
 			select {
 			case <-ctx.Done():
 				doneCh <- nil
 			}
 		}()
+		return <-doneCh
 	}
+
+	// start up xDS server and Envoy if configured as a sidecar
+	err = cdp.setupXDSServer()
+	if err != nil {
+		return err
+	}
+	go cdp.startXDSServer(ctx)
+
+	proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
+	if err != nil {
+		cdp.logger.Error("failed to create new proxy", "error", err)
+		return fmt.Errorf("failed to create new proxy: %w", err)
+	}
+	if err := proxy.Run(ctx); err != nil {
+		cdp.logger.Error("failed to run proxy", "error", err)
+		return fmt.Errorf("failed to run proxy: %w", err)
+	}
+
+	cdp.metricsConfig = NewMetricsConfig(cdp.cfg, cacheSink)
+	err = cdp.metricsConfig.startMetrics(ctx, bootstrapCfg)
+	if err != nil {
+		return err
+	}
+
+	cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
+	err = cdp.lifecycleConfig.startLifecycleManager(ctx)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			doneCh <- nil
+		case err := <-proxy.Exited():
+			if err != nil {
+				cdp.logger.Error("envoy proxy exited with error", "error", err)
+			}
+			doneCh <- err
+		case <-cdp.xdsServerExited():
+			// Initiate graceful shutdown of Envoy, kill if error
+			if err := proxy.Quit(); err != nil {
+				cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", err)
+				if err := proxy.Kill(); err != nil {
+					cdp.logger.Error("failed to kill proxy", "error", err)
+				}
+			}
+			doneCh <- errors.New("xDS server exited unexpectedly")
+		case <-cdp.metricsConfig.metricsServerExited():
+			doneCh <- errors.New("metrics server exited unexpectedly")
+		case <-cdp.lifecycleConfig.lifecycleServerExited():
+			// Initiate graceful shutdown of Envoy, kill if error
+			if err := proxy.Quit(); err != nil {
+				cdp.logger.Error("failed to stop proxy", "error", err)
+				if err := proxy.Kill(); err != nil {
+					cdp.logger.Error("failed to kill proxy", "error", err)
+				}
+			}
+			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
+		}
+	}()
 
 	return <-doneCh
 }
