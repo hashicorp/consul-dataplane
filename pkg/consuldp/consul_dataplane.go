@@ -129,6 +129,7 @@ func validateConfig(cfg *Config) error {
 func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	ctx = hclog.WithContext(ctx, cdp.logger)
 	cdp.logger.Info("started consul-dataplane process")
+	cdp.logger.Info(fmt.Sprintf("consul-dataplane mode: %s", cdp.cfg.Mode))
 
 	// At startup we need to cache metrics until we have information from the bootstrap envoy config
 	// that the consumer wants metrics enabled. Until then we will set our own light weight metrics
@@ -178,12 +179,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
-	// start up DNS server
-	if err = cdp.startDNSProxy(ctx); err != nil {
-		cdp.logger.Error("failed to start the dns proxy", "error", err)
-		return err
-	}
-
 	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
 	if err != nil {
 		cdp.logger.Error("failed to get bootstrap config", "error", err)
@@ -191,19 +186,25 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
+	// start up DNS server
+	if err = cdp.startDNSProxy(ctx); err != nil {
+		cdp.logger.Error("failed to start the dns proxy", "error", err)
+		return err
+	}
+
 	doneCh := make(chan error)
 
-	if cdp.cfg.Mode == ModeTypeDNSProxy {
-		// Envoy and xDS servers are not configured so return before configuring them.
-
-		go func() {
-			select {
-			case <-ctx.Done():
-				doneCh <- nil
-			}
-		}()
-		return <-doneCh
-	}
+	//// if running as DNS PRoxy, xDS Server and Envoy are disabled, so
+	//// return before configuring them.
+	//if cdp.cfg.Mode == ModeTypeDNSProxy {
+	//	go func() {
+	//		select {
+	//		case <-ctx.Done():
+	//			doneCh <- nil
+	//		}
+	//	}()
+	//	return <-doneCh
+	//}
 
 	// start up xDS server and Envoy if configured as a sidecar
 	err = cdp.setupXDSServer()
@@ -265,7 +266,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
 		}
 	}()
-
 	return <-doneCh
 }
 
