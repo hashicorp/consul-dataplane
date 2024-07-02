@@ -27,6 +27,10 @@ func init() {
 	flagOpts = &FlagOpts{}
 	flags.BoolVar(&flagOpts.printVersion, "version", false, "Prints the current version of consul-dataplane.")
 
+	StringVar(flags, &flagOpts.dataplaneConfig.Mode, "mode", "DP_MODE", "dataplane mode. Value can be:\n"+
+		"1. sidecar - for use when running as a sidecar to Consul services with xDS Server, Envoy, and DNS Server running; OR\n"+
+		"2. dns-proxy - for use a standalone application where DNS Server runs, but Envoy and xDS Server are enabled.\n")
+
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Addresses, "addresses", "DP_CONSUL_ADDRESSES", "Consul server gRPC addresses. Value can be:\n"+
 		"1. A DNS name that resolves to server addresses or the DNS name of a load balancer in front of the Consul servers; OR\n"+
 		"2. An executable command in the format, 'exec=<executable with optional args>'. The executable\n"+
@@ -89,7 +93,6 @@ func init() {
 	StringVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.ScrapePath, "telemetry-prom-scrape-path", "DP_TELEMETRY_PROM_SCRAPE_PATH", "The URL path where Envoy serves Prometheus metrics.")
 	IntVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.MergePort, "telemetry-prom-merge-port", "DP_TELEMETRY_PROM_MERGE_PORT", "The port to serve merged Prometheus metrics.")
 
-	BoolVar(flags, &flagOpts.dataplaneConfig.Envoy.Enabled, "envoy-enabled", "DP_ENVOY_ENABLED", "Indicates whether the Envoy is run within dataplane.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.AdminBindAddr, "envoy-admin-bind-address", "DP_ENVOY_ADMIN_BIND_ADDRESS", "The address on which the Envoy admin server is available.")
 	IntVar(flags, &flagOpts.dataplaneConfig.Envoy.AdminBindPort, "envoy-admin-bind-port", "DP_ENVOY_ADMIN_BIND_PORT", "The port on which the Envoy admin server is available.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.ReadyBindAddr, "envoy-ready-bind-address", "DP_ENVOY_READY_BIND_ADDRESS", "The address on which Envoy's readiness probe is available.")
@@ -98,7 +101,6 @@ func init() {
 	IntVar(flags, &flagOpts.dataplaneConfig.Envoy.DrainTimeSeconds, "envoy-drain-time-seconds", "DP_ENVOY_DRAIN_TIME", "The time in seconds for which Envoy will drain connections.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.DrainStrategy, "envoy-drain-strategy", "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
 
-	BoolVar(flags, &flagOpts.dataplaneConfig.XDSServer.Enabled, "xds-enabled", "DP_XDS_ENABLED", "Indicates whether the Envoy xDS server is run within dataplane.")
 	StringVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindAddr, "xds-bind-addr", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
 	IntVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindPort, "xds-bind-port", "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
 
@@ -109,7 +111,6 @@ func init() {
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.TLS.ServerName, "tls-server-name", "DP_TLS_SERVER_NAME", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
 	BoolVar(flags, &flagOpts.dataplaneConfig.Consul.TLS.InsecureSkipVerify, "tls-insecure-skip-verify", "DP_TLS_INSECURE_SKIP_VERIFY", "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
 
-	BoolVar(flags, &flagOpts.dataplaneConfig.DNSServer.Enabled, "consul-dns-enabled", "DP_CONSUL_DNS_ENABLED", "Indicates whether the consul DNS listener is run within dataplane.")
 	StringVar(flags, &flagOpts.dataplaneConfig.DNSServer.BindAddr, "consul-dns-bind-addr", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns listener.")
 	IntVar(flags, &flagOpts.dataplaneConfig.DNSServer.BindPort, "consul-dns-bind-port", "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns listener will listen on. By default -1 disables the dns listener.")
 

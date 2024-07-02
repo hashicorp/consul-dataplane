@@ -74,7 +74,6 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 }
 
 func validateConfig(cfg *Config) error {
-	isRunningSidecarMode := cfg.DNSServer.Enabled && cfg.XDSServer.Enabled && cfg.Envoy.Enabled
 	switch {
 	case cfg.Consul == nil || cfg.Consul.Addresses == "":
 		return errors.New("consul addresses not specified")
@@ -84,21 +83,19 @@ func validateConfig(cfg *Config) error {
 		return errors.New("proxy details not specified")
 	case cfg.Proxy.ProxyID == "":
 		return errors.New("proxy ID not specified")
-	case cfg.Envoy == nil:
+	case cfg.Mode == ModeTypeSidecar && cfg.Envoy == nil:
 		return errors.New("envoy settings not specified")
-	case cfg.Envoy.Enabled && cfg.Envoy.AdminBindAddress == "":
+	case cfg.Mode == ModeTypeSidecar && cfg.Envoy.AdminBindAddress == "":
 		return errors.New("envoy admin bind address not specified")
-	case cfg.Envoy.Enabled && cfg.Envoy.AdminBindPort == 0:
+	case cfg.Mode == ModeTypeSidecar && cfg.Envoy.AdminBindPort == 0:
 		return errors.New("envoy admin bind port not specified")
 	case cfg.Logging == nil:
 		return errors.New("logging settings not specified")
-	case cfg.XDSServer.Enabled && cfg.XDSServer.BindAddress == "":
+	case cfg.Mode == ModeTypeSidecar && cfg.XDSServer.BindAddress == "":
 		return errors.New("envoy xDS bind address not specified")
-	case cfg.XDSServer.Enabled && !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
+	case cfg.Mode == ModeTypeSidecar && !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
-	case cfg.Envoy.Enabled != cfg.XDSServer.Enabled:
-		return errors.New("enabled flags for envoy and xDS must match")
-	case isRunningSidecarMode && cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
+	case cfg.Mode == ModeTypeSidecar && cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
 		return errors.New("non-local DNS proxy bind address not allowed when running as sidecar")
 	}
 
@@ -181,12 +178,10 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
-	// start up DNS server if configured
-	if cdp.cfg.DNSServer.Enabled {
-		if err = cdp.startDNSProxy(ctx); err != nil {
-			cdp.logger.Error("failed to start the dns proxy", "error", err)
-			return err
-		}
+	// start up DNS server
+	if err = cdp.startDNSProxy(ctx); err != nil {
+		cdp.logger.Error("failed to start the dns proxy", "error", err)
+		return err
 	}
 
 	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
@@ -197,8 +192,8 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
 	doneCh := make(chan error)
-	// start up xDS server and Envoy if configured
-	if cdp.cfg.Envoy.Enabled && cdp.cfg.XDSServer.Enabled {
+	// start up xDS server and Envoy if configured as a sidecar
+	if cdp.cfg.Mode == ModeTypeSidecar {
 		err = cdp.setupXDSServer()
 		if err != nil {
 			return err
@@ -284,7 +279,7 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 		Token:     cdp.aclToken,
 	})
 	if err == dns.ErrServerDisabled {
-		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")
+		cdp.logger.Info("dns server disabled: configure the Consul DNS port to enable")
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to create dns server: %w", err)

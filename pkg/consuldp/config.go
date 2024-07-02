@@ -34,8 +34,6 @@ type ConsulConfig struct {
 
 // DNSServerConfig is the configuration for the transparent DNS proxy that will forward requests to consul
 type DNSServerConfig struct {
-	// Enabled configures whether DNS Server is enabled.
-	Enabled bool
 	// BindAddr is the address the DNS server will bind to. Default will be 127.0.0.1
 	BindAddr string
 	// Port is the port which the DNS server will bind to.
@@ -135,6 +133,18 @@ const (
 	// CredentialsTypeLogin indicates that credentials were provided to log in with
 	// an auth method.
 	CredentialsTypeLogin CredentialsType = "login"
+)
+
+// CredentialsType identifies the type of credentials provided.
+type ModeType string
+
+const (
+	// ModeTypeSidecar indicates that consul-dataplane is running in sidecar
+	// mode where DNS Server, xDS Server, and Envoy are all enabled.
+	ModeTypeSidecar ModeType = "sidecar"
+	// ModeTypeDNSProxy indicates that consul-dataplane is running in DNS Proxy
+	// mode where DNS Server is running but xDSServer and Envoy are disabled.
+	ModeTypeDNSProxy ModeType = "dns-proxy"
 )
 
 // StaticCredentialsConfig contains the static ACL token that will be used to
@@ -266,8 +276,6 @@ type PrometheusTelemetryConfig struct {
 
 // EnvoyConfig contains configuration for the Envoy process.
 type EnvoyConfig struct {
-	// Enabled configures whether Envoy is enabled.
-	Enabled bool
 	// AdminBindAddress is the address on which the Envoy admin server will be available.
 	AdminBindAddress string
 	// AdminBindPort is the port on which the Envoy admin server will be available.
@@ -311,8 +319,6 @@ type EnvoyConfig struct {
 
 // XDSServer contains the configuration of the xDS server.
 type XDSServer struct {
-	// Enabled configures whether xDS Server is enabled.
-	Enabled bool
 	// BindAddress is the address on which the Envoy xDS server will be available.
 	BindAddress string
 	// BindPort is the address on which the Envoy xDS port will be available.
@@ -322,6 +328,7 @@ type XDSServer struct {
 // Config is the configuration used by consul-dataplane, consolidated
 // from various sources - CLI flags, env vars, config file settings.
 type Config struct {
+	Mode      ModeType
 	DNSServer *DNSServerConfig
 	Consul    *ConsulConfig
 	Proxy     *ProxyConfig

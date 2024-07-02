@@ -21,6 +21,7 @@ type FlagOpts struct {
 }
 
 type DataplaneConfigFlags struct {
+	Mode      *string        `json:"mode,omitempty"`
 	Consul    ConsulFlags    `json:"consul,omitempty"`
 	Service   ServiceFlags   `json:"service,omitempty"`
 	Proxy     ProxyFlags     `json:"proxy,omitempty"`
@@ -97,13 +98,11 @@ type ProxyFlags struct {
 }
 
 type XDSServerFlags struct {
-	Enabled  *bool   `json:"enabled,omitempty"`
 	BindAddr *string `json:"bindAddress,omitempty"`
 	BindPort *int    `json:"bindPort,omitempty"`
 }
 
 type DNSServerFlags struct {
-	Enabled  *bool   `json:"enabled,omitempty"`
 	BindAddr *string `json:"bindAddress,omitempty"`
 	BindPort *int    `json:"bindPort,omitempty"`
 }
@@ -130,7 +129,6 @@ type PrometheusTelemetryFlags struct {
 }
 
 type EnvoyFlags struct {
-	Enabled          *bool   `json:"enabled,omitempty"`
 	AdminBindAddr    *string `json:"adminBindAddress,omitempty"`
 	AdminBindPort    *int    `json:"adminBindPort,omitempty"`
 	ReadyBindAddr    *string `json:"readyBindAddress,omitempty"`
@@ -212,6 +210,7 @@ func (f *FlagOpts) buildConfigFromFile() (DataplaneConfigFlags, error) {
 func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 	data := `
 	{
+		"mode": "sidecar",
 		"consul": {
 			"grpcPort": 8502,
 			"serverWatchDisabled": false,
@@ -322,6 +321,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 				InsecureSkipVerify: boolVal(cfg.Consul.TLS.InsecureSkipVerify),
 			},
 		},
+		Mode:  consuldp.ModeType(stringVal(cfg.Mode)),
 		Proxy: &proxyCfg,
 		Logging: &consuldp.LoggingConfig{
 			Name:     DefaultLogName,
@@ -329,7 +329,6 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			LogLevel: strings.ToUpper(stringVal(cfg.Logging.LogLevel)),
 		},
 		Envoy: &consuldp.EnvoyConfig{
-			Enabled:                       boolVal(cfg.Envoy.Enabled),
 			AdminBindAddress:              stringVal(cfg.Envoy.AdminBindAddr),
 			AdminBindPort:                 intVal(cfg.Envoy.AdminBindPort),
 			ReadyBindAddress:              stringVal(cfg.Envoy.ReadyBindAddr),
@@ -359,12 +358,10 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			},
 		},
 		XDSServer: &consuldp.XDSServer{
-			Enabled:     boolVal(cfg.XDSServer.Enabled),
 			BindAddress: stringVal(cfg.XDSServer.BindAddr),
 			BindPort:    intVal(cfg.XDSServer.BindPort),
 		},
 		DNSServer: &consuldp.DNSServerConfig{
-			Enabled:  boolVal(cfg.DNSServer.Enabled),
 			BindAddr: stringVal(cfg.DNSServer.BindAddr),
 			Port:     intVal(cfg.DNSServer.BindPort),
 		},
