@@ -179,27 +179,12 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
-	if cdp.cfg.Mode == ModeTypeSidecar {
-		err = cdp.setupXDSServer()
-		if err != nil {
-			return err
-		}
-		go cdp.startXDSServer(ctx)
-	}
-	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
-	if err != nil {
-		cdp.logger.Error("failed to get bootstrap config", "error", err)
-		return fmt.Errorf("failed to get bootstrap config: %w", err)
-	}
-	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
-
+	doneCh := make(chan error)
 	// start up DNS server
 	if err = cdp.startDNSProxy(ctx); err != nil {
 		cdp.logger.Error("failed to start the dns proxy", "error", err)
 		return err
 	}
-
-	doneCh := make(chan error)
 
 	// if running as DNS PRoxy, xDS Server and Envoy are disabled, so
 	// return before configuring them.
@@ -211,6 +196,21 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return <-doneCh
 	}
 
+	cdp.logger.Info("configuring xDS and Envoy")
+	err = cdp.setupXDSServer()
+	if err != nil {
+		return err
+	}
+	go cdp.startXDSServer(ctx)
+
+	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
+	if err != nil {
+		cdp.logger.Error("failed to get bootstrap config", "error", err)
+		return fmt.Errorf("failed to get bootstrap config: %w", err)
+	}
+	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
+
+	cdp.logger.Info("configuring envoy and xDS")
 	proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
 	if err != nil {
 		cdp.logger.Error("failed to create new proxy", "error", err)
