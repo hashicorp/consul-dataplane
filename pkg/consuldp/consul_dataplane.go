@@ -96,7 +96,7 @@ func validateConfig(cfg *Config) error {
 	case cfg.Mode == ModeTypeSidecar && !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
 	case cfg.Mode == ModeTypeSidecar && cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
-		return errors.New("non-local DNS proxy bind address not allowed when running as sidecar")
+		return errors.New("non-local DNS proxy bind address not allowed when running as a sidecar")
 	}
 
 	creds := cfg.Consul.Credentials

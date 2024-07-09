@@ -12,6 +12,7 @@ import (
 
 func validConfig() *Config {
 	return &Config{
+		Mode: ModeTypeSidecar,
 		Consul: &ConsulConfig{
 			Addresses: "consul.servers.dns.com",
 			GRPCPort:  1234,
@@ -160,7 +161,7 @@ func TestNewConsulDPError(t *testing.T) {
 				c.DNSServer.BindAddr = "1.2.3.4"
 				c.DNSServer.Port = 1
 			},
-			expectErr: "non-local DNS proxy bind address not allowed",
+			expectErr: "non-local DNS proxy bind address not allowed when running as a sidecar",
 		},
 		{
 			name: "no bearer token or path given",
