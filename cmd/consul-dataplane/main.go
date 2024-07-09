@@ -28,8 +28,8 @@ func init() {
 	flags.BoolVar(&flagOpts.printVersion, "version", false, "Prints the current version of consul-dataplane.")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Mode, "mode", "DP_MODE", "dataplane mode. Value can be:\n"+
-		"1. sidecar - for use when running as a sidecar to Consul services with xDS Server, Envoy, and DNS Server running; OR\n"+
-		"2. dns-proxy - for use a standalone application where DNS Server runs, but Envoy and xDS Server are enabled.\n")
+		"1. sidecar - used when running as a sidecar to Consul services with xDS Server, Envoy, and DNS Server running; OR\n"+
+		"2. dns-proxy - used when running as a standalone application where DNS Server runs, but Envoy and xDS Server are enabled.\n")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Addresses, "addresses", "DP_CONSUL_ADDRESSES", "Consul server gRPC addresses. Value can be:\n"+
 		"1. A DNS name that resolves to server addresses or the DNS name of a load balancer in front of the Consul servers; OR\n"+
