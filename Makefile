@@ -69,6 +69,7 @@ docker-run: docker ## run the image of $(TAG)
 
 .PHONY: dev-docker
 dev-docker: docker ## build docker image and tag the image to local
+	echo '$(ARCH)'
 	docker tag '$(PRODUCT_NAME):$(VERSION)'  '$(PRODUCT_NAME):local'
 
 ##@ Testing

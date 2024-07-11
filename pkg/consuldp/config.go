@@ -135,6 +135,18 @@ const (
 	CredentialsTypeLogin CredentialsType = "login"
 )
 
+// CredentialsType identifies the type of credentials provided.
+type ModeType string
+
+const (
+	// ModeTypeSidecar indicates that consul-dataplane is running in sidecar
+	// mode where DNS Server, xDS Server, and Envoy are all enabled.
+	ModeTypeSidecar ModeType = "sidecar"
+	// ModeTypeDNSProxy indicates that consul-dataplane is running in DNS Proxy
+	// mode where DNS Server is running but xDSServer and Envoy are disabled.
+	ModeTypeDNSProxy ModeType = "dns-proxy"
+)
+
 // StaticCredentialsConfig contains the static ACL token that will be used to
 // authenticate requests and streams to the Consul servers.
 type StaticCredentialsConfig struct {
@@ -316,6 +328,7 @@ type XDSServer struct {
 // Config is the configuration used by consul-dataplane, consolidated
 // from various sources - CLI flags, env vars, config file settings.
 type Config struct {
+	Mode      ModeType
 	DNSServer *DNSServerConfig
 	Consul    *ConsulConfig
 	Proxy     *ProxyConfig

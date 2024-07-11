@@ -27,6 +27,10 @@ func init() {
 	flagOpts = &FlagOpts{}
 	flags.BoolVar(&flagOpts.printVersion, "version", false, "Prints the current version of consul-dataplane.")
 
+	StringVar(flags, &flagOpts.dataplaneConfig.Mode, "mode", "DP_MODE", "dataplane mode. Value can be:\n"+
+		"1. sidecar - used when running as a sidecar to Consul services with xDS Server, Envoy, and DNS Server running; OR\n"+
+		"2. dns-proxy - used when running as a standalone application where DNS Server runs, but Envoy and xDS Server are enabled.\n")
+
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.Addresses, "addresses", "DP_CONSUL_ADDRESSES", "Consul server gRPC addresses. Value can be:\n"+
 		"1. A DNS name that resolves to server addresses or the DNS name of a load balancer in front of the Consul servers; OR\n"+
 		"2. An executable command in the format, 'exec=<executable with optional args>'. The executable\n"+
@@ -107,8 +111,8 @@ func init() {
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.TLS.ServerName, "tls-server-name", "DP_TLS_SERVER_NAME", "The hostname to expect in the server certificate's subject. This is required if -addresses is not a DNS name.")
 	BoolVar(flags, &flagOpts.dataplaneConfig.Consul.TLS.InsecureSkipVerify, "tls-insecure-skip-verify", "DP_TLS_INSECURE_SKIP_VERIFY", "Do not verify the server's certificate. Useful for testing, but not recommended for production.")
 
-	StringVar(flags, &flagOpts.dataplaneConfig.DNSServer.BindAddr, "consul-dns-bind-addr", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns proxy.")
-	IntVar(flags, &flagOpts.dataplaneConfig.DNSServer.BindPort, "consul-dns-bind-port", "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns proxy will listen on. By default -1 disables the dns proxy")
+	StringVar(flags, &flagOpts.dataplaneConfig.DNSServer.BindAddr, "consul-dns-bind-addr", "DP_CONSUL_DNS_BIND_ADDR", "The address that will be bound to the consul dns listener.")
+	IntVar(flags, &flagOpts.dataplaneConfig.DNSServer.BindPort, "consul-dns-bind-port", "DP_CONSUL_DNS_BIND_PORT", "The port the consul dns listener will listen on. By default -1 disables the dns listener.")
 
 	// Default is false because it will generally be configured appropriately by Helm
 	// configuration or pod annotation.

@@ -1,0 +1,9 @@
+```release-note:feature
+Added the ability to set the `-mode` flag. Options available are `sidecar` and `dns-proxy`. The system defaults to `sidecar`.
+When set to `sidecar`:
+- DNS Server, xDS Server, and Envoy are enabled.
+- The system validates that `-consul-dns-bind-addr` and equivalent environment variable must be set to the loopback address.
+When set to `dns-proxy`:
+- Only DNS Server is enabled. xDS Server and Envoy are disabled.
+- `consul-dns-bind-addr` and equivalent environment variable can be set to other values besides the loopback address.
+```

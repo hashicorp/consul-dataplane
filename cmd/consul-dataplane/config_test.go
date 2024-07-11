@@ -33,6 +33,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeSidecar,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -111,6 +112,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeSidecar,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -189,6 +191,7 @@ func TestConfigGeneration(t *testing.T) {
 				if err != nil {
 					return nil, err
 				}
+				opts.dataplaneConfig.Mode = strReference("dns-proxy")
 				opts.dataplaneConfig.Consul.Credentials.Login.BearerTokenPath = strReference("/consul/bearertokenpath/")
 				opts.dataplaneConfig.Consul.Credentials.Login.Datacenter = strReference("dc100")
 				opts.dataplaneConfig.Consul.Credentials.Login.Meta = map[string]string{
@@ -206,6 +209,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeDNSProxy,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -310,6 +314,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeSidecar,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -408,6 +413,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeSidecar,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -521,6 +527,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeSidecar,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           "consul_server.dc1",
 						GRPCPort:            8502,
@@ -627,6 +634,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeSidecar,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),
@@ -706,6 +714,7 @@ func TestConfigGeneration(t *testing.T) {
 			desc: "test whether CLI flag values override the file values with proxy flags",
 			flagOpts: func() (*FlagOpts, error) {
 				opts, err := generateFlagOptsWithProxyFlags()
+				opts.dataplaneConfig.Mode = strReference("dns-proxy")
 				if err != nil {
 					return nil, err
 				}
@@ -754,6 +763,7 @@ func TestConfigGeneration(t *testing.T) {
 			},
 			makeExpectedCfg: func(flagOpts *FlagOpts) *consuldp.Config {
 				return &consuldp.Config{
+					Mode: consuldp.ModeTypeDNSProxy,
 					Consul: &consuldp.ConsulConfig{
 						Addresses:           stringVal(flagOpts.dataplaneConfig.Consul.Addresses),
 						GRPCPort:            intVal(flagOpts.dataplaneConfig.Consul.GRPCPort),

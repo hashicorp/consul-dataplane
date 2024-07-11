@@ -79,24 +79,24 @@ func validateConfig(cfg *Config) error {
 		return errors.New("consul addresses not specified")
 	case cfg.Consul.GRPCPort == 0:
 		return errors.New("consul server gRPC port not specified")
-	case cfg.Proxy == nil:
+	case cfg.Mode == ModeTypeSidecar && cfg.Proxy == nil:
 		return errors.New("proxy details not specified")
-	case cfg.Proxy.ProxyID == "":
+	case cfg.Mode == ModeTypeSidecar && cfg.Proxy.ProxyID == "":
 		return errors.New("proxy ID not specified")
-	case cfg.Envoy == nil:
+	case cfg.Mode == ModeTypeSidecar && cfg.Envoy == nil:
 		return errors.New("envoy settings not specified")
-	case cfg.Envoy.AdminBindAddress == "":
+	case cfg.Mode == ModeTypeSidecar && cfg.Envoy.AdminBindAddress == "":
 		return errors.New("envoy admin bind address not specified")
-	case cfg.Envoy.AdminBindPort == 0:
+	case cfg.Mode == ModeTypeSidecar && cfg.Envoy.AdminBindPort == 0:
 		return errors.New("envoy admin bind port not specified")
 	case cfg.Logging == nil:
 		return errors.New("logging settings not specified")
-	case cfg.XDSServer.BindAddress == "":
+	case cfg.Mode == ModeTypeSidecar && cfg.XDSServer.BindAddress == "":
 		return errors.New("envoy xDS bind address not specified")
-	case !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
+	case cfg.Mode == ModeTypeSidecar && !strings.HasPrefix(cfg.XDSServer.BindAddress, "unix://") && !net.ParseIP(cfg.XDSServer.BindAddress).IsLoopback():
 		return errors.New("non-local xDS bind address not allowed")
-	case cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
-		return errors.New("non-local DNS proxy bind address not allowed")
+	case cfg.Mode == ModeTypeSidecar && cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
+		return errors.New("non-local DNS proxy bind address not allowed when running as a sidecar")
 	}
 
 	creds := cfg.Consul.Credentials
@@ -129,6 +129,7 @@ func validateConfig(cfg *Config) error {
 func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	ctx = hclog.WithContext(ctx, cdp.logger)
 	cdp.logger.Info("started consul-dataplane process")
+	cdp.logger.Info(fmt.Sprintf("consul-dataplane mode: %s", cdp.cfg.Mode))
 
 	// At startup we need to cache metrics until we have information from the bootstrap envoy config
 	// that the consumer wants metrics enabled. Until then we will set our own light weight metrics
@@ -178,6 +179,24 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
+	doneCh := make(chan error)
+	// start up DNS server
+	if err = cdp.startDNSProxy(ctx); err != nil {
+		cdp.logger.Error("failed to start the dns proxy", "error", err)
+		return err
+	}
+
+	// if running as DNS PRoxy, xDS Server and Envoy are disabled, so
+	// return before configuring them.
+	if cdp.cfg.Mode == ModeTypeDNSProxy {
+		go func() {
+			<-ctx.Done()
+			doneCh <- nil
+		}()
+		return <-doneCh
+	}
+
+	cdp.logger.Info("configuring xDS and Envoy")
 	err = cdp.setupXDSServer()
 	if err != nil {
 		return err
@@ -191,11 +210,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
-	if err = cdp.startDNSProxy(ctx); err != nil {
-		cdp.logger.Error("failed to start the dns proxy", "error", err)
-		return err
-	}
-
+	cdp.logger.Info("configuring envoy and xDS")
 	proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
 	if err != nil {
 		cdp.logger.Error("failed to create new proxy", "error", err)
@@ -218,7 +233,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
-	doneCh := make(chan error)
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -266,7 +280,7 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
 		Token:     cdp.aclToken,
 	})
 	if err == dns.ErrServerDisabled {
-		cdp.logger.Info("dns proxy disabled: configure the Consul DNS port to enable")
+		cdp.logger.Info("dns server disabled: configure the Consul DNS port to enable")
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to create dns server: %w", err)

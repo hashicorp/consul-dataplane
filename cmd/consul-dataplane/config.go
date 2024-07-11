@@ -21,6 +21,7 @@ type FlagOpts struct {
 }
 
 type DataplaneConfigFlags struct {
+	Mode      *string        `json:"mode,omitempty"`
 	Consul    ConsulFlags    `json:"consul,omitempty"`
 	Service   ServiceFlags   `json:"service,omitempty"`
 	Proxy     ProxyFlags     `json:"proxy,omitempty"`
@@ -209,6 +210,7 @@ func (f *FlagOpts) buildConfigFromFile() (DataplaneConfigFlags, error) {
 func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 	data := `
 	{
+		"mode": "sidecar",
 		"consul": {
 			"grpcPort": 8502,
 			"serverWatchDisabled": false,
@@ -316,6 +318,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 				InsecureSkipVerify: boolVal(cfg.Consul.TLS.InsecureSkipVerify),
 			},
 		},
+		Mode:  consuldp.ModeType(stringVal(cfg.Mode)),
 		Proxy: &proxyCfg,
 		Logging: &consuldp.LoggingConfig{
 			Name:     DefaultLogName,
