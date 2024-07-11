@@ -79,9 +79,9 @@ func validateConfig(cfg *Config) error {
 		return errors.New("consul addresses not specified")
 	case cfg.Consul.GRPCPort == 0:
 		return errors.New("consul server gRPC port not specified")
-	case cfg.Proxy == nil:
+	case cfg.Mode == ModeTypeSidecar && cfg.Proxy == nil:
 		return errors.New("proxy details not specified")
-	case cfg.Proxy.ProxyID == "":
+	case cfg.Mode == ModeTypeSidecar && cfg.Proxy.ProxyID == "":
 		return errors.New("proxy ID not specified")
 	case cfg.Mode == ModeTypeSidecar && cfg.Envoy == nil:
 		return errors.New("envoy settings not specified")
