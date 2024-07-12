@@ -1,3 +1,10 @@
+## 1.5.1 (July 15, 2024)
+
+SECURITY:
+
+* Upgrade envoy version to 1.29.7 to address [CVE-2024-39305](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-39305) [[GH-578](https://github.com/hashicorp/consul-dataplane/pull/578)]
+* Upgrade go version to address [CVE-2024-24791](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-24791) [[GH-573](https://github.com/hashicorp/consul-dataplane/pull/573)]
+
 ## 1.5.0 (June 12, 2024)
 
 IMPROVEMENTS:
