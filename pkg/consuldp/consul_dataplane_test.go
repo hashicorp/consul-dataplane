@@ -311,6 +311,14 @@ func TestNewConsulDPError(t *testing.T) {
 			},
 			expectErr: "bearer token (or path to a file containing a bearer token) is required for login",
 		},
+		{
+			name: "dns-proxy mode - namespace set to non empty or default value",
+			mode: ModeTypeDNSProxy,
+			modFn: func(c *Config) {
+				c.Proxy.Namespace = "test"
+			},
+			expectErr: "namespace must be empty or set to 'default' when running in dns-proxy mode",
+		},
 	}
 
 	testCases = append(testCases, dnsProxyTestCases...)

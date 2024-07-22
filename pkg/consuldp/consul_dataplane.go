@@ -47,8 +47,6 @@ type ConsulDataplane struct {
 	aclToken        string
 	metricsConfig   *metricsConfig
 	lifecycleConfig *lifecycleConfig
-
-	resolvedProxyConfig ProxyConfig
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -97,6 +95,8 @@ func validateConfig(cfg *Config) error {
 		return errors.New("non-local xDS bind address not allowed")
 	case cfg.Mode == ModeTypeSidecar && cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
 		return errors.New("non-local DNS proxy bind address not allowed when running as a sidecar")
+	case cfg.Mode == ModeTypeDNSProxy && cfg.Proxy != nil && !(cfg.Proxy.Namespace == "" || cfg.Proxy.Namespace == "default"):
+		return errors.New("namespace must be empty or set to 'default' when running in dns-proxy mode")
 	}
 
 	creds := cfg.Consul.Credentials
@@ -180,8 +180,15 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
 	doneCh := make(chan error)
+	bootstrapParams, err := cdp.getBootstrapParams(ctx)
+	if err != nil {
+		cdp.logger.Error("failed to get bootstrap params", "error", err)
+		return fmt.Errorf("failed to get bootstrap config: %w", err)
+	}
+	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
+
 	// start up DNS server
-	if err = cdp.startDNSProxy(ctx); err != nil {
+	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams); err != nil {
 		cdp.logger.Error("failed to start the dns proxy", "error", err)
 		return err
 	}
@@ -203,7 +210,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	go cdp.startXDSServer(ctx)
 
-	bootstrapCfg, cfg, err := cdp.bootstrapConfig(ctx)
+	bootstrapCfg, cfg, err := cdp.bootstrapConfig(bootstrapParams)
 	if err != nil {
 		cdp.logger.Error("failed to get bootstrap config", "error", err)
 		return fmt.Errorf("failed to get bootstrap config: %w", err)
@@ -267,16 +274,17 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	return <-doneCh
 }
 
-func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context) error {
+func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,
+	dnsConfig *DNSServerConfig, bootstrapParams *pbdataplane.GetEnvoyBootstrapParamsResponse) error {
 	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
 
 	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
-		BindAddr:  cdp.cfg.DNSServer.BindAddr,
-		Port:      cdp.cfg.DNSServer.Port,
+		BindAddr:  dnsConfig.BindAddr,
+		Port:      dnsConfig.Port,
 		Client:    dnsClientInterface,
 		Logger:    cdp.logger,
-		Partition: cdp.resolvedProxyConfig.Partition,
-		Namespace: cdp.resolvedProxyConfig.Namespace,
+		Partition: bootstrapParams.Partition,
+		Namespace: bootstrapParams.Namespace,
 		Token:     cdp.aclToken,
 	})
 	if err == dns.ErrServerDisabled {
