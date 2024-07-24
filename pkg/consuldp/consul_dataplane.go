@@ -180,22 +180,15 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
 
 	doneCh := make(chan error)
-	bootstrapParams, err := cdp.getBootstrapParams(ctx)
-	if err != nil {
-		cdp.logger.Error("failed to get bootstrap params", "error", err)
-		return fmt.Errorf("failed to get bootstrap config: %w", err)
-	}
-	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
-
-	// start up DNS server
-	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams); err != nil {
-		cdp.logger.Error("failed to start the dns proxy", "error", err)
-		return err
-	}
 
 	// if running as DNS PRoxy, xDS Server and Envoy are disabled, so
 	// return before configuring them.
 	if cdp.cfg.Mode == ModeTypeDNSProxy {
+		// start up DNS server
+		if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, cdp.cfg.Proxy.Namespace, cdp.cfg.Proxy.Partition); err != nil {
+			cdp.logger.Error("failed to start the dns proxy", "error", err)
+			return err
+		}
 		go func() {
 			<-ctx.Done()
 			doneCh <- nil
@@ -209,6 +202,19 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 	go cdp.startXDSServer(ctx)
+
+	bootstrapParams, err := cdp.getBootstrapParams(ctx)
+	if err != nil {
+		cdp.logger.Error("failed to get bootstrap params", "error", err)
+		return fmt.Errorf("failed to get bootstrap config: %w", err)
+	}
+	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
+
+	// start up DNS server
+	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition); err != nil {
+		cdp.logger.Error("failed to start the dns proxy", "error", err)
+		return err
+	}
 
 	bootstrapCfg, cfg, err := cdp.bootstrapConfig(bootstrapParams)
 	if err != nil {
@@ -275,7 +281,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 }
 
 func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,
-	dnsConfig *DNSServerConfig, bootstrapParams *pbdataplane.GetEnvoyBootstrapParamsResponse) error {
+	dnsConfig *DNSServerConfig, namespace, partition string) error {
 	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
 
 	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
@@ -283,8 +289,8 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,
 		Port:      dnsConfig.Port,
 		Client:    dnsClientInterface,
 		Logger:    cdp.logger,
-		Partition: bootstrapParams.Partition,
-		Namespace: bootstrapParams.Namespace,
+		Partition: partition,
+		Namespace: namespace,
 		Token:     cdp.aclToken,
 	})
 	if err == dns.ErrServerDisabled {

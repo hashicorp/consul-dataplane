@@ -26,7 +26,7 @@ const (
 	defaultAdminAccessLogsPath = os.DevNull
 )
 
-// bootstrapConfig generates the Envoy bootstrap config in JSON format.
+// getBootstrapParams makes a call using the service client to get the bootstrap params for eventually getting the Envoy bootstrap config.
 func (cdp *ConsulDataplane) getBootstrapParams(ctx context.Context) (*pbdataplane.GetEnvoyBootstrapParamsResponse, error) {
 	svc := cdp.cfg.Proxy
 
