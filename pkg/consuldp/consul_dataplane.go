@@ -184,11 +184,13 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	// if running as DNS PRoxy, xDS Server and Envoy are disabled, so
 	// return before configuring them.
 	if cdp.cfg.Mode == ModeTypeDNSProxy {
-		// start up DNS server
+		// start up DNS server with the configuration from the consul-dataplane flags / environment variables since
+		// envoy bootstrapping is bypassed.
 		if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, cdp.cfg.Proxy.Namespace, cdp.cfg.Proxy.Partition); err != nil {
 			cdp.logger.Error("failed to start the dns proxy", "error", err)
 			return err
 		}
+		// Wait for context to be done in a more simplified goroutine dns-proxy mode.
 		go func() {
 			<-ctx.Done()
 			doneCh <- nil
@@ -196,6 +198,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return <-doneCh
 	}
 
+	// Configure xDS and Envoy configuration continues here when running in sidecar mode.
 	cdp.logger.Info("configuring xDS and Envoy")
 	err = cdp.setupXDSServer()
 	if err != nil {
@@ -210,7 +213,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
 
-	// start up DNS server
+	// start up DNS server with envoy bootstrap params.
 	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition); err != nil {
 		cdp.logger.Error("failed to start the dns proxy", "error", err)
 		return err
