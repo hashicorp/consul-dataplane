@@ -300,14 +300,23 @@ func TestBootstrapConfig(t *testing.T) {
 				dp.xdsServer = &xdsServer{listenerAddress: fmt.Sprintf("127.0.0.1:%d", xdsBindPort)}
 			}
 
-			_, bsCfg, err := dp.bootstrapConfig(ctx)
+			params, err := dp.getBootstrapParams(ctx)
+			require.NoError(t, err)
+
+			_, bsCfg, err := dp.bootstrapConfig(params)
 			require.NoError(t, err)
 
 			golden(t, bsCfg)
 			validateBootstrapConfig(t, bsCfg)
 
 			if tc.resolvedProxyConfig != nil {
-				require.Equal(t, *tc.resolvedProxyConfig, dp.resolvedProxyConfig)
+				proxyCfg := ProxyConfig{
+					NodeName:  params.NodeName,
+					ProxyID:   dp.cfg.Proxy.ProxyID,
+					Namespace: params.Namespace,
+					Partition: params.Partition,
+				}
+				require.Equal(t, *tc.resolvedProxyConfig, proxyCfg)
 			}
 		})
 	}

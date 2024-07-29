@@ -106,6 +106,8 @@ func (d *DNSServer) Start(ctx context.Context) error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
 
+	d.logger.Debug("starting DNS proxy", "partition", d.partition, "namespace", d.namespace)
+
 	if d.running {
 		return ErrServerRunning
 	}
@@ -215,6 +217,8 @@ func (d *DNSServer) queryConsulAndRespondUDP(buf []byte, addr net.Addr) {
 		"x-consul-token", d.token,
 	)
 
+	logger.Debug("querying through udp", "partition", d.partition, "namespace", d.namespace)
+
 	resp, err := d.client.Query(ctx, req)
 	if err != nil {
 		logger.Error("error resolving consul request", "error", err)
@@ -300,6 +304,8 @@ func (d *DNSServer) proxyTCPAcceptedConn(ctx context.Context, conn net.Conn, cli
 			"x-consul-namespace", d.namespace,
 			"x-consul-token", d.token,
 		)
+
+		logger.Debug("querying through tcp", "partition", d.partition, "namespace", d.namespace)
 
 		resp, err := client.Query(ctx, req)
 		if err != nil {

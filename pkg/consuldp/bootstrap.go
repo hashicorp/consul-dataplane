@@ -26,10 +26,9 @@ const (
 	defaultAdminAccessLogsPath = os.DevNull
 )
 
-// bootstrapConfig generates the Envoy bootstrap config in JSON format.
-func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.BootstrapConfig, []byte, error) {
+// getBootstrapParams makes a call using the service client to get the bootstrap params for eventually getting the Envoy bootstrap config.
+func (cdp *ConsulDataplane) getBootstrapParams(ctx context.Context) (*pbdataplane.GetEnvoyBootstrapParamsResponse, error) {
 	svc := cdp.cfg.Proxy
-	envoy := cdp.cfg.Envoy
 
 	req := &pbdataplane.GetEnvoyBootstrapParamsRequest{
 		ServiceId: svc.ProxyID,
@@ -50,16 +49,17 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 
 	rsp, err := cdp.dpServiceClient.GetEnvoyBootstrapParams(ctx, req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get envoy bootstrap params: %w", err)
+		return nil, fmt.Errorf("failed to get envoy bootstrap params: %w", err)
 	}
 
-	// store the final resolved service for others to use.
-	cdp.resolvedProxyConfig = ProxyConfig{
-		NodeName:  rsp.NodeName,
-		ProxyID:   cdp.cfg.Proxy.ProxyID,
-		Namespace: rsp.Namespace,
-		Partition: rsp.Partition,
-	}
+	return rsp, nil
+}
+
+// bootstrapConfig generates the Envoy bootstrap config in JSON format.
+func (cdp *ConsulDataplane) bootstrapConfig(
+	bootstrapParams *pbdataplane.GetEnvoyBootstrapParamsResponse) (*bootstrap.BootstrapConfig, []byte, error) {
+	svc := cdp.cfg.Proxy
+	envoy := cdp.cfg.Envoy
 
 	prom := cdp.cfg.Telemetry.Prometheus
 	args := &bootstrap.BootstrapTplArgs{
@@ -68,26 +68,26 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 			AgentPort:    strconv.Itoa(cdp.cfg.XDSServer.BindPort),
 			AgentTLS:     false,
 		},
-		ProxyCluster:          rsp.Service,
+		ProxyCluster:          bootstrapParams.Service,
 		ProxyID:               svc.ProxyID,
-		NodeName:              rsp.NodeName,
-		ProxySourceService:    rsp.Service,
-		AdminAccessLogConfig:  rsp.AccessLogs,
+		NodeName:              bootstrapParams.NodeName,
+		ProxySourceService:    bootstrapParams.Service,
+		AdminAccessLogConfig:  bootstrapParams.AccessLogs,
 		AdminAccessLogPath:    defaultAdminAccessLogsPath,
 		AdminBindAddress:      envoy.AdminBindAddress,
 		AdminBindPort:         strconv.Itoa(envoy.AdminBindPort),
 		LocalAgentClusterName: localClusterName,
-		Namespace:             rsp.Namespace,
-		Partition:             rsp.Partition,
-		Datacenter:            rsp.Datacenter,
+		Namespace:             bootstrapParams.Namespace,
+		Partition:             bootstrapParams.Partition,
+		Datacenter:            bootstrapParams.Datacenter,
 		PrometheusCertFile:    prom.CertFile,
 		PrometheusKeyFile:     prom.KeyFile,
 		PrometheusScrapePath:  prom.ScrapePath,
 	}
 
-	if rsp.Identity != "" {
-		args.ProxyCluster = rsp.Identity
-		args.ProxySourceService = rsp.Identity
+	if bootstrapParams.Identity != "" {
+		args.ProxyCluster = bootstrapParams.Identity
+		args.ProxySourceService = bootstrapParams.Identity
 	}
 
 	if cdp.xdsServer.listenerNetwork == "unix" {
@@ -116,7 +116,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	}
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
-		if err := mapstructure.WeakDecode(rsp.Config.AsMap(), &bootstrapConfig); err != nil {
+		if err := mapstructure.WeakDecode(bootstrapParams.Config.AsMap(), &bootstrapConfig); err != nil {
 			return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
 		}
 
