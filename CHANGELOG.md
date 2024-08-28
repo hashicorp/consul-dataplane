@@ -2,7 +2,7 @@
 
 IMPROVEMENTS:
 
-* Update `Update `github.com/hashicorp/consul/proto-public` to v0.6.2. [[GH-585](https://github.com/hashicorp/consul-dataplane/pull/585)]
+* Update `github.com/hashicorp/consul/proto-public` to v0.6.2. [[GH-585](https://github.com/hashicorp/consul-dataplane/pull/585)]
 
 ## 1.5.1 (July 15, 2024)
 
