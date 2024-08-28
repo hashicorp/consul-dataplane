@@ -1,0 +1,7 @@
+```release-note:enhancement
+Update `github.com/hashicorp/consul-server-connection-manager` to v0.1.9.
+```
+
+```release-note:enhancement
+Update `github.com/hashicorp/go-hclog` to v1.5.0.
+```
