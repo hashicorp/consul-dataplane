@@ -1,0 +1,7 @@
+```release-note:enhancement
+Update multiple dependencies.
+```
+
+```release-note:enhancement
+Update ubi base image to `ubi9-minimal:9.4`.
+```
