@@ -195,6 +195,17 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'docker.io/hashicorppreview/${{ env.repo }}:${{ env.full_dev_tag }}'
+          format: 'sarif'
+          output: 'trivy-results${{ env.repo }}-${{ env.full_dev_tag }}.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results${{ env.repo }}-${{ env.full_dev_tag }}.sarif'
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
@@ -220,6 +231,17 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.full_dev_tag }}'
+          format: 'sarif'
+          output: 'trivy-results${{ env.repo }}-fips:${{ env.full_dev_tag }}.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results${{ env.repo }}-fips:${{ env.full_dev_tag }}.sarif'
 
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
@@ -296,6 +318,17 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'docker.io/hashicorppreview/${{ env.repo }}:${{ env.full_dev_tag }}-ubi'
+          format: 'sarif'
+          output: 'trivy-results${{ env.repo }}:${{ env.full_dev_tag }}-ubi.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results${{ env.repo }}:${{ env.full_dev_tag }}-ubi.sarif'
 
       - name: Docker FIPS Build (Action)
         if: ${{ matrix.fips }}
@@ -321,6 +354,17 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: 'docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.full_dev_tag }}-ubi'
+          format: 'sarif'
+          output: 'trivy-results${{ env.repo }}-fips:${{ env.full_dev_tag }}-ubi.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results${{ env.repo }}-fips:${{ env.full_dev_tag }}-ubi.sarif'
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
