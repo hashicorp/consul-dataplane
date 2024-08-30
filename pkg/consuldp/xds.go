@@ -28,7 +28,7 @@ const (
 func (cdp *ConsulDataplane) director(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error) {
 	// check to ensure other unknown/unregistered RPCs are not proxied to the target consul server.
 	if !strings.Contains(fullMethodName, envoyADSMethodName) {
-		return ctx, nil, status.Errorf(codes.Unimplemented, fmt.Sprintf("Unknown method %s", fullMethodName))
+		return ctx, nil, status.Errorf(codes.Unimplemented, "Unknown method %s", fullMethodName)
 	}
 
 	var mdCopy metadata.MD
