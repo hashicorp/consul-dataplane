@@ -1,0 +1,3 @@
+```release-note:security
+Upgrade to support Envoy `1.31.0`.
+```
