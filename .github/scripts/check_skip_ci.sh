@@ -13,10 +13,11 @@ set -euo pipefail
 #
 # ... `git merge-base origin/$SKIP_CHECK_BRANCH HEAD` would return commit `D`
 # `...HEAD` specifies from the common ancestor to the latest commit on the current branch (HEAD)..
-files_to_check=$(git diff --name-only "$(git merge-base origin/$SKIP_CHECK_BRANCH HEAD~)"...HEAD)
+skip_check_branch=${SKIP_CHECK_BRANCH:?SKIP_CHECK_BRANCH is required}
+files_to_check=$(git diff --name-only "$(git merge-base origin/$skip_check_branch HEAD~)"...HEAD)
 
 # Define the directories to check
-skipped_directories=("_doc/" ".changelog/")
+skipped_directories=("_doc" ".changelog")
 
 # Loop through the changed files and find directories/files outside the skipped ones
 files_to_check_array=($files_to_check)
@@ -30,7 +31,7 @@ for file_to_check in "${files_to_check_array[@]}"; do
 	# - Markdown files
 	for dir in "${skipped_directories[@]}"; do
 		if [[ "$file_to_check" == */check_skip_ci.sh ]] ||
-		   [[ "$file_to_check" == "$dir"* ]] ||
+		   [[ "$file_to_check" == "$dir/"* ]] ||
 		   [[ "$file_to_check" == *.md ]]; then
 			file_is_skipped=true
 			break
