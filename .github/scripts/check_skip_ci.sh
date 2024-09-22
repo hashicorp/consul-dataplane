@@ -13,7 +13,15 @@ set -euo pipefail
 #
 # ... `git merge-base origin/$SKIP_CHECK_BRANCH HEAD` would return commit `D`
 # `...HEAD` specifies from the common ancestor to the latest commit on the current branch (HEAD)..
-files_to_check=$(git diff --name-only "$(git merge-base origin/$SKIP_CHECK_BRANCH HEAD~)"...HEAD)
+skip_check_branch=${SKIP_CHECK_BRANCH:?SKIP_CHECK_BRANCH is required}
+
+git log -n3 --pretty=oneline
+
+echo "skip check branch: $skip_check_branch"
+echo "git merge-base origin/$skip_check_branch origin/main: $(git merge-base origin/$skip_check_branch origin/main)"
+echo "git diff --name-only $(git merge-base origin/$skip_check_branch origin/main)...HEAD: $(git diff --name-only "$(git merge-base origin/$skip_check_branch origin/main)"...HEAD)"
+
+files_to_check=$(git diff --name-only "$(git merge-base origin/$skip_check_branch origin/main)"...HEAD)
 
 # Define the directories to check
 skipped_directories=("_doc/" ".changelog/")
