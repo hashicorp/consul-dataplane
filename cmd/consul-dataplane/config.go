@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 
@@ -368,6 +369,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 func mergeConfigs(c1, c2 DataplaneConfigFlags) (DataplaneConfigFlags, error) {
 	err := mergo.Merge(&c1, c2, mergo.WithOverride, mergo.WithoutDereference)
 	if err != nil {
+		fmt.Println("test change")
 		return DataplaneConfigFlags{}, err
 	}
 
