@@ -13,12 +13,36 @@ jobs:
     name: Check whether to skip build and tests
     outputs:
       skip-ci: ${{ steps.check-changed-files.outputs.skip-ci }}
-    env:
-      SKIP_CHECK_BRANCH: ${{ github.head_ref || github.ref_name }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0
-      - name: Check changed files
+      - name: Debug - show commits
+        run: git log -n3 --pretty=oneline
+      - name: Check for skippable file changes
         id: check-changed-files
-        run: ./.github/scripts/check_skip_ci.sh
+        uses: tj-actions/changed-files@v45
+        with:
+          files_yaml: |
+            self:
+              - .github/workflows/reusable-conditional-skip.yml
+            doc:
+              - '**.md'
+              - _doc/**
+            changelog:
+              - .changelog/**
+      - name: Print changed files
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+          echo "Files changed on PR merge branch:"
+          for file in ${ALL_CHANGED_FILES}; do echo "$file"; done
+      - name: Skip tests and build if only skippable files changed
+        id: maybe-skip-ci
+        if: ${{ steps.changed-files-yaml.outputs.only_changed == 'true' }}
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        run: |
+            echo "Skipping tests and build because only skippable files changed:"
+            for file in ${ALL_CHANGED_FILES}; do echo "$file"; done
+            echo "skip-ci=true" >> "$GITHUB_OUTPUT"
