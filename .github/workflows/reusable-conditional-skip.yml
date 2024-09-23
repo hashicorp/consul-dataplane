@@ -5,7 +5,7 @@ on:
     outputs:
       skip-ci:
         description: "Whether we should skip build and test jobs"
-        value: ${{ jobs.check-skip.outputs.skip-ci }}
+        value: ${{ jobs.maybe-skip-ci.outputs.skip-ci }}
 
 jobs:
   check-skip:
@@ -18,31 +18,36 @@ jobs:
         with:
           fetch-depth: 0
       - name: Debug - show commits
-        run: git log -n3 --pretty=oneline
+        run: |
+          git log -n3 --pretty=oneline
+          echo "event_name: ${{ github.event_name }}"
+          echo "base_ref: ${{ github.base_ref }}"
+          echo "head_ref: ${{ github.head_ref }}"
+          echo "ref: ${{ github.ref }}"
       - name: Check for skippable file changes
-        id: check-changed-files
+        id: changed-files
         uses: tj-actions/changed-files@v45
         with:
-          files_yaml: |
-            self:
-              - .github/workflows/reusable-conditional-skip.yml
-            doc:
-              - '**.md'
-              - _doc/**
-            changelog:
-              - .changelog/**
+          since_last_remote_commit: false
+          base_sha: ${{ github.base_ref || github.ref }}
+          files: |
+            .github/workflows/reusable-conditional-skip.yml
+            **.md
+            _doc/**
+            .changelog/**
       - name: Print changed files
         env:
           ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+          NON_SKIPPABLE_FILES: ${{ steps.changed-files.outputs.other_changed_files }}
         run: |
-          echo "Files changed on PR merge branch:"
-          for file in ${ALL_CHANGED_FILES}; do echo "$file"; done
+          echo "All changed on PR merge branch:"
+          for file in ${ALL_CHANGED_FILES}; do echo "  $file"; done
+          echo
+          echo "Non-skippable files changed on PR merge branch:"
+          for file in ${NON_SKIPPABLE_FILES}; do echo "  $file"; done
       - name: Skip tests and build if only skippable files changed
         id: maybe-skip-ci
-        if: ${{ steps.changed-files-yaml.outputs.only_changed == 'true' }}
-        env:
-          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        if: ${{ steps.changed-files.outputs.only_changed == 'true' }}
         run: |
-            echo "Skipping tests and build because only skippable files changed:"
-            for file in ${ALL_CHANGED_FILES}; do echo "$file"; done
+            echo "Skipping tests and build because only skippable files changed"
             echo "skip-ci=true" >> "$GITHUB_OUTPUT"
