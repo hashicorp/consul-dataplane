@@ -14,8 +14,18 @@ jobs:
     outputs:
       skip-ci: ${{ steps.check-changed-files.outputs.skip-ci }}
     env:
-      SKIP_CHECK_BRANCH: ${{ github.head_ref || github.ref_name }}
+      # Use the base branch for PR, or the head of the current branch for push.
+      SKIP_CHECK_BRANCH: ${{ github.base_ref || github.ref_name }} # tmp test
     steps:
+      - name: Ensure conditional check is allowed
+        if: ${{ !github.base_ref && !github.ref_protected }}
+        run: |
+          echo "Conditional skip requires a PR event with `base_ref` or `push` to a protected branch."
+          echo "github.base_ref: ${{ github.base_ref }}"
+          echo "github.ref_protected: ${{ github.ref_protected }}"
+          echo "github.ref_name: ${{ github.ref_name }}"
+          echo "Check the triggers of the calling workflow to ensure that these requirements are met."
+          exit 1
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0
