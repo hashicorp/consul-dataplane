@@ -17,6 +17,7 @@ on:
       - main
       - release/**
       - 'zalimeni/fix-ci-skip-action--test-push'
+      - zalimeni-noop
   # pull_request:
   workflow_dispatch:
 
