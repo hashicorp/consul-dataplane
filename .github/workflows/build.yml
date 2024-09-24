@@ -1,15 +1,23 @@
 name: build
 
-# We now default to running this workflow on every push to every branch.
+# We now default to running this workflow on every pull_request push
+# in addition to protected branch push.
+#
 # This provides fast feedback when build issues occur, so they can be
-# fixed prior to being merged to the main branch.
+# fixed prior to being merged.
 #
 # If you want to opt out of this, and only run the build on certain branches
 # please refer to the documentation on branch filtering here:
 #
 #   https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#onpushbranchestagsbranches-ignoretags-ignore
 #
-on: [workflow_dispatch, push]
+on:
+  push:
+  #  branches:
+  #    - main
+  #    - release/**
+  # pull_request:
+  workflow_dispatch:
 
 env:
   PKG_NAME: "consul-dataplane"

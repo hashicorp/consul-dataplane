@@ -6,14 +6,27 @@ set -euo pipefail
 
 # Get the list of changed files
 # Using `git merge-base` ensures that we're always comparing against the correct branch point.
-#For example, given the commits:
+# For example, given the commits:
 #
 # A---B---C---D---W---X---Y---Z # origin/main
 #             \---E---F         # feature/branch
 #
-# ... `git merge-base origin/$SKIP_CHECK_BRANCH HEAD` would return commit `D`
-# `...HEAD` specifies from the common ancestor to the latest commit on the current branch (HEAD)..
-files_to_check=$(git diff --name-only "$(git merge-base origin/$SKIP_CHECK_BRANCH HEAD~)"...HEAD)
+# ... `git merge-base origin/$SKIP_CHECK_BRANCH HEAD~` would return commit `D` for a `pull_request` event.
+#
+# `HEAD~` means that:
+#   - For `push` events to a protected branch, the merge base is the commit before HEAD (the latest commit
+#     before the push). The diff will come from the pushed changes, assuming the repo requires squash-merge.
+#   - For `pull_request` events, the merge base is the last common commit between the base ref
+#     (`origin/$skip_check_branch`) and the last "real" commit on the PR branch, before the PR branch
+#     merge commit added by GH. The diff will come from the changes in the PR branch.
+skip_check_branch=${SKIP_CHECK_BRANCH:?SKIP_CHECK_BRANCH is required}
+merge_base=$(git merge-base origin/$skip_check_branch HEAD~)
+echo "merge_base: $merge_base"
+
+# `...HEAD` specifies from the common ancestor to the latest commit on the current branch (HEAD).
+echo "diff commits:"
+git log "$merge_base...HEAD" --oneline
+files_to_check=$(git diff --name-only $merge_base...HEAD)
 
 # Define the directories to check
 skipped_directories=("_doc/" ".changelog/")
