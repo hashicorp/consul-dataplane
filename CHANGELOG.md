@@ -1,4 +1,4 @@
-## 1.6.3 (October 15, 2024)
+## 1.6.0 (October 15, 2024)
 
 SECURITY:
 
