@@ -1,3 +1,29 @@
+## 1.6.0 (October 15, 2024)
+
+SECURITY:
+
+* Upgrade Go to use 1.22.7. This addresses CVE
+  [CVE-2024-34155](https://nvd.nist.gov/vuln/detail/CVE-2024-34155) [[GH-608](https://github.com/hashicorp/consul-dataplane/pull/608)]
+* Upgrade envoy version to 1.31.2 to address [CVE-2024-45807](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45807),[CVE-2024-45808](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45808),[CVE-2024-45806](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45806),[CVE-2024-45809](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45809) and [CVE-2024-45810](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45810) [[GH-624](https://github.com/hashicorp/consul-dataplane/pull/624)]
+* Upgrade to support Envoy `1.31.0`. [[GH-609](https://github.com/hashicorp/consul-dataplane/pull/609)]
+
+FEATURES:
+
+* Added the ability to set the `-mode` flag. Options available are `sidecar` and `dns-proxy`. The system defaults to `sidecar`.
+  When set to `sidecar`:
+- DNS Server, xDS Server, and Envoy are enabled.
+- The system validates that `-consul-dns-bind-addr` and equivalent environment variable must be set to the loopback address.
+  When set to `dns-proxy`:
+- Only DNS Server is enabled. xDS Server and Envoy are disabled.
+- `consul-dns-bind-addr` and equivalent environment variable can be set to other values besides the loopback address. [[GH-571](https://github.com/hashicorp/consul-dataplane/pull/571)]
+* Removes the dependence on the v2 catalog and "resource-apis" experiment. [[GH-565](https://github.com/hashicorp/consul-dataplane/pull/565)]
+
+IMPROVEMENTS:
+
+* Update `github.com/hashicorp/consul-server-connection-manager` to v0.1.9. [[GH-595](https://github.com/hashicorp/consul-dataplane/pull/595)]
+* Update `github.com/hashicorp/go-hclog` to v1.5.0. [[GH-595](https://github.com/hashicorp/consul-dataplane/pull/595)]
+
+
 ## 1.5.0 (June 12, 2024)
 
 IMPROVEMENTS:
