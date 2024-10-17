@@ -100,6 +100,7 @@ func init() {
 	IntVar(flags, &flagOpts.dataplaneConfig.Envoy.Concurrency, "envoy-concurrency", "DP_ENVOY_CONCURRENCY", "The number of worker threads that Envoy uses.")
 	IntVar(flags, &flagOpts.dataplaneConfig.Envoy.DrainTimeSeconds, "envoy-drain-time-seconds", "DP_ENVOY_DRAIN_TIME", "The time in seconds for which Envoy will drain connections.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.DrainStrategy, "envoy-drain-strategy", "DP_ENVOY_DRAIN_STRATEGY", "The behaviour of Envoy during the drain sequence. Determines whether all open connections should be encouraged to drain immediately or to increase the percentage gradually as the drain time elapses.")
+	StringVar(flags, &flagOpts.dataplaneConfig.Envoy.ExecutablePath, "envoy-executable-path", "DP_ENVOY_EXECUTABLE_PATH", "Path to the Envoy executable to run. Defaults to the ")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindAddr, "xds-bind-addr", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
 	IntVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindPort, "xds-bind-port", "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
