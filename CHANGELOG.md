@@ -1,3 +1,25 @@
+## 1.5.4 (November 1, 2024)
+
+SECURITY:
+
+* Upgrade Go to use 1.22.7. This addresses CVE
+  [CVE-2024-34155](https://nvd.nist.gov/vuln/detail/CVE-2024-34155) [[GH-608](https://github.com/hashicorp/consul-dataplane/pull/608)]
+
+## 1.5.3 (August 30, 2024)
+
+IMPROVEMENTS:
+
+* Update `Update `github.com/hashicorp/consul/proto-public` to v0.6.2. [[GH-585](https://github.com/hashicorp/consul-dataplane/pull/585)]
+* Update multiple dependencies. [[GH-602](https://github.com/hashicorp/consul-dataplane/pull/602)]
+* Update ubi base image to `ubi9-minimal:9.4`. [[GH-602](https://github.com/hashicorp/consul-dataplane/pull/602)]
+
+## 1.5.2 (August 28, 2024)
+
+IMPROVEMENTS:
+
+* Update `github.com/hashicorp/consul/proto-public` to v0.6.2. [[GH-585](https://github.com/hashicorp/consul-dataplane/pull/585)]
+
+
 ## 1.5.1 (July 15, 2024)
 
 SECURITY:
