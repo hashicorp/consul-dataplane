@@ -1,3 +1,11 @@
+## 1.1.13 (November 1, 2024)
+
+SECURITY:
+
+* Upgrade Go to use 1.22.7. This addresses CVE
+  [CVE-2024-34155](https://nvd.nist.gov/vuln/detail/CVE-2024-34155) [[GH-608](https://github.com/hashicorp/consul-dataplane/pull/608)]
+
+
 ## 1.1.12 (July 15, 2024)
 
 SECURITY:
