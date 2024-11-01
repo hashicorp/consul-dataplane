@@ -123,7 +123,7 @@ copy-bootstrap-config: ## copy bootstrap config
 .PHONY: changelog
 changelog: ## build change log
 ifdef DP_LAST_RELEASE_GIT_TAG
-	@changelog-build \
+	go run github.com/hashicorp/go-changelog/cmd/changelog-build@latest \
 		-last-release $(DP_LAST_RELEASE_GIT_TAG) \
 		-entries-dir .changelog/ \
 		-changelog-template .changelog/changelog.tmpl \
