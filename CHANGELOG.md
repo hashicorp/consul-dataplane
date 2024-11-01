@@ -1,4 +1,4 @@
-## 1.1.13 (November 15, 2024)
+## 1.1.13 (November 1, 2024)
 
 SECURITY:
 
