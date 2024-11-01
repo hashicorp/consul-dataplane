@@ -1,3 +1,15 @@
+## 1.4.4 (November 1, 2024)
+
+SECURITY:
+
+* Upgrade Go to use 1.22.7. This addresses CVE
+  [CVE-2024-34155](https://nvd.nist.gov/vuln/detail/CVE-2024-34155) [[GH-608](https://github.com/hashicorp/consul-dataplane/pull/608)]
+* Upgrade to support Envoy `1.28.7`. [[GH-659](https://github.com/hashicorp/consul-dataplane/pull/659)]
+
+IMPROVEMENTS:
+
+* Update `github.com/hashicorp/consul/proto-public` to v0.6.2. [[GH-585](https://github.com/hashicorp/consul-dataplane/pull/585)]
+
 ## 1.4.3 (July 15, 2024)
 
 SECURITY:
