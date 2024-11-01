@@ -18,7 +18,6 @@ IMPROVEMENTS:
 
 Release redacted, use `1.5.3`
 
-
 ## 1.5.1 (July 15, 2024)
 
 SECURITY:
