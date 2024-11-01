@@ -1,3 +1,9 @@
+## 1.6.1 (November 1, 2024)
+
+SECURITY:
+
+* Upgrade to support Envoy `1.31.2`. [[GH-661](https://github.com/hashicorp/consul-dataplane/pull/661)]
+
 ## 1.6.0 (October 15, 2024)
 
 SECURITY:
