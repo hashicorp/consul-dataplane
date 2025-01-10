@@ -2,6 +2,14 @@
 
 SECURITY:
 
+* Upgrade to support Envoy `1.29.12`. [[GH-676](https://github.com/hashicorp/consul-dataplane/pull/676)]
+* Updated golang.org/x/net dependency to 0.34.0 to fix vulnerability [[GO-2024-3333](https://pkg.go.dev/vuln/GO-2024-3333)]
+
+
+## 1.5.4 (November 1, 2024)
+
+SECURITY:
+
 * Upgrade Go to use 1.22.7. This addresses CVE
   [CVE-2024-34155](https://nvd.nist.gov/vuln/detail/CVE-2024-34155) [[GH-608](https://github.com/hashicorp/consul-dataplane/pull/608)]
 * Upgrade to support Envoy `1.29.10`. [[GH-660](https://github.com/hashicorp/consul-dataplane/pull/660)]
