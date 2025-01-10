@@ -1,4 +1,4 @@
-## 1.5.4 (November 1, 2024)
+## 1.5.5 (January 10, 2025)
 
 SECURITY:
 
