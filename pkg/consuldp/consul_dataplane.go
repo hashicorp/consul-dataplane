@@ -12,11 +12,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-metrics"
 	"google.golang.org/grpc"
 
 	"github.com/hashicorp/consul-dataplane/pkg/dns"
