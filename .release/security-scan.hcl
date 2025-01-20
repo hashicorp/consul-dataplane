@@ -24,6 +24,7 @@ container {
 binary {
   go_modules = true
   osv        = true
+  go_stdlib  = true
 
   secrets {
     all = true
