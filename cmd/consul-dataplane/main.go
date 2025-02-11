@@ -146,7 +146,18 @@ func validateFlags() {
 }
 
 func run() error {
-	err := flags.Parse(os.Args[1:])
+	// Shift arguments by one if subcommand is the first argument.
+	subcommand := os.Args[1]
+	var arguments []string
+	switch subcommand {
+	case "graceful-startup":
+		arguments = os.Args[2:]
+	default:
+		arguments = os.Args[1:]
+	}
+
+	err := flags.Parse(arguments)
+
 	if err != nil {
 		return err
 	}
@@ -166,6 +177,12 @@ func run() error {
 		return err
 	}
 
+	if subcommand == "graceful-startup" {
+		fmt.Println("graceful port is :", consuldpCfg.Envoy.GracefulPort)
+		log.Default().Printf(fmt.Sprintf("graceful port is: %d", consuldpCfg.Envoy.GracefulPort))
+		return RunGracefulStartup(consuldpCfg.Envoy.GracefulStartupPath, consuldpCfg.Envoy.GracefulPort)
+	}
+
 	consuldpInstance, err := consuldp.NewConsulDP(consuldpCfg)
 	if err != nil {
 		return err
@@ -180,7 +197,11 @@ func run() error {
 	go func() {
 		// Block waiting for SIGTERM
 		<-sigCh
+		fmt.Println("Waiting for SIGINT or SIGTERM")
+		// Block waiting for SIGINT or SIGTERM
+		v := <-sigCh
 
+		fmt.Println("Received signal", v)
 		consuldpInstance.GracefulShutdown(cancel)
 	}()
 
