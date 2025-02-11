@@ -167,7 +167,7 @@ func TestConfigGeneration(t *testing.T) {
 						GracefulStartupPath:           "/graceful_startup",
 						GracefulShutdownPath:          "/graceful_shutdown",
 						EnvoyDrainTimeSeconds:         30,
-						GracefulPort:                  20300,
+						GracefulPort:                  20600,
 					},
 					Telemetry: &consuldp.TelemetryConfig{
 						UseCentralConfig: true,
@@ -272,7 +272,7 @@ func TestConfigGeneration(t *testing.T) {
 						GracefulStartupPath:           "/graceful_startup",
 						GracefulShutdownPath:          "/graceful_shutdown",
 						EnvoyDrainTimeSeconds:         30,
-						GracefulPort:                  20300,
+						GracefulPort:                  20600,
 						DumpEnvoyConfigOnExitEnabled:  true,
 					},
 					Telemetry: &consuldp.TelemetryConfig{
@@ -691,7 +691,7 @@ func TestConfigGeneration(t *testing.T) {
 						ShutdownDrainListenersEnabled: true,
 						GracefulShutdownPath:          "/graceful_shutdown",
 						EnvoyDrainTimeSeconds:         30,
-						GracefulPort:                  20300,
+						GracefulPort:                  20600,
 						DumpEnvoyConfigOnExitEnabled:  false,
 						GracefulStartupPath:           "/graceful_startup",
 					},
@@ -821,7 +821,7 @@ func TestConfigGeneration(t *testing.T) {
 						GracefulShutdownPath:          "/graceful_shutdown",
 						GracefulStartupPath:           "/graceful_startup",
 						EnvoyDrainTimeSeconds:         30,
-						GracefulPort:                  20300,
+						GracefulPort:                  20600,
 						DumpEnvoyConfigOnExitEnabled:  false,
 					},
 					Telemetry: &consuldp.TelemetryConfig{
