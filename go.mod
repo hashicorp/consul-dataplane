@@ -1,6 +1,6 @@
 module github.com/hashicorp/consul-dataplane
 
-go 1.22.11
+go 1.22.12
 
 require (
 	dario.cat/mergo v1.0.0
