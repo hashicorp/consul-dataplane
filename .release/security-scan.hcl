@@ -14,7 +14,7 @@
 
 container {
   dependencies = true
-  alpine_secdb = true
+  osv          = true
 
   secrets {
     all = true
@@ -22,8 +22,9 @@ container {
 }
 
 binary {
-  go_modules   = true
-  osv          = true
+  go_modules = true
+  osv        = true
+  go_stdlib  = true
 
   secrets {
     all = true

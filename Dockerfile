@@ -11,6 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
+
 FROM envoyproxy/envoy-distroless:v1.33.0 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
