@@ -6,7 +6,10 @@ on:
       - main
       - release/**
   pull_request:
-
+  
+env:
+  GOFLAGS: "-tags=hashicorpmetrics"
+    
 jobs:
   conditional-skip:
     uses: ./.github/workflows/reusable-conditional-skip.yml

@@ -4,11 +4,11 @@ go 1.20
 
 require (
 	dario.cat/mergo v1.0.0
-	github.com/armon/go-metrics v0.4.1
 	github.com/hashi-derek/grpc-proxy v0.0.0-20231207191910-191266484d75
-	github.com/hashicorp/consul-server-connection-manager v0.1.9
+	github.com/hashicorp/consul-server-connection-manager v0.1.10
 	github.com/hashicorp/consul/proto-public v0.6.3
 	github.com/hashicorp/go-hclog v1.5.0
+	github.com/hashicorp/go-metrics v0.5.4
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/mitchellh/mapstructure v1.5.0
@@ -20,6 +20,7 @@ require (
 
 require (
 	github.com/DataDog/datadog-go v3.2.0+incompatible // indirect
+	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
