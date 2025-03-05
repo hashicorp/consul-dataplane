@@ -1,0 +1,3 @@
+```release-note:enhancement
+Triggering graceful startup if startup-grace-period-seconds is greater than 0
+```
