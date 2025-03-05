@@ -220,6 +220,7 @@ func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http
 // Envoy proxy is ready.
 func (m *lifecycleConfig) gracefulStartup() {
 	if m.startupGracePeriodSeconds == 0 {
+		m.logger.Info("startupGracePeriodSeconds is set to 0, skipping graceful startup")
 		return
 	}
 
@@ -231,7 +232,9 @@ func (m *lifecycleConfig) gracefulStartup() {
 		for ctx.Err() == nil {
 			r, err := m.proxy.Ready()
 			if err != nil {
-				m.logger.Info(fmt.Sprintf("error when querying proxy readiness, %s", err.Error()))
+				m.logger.Info(fmt.Sprintf("error when querying proxy readiness: %s", err.Error()))
+			} else {
+				m.logger.Info(fmt.Sprintf("proxy readiness status: %v", r))
 			}
 			if r {
 				ready.Store(true)
@@ -245,6 +248,8 @@ func (m *lifecycleConfig) gracefulStartup() {
 	<-ctx.Done()
 	if !ready.Load() {
 		m.logger.Warn("grace period elapsed before proxy ready")
+	} else {
+		m.logger.Info("proxy is ready within the grace period")
 	}
 }
 
