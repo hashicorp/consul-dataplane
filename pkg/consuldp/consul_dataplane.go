@@ -244,8 +244,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 
 	cdp.lifecycleConfig = NewLifecycleConfig(cdp.cfg, proxy)
-	err = cdp.lifecycleConfig.startLifecycleManager(ctx)
-	if err != nil {
+	if err = cdp.lifecycleConfig.startLifecycleManager(ctx); err != nil {
 		cdp.logger.Error("failed to start lifecycle manager", "error", err)
 		return err
 	}
