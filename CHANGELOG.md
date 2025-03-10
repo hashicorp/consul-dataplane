@@ -1,3 +1,17 @@
+## 1.7.0-rc1 (November 1, 2024)
+
+IMPROVEMENTS:
+
+* Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
+* Update Envoy version from 1.32.1 to 1.33.0 [[GH-685](https://github.com/hashicorp/consul-dataplane/pull/685)]
+* Upgrade to use Go 1.23.6 [[GH-696](https://github.com/hashicorp/consul-dataplane/pull/696)]
+
+## 1.6.2 (January 7, 2024)
+
+SECURITY:
+
+* Upgrade to support Envoy `1.32.3`. [[GH-672](https://github.com/hashicorp/consul-dataplane/pull/672)]
+
 ## 1.6.1 (November 1, 2024)
 
 SECURITY:
