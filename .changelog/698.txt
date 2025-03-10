@@ -1,0 +1,3 @@
+```release-note:security
+Upgraded `x/net` to 0.34.0. This resolves [GO-2024-3333](https://pkg.go.dev/vuln/GO-2024-3333)
+```
