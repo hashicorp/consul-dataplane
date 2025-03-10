@@ -1,4 +1,4 @@
-## 1.7.0-rc1 (November 1, 2024)
+## 1.7.0-rc1 (March 10, 2025)
 
 IMPROVEMENTS:
 
