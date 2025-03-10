@@ -41,8 +41,8 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230526203410-71b5a4ffd15e // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
