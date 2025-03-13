@@ -1,0 +1,5 @@
+```release-note:enhancement
+`Update `golang.org/x/net` to v0.37.0.`
+`Update `golang.org/x/sys` to v0.31.0.`
+`Update `golang.org/x/text` to v0.23.0.`
+```
