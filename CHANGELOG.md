@@ -1,4 +1,4 @@
-## 1.6.3 (March 6, 2025)
+## 1.6.3 (March 15, 2025)
 IMPROVEMENTS:
 
 * Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
