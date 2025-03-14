@@ -1,6 +1,8 @@
 module github.com/hashicorp/consul-dataplane
 
-go 1.20
+go 1.23.0
+
+toolchain go1.24.1
 
 require (
 	dario.cat/mergo v1.0.0
@@ -41,10 +43,9 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
-	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230526203410-71b5a4ffd15e // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
