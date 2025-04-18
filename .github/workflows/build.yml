@@ -179,6 +179,18 @@ jobs:
           echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" 
           echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" >> $GITHUB_ENV
 
+      - name: Install Required glibc version
+        run: |
+          GLIBC_VERSION=2.34
+          wget http://ftp.gnu.org/gnu/libc/glibc-$GLIBC_VERSION.tar.gz
+          tar -xvzf glibc-${GLIBC_VERSION}.tar.gz
+          cd glibc-${GLIBC_VERSION}
+          mkdir build
+          cd build
+          ../configure --prefix=/opt/glibc-${GLIBC_VERSION}
+          make -j$(nproc)
+          sudo make install
+          export LD_LIBRARY_PATH=/opt/glibc-${GLIBC_VERSION}/lib:${LD_LIBRARY_PATH}
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v2
