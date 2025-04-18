@@ -24,6 +24,7 @@ COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
 RUN apt-get update && apt install -y libcap2-bin
+RUN apt-get update && apt-get install -y libc6
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
@@ -40,6 +41,7 @@ COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
 RUN apt-get update && apt install -y libcap2-bin
+RUN apt-get update && apt-get install -y libc6
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
