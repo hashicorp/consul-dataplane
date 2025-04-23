@@ -105,7 +105,11 @@ jobs:
 
       - uses: hashicorp/actions-go-build@make-clean-flag-optional
         name: Build non-FIPS
-        if : ${{ !matrix.fips }}
+        if : ${{!matrix.fips }}
+        env:
+          PRODUCT_VERSION: ${{ needs.get-product-version.outputs.product-version }}
+          CGO_ENABLED: "0"
+          GOLDFLAGS: "${{needs.get-product-version.outputs.shared-ldflags}}"
         with:
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
