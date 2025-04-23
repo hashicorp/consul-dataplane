@@ -105,7 +105,7 @@ jobs:
 
       - uses: hashicorp/actions-go-build@make-clean-flag-optional
         name: Build non-FIPS
-        if : ${{ matrix.fips != '+fips1402' }}
+        if : ${{ !matrix.fips }}
         with:
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -305,7 +305,7 @@ jobs:
       - get-go-version
       - get-product-version
       - build-linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         # This is the subset of architectures we build binaries for officially
