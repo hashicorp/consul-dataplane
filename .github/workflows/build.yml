@@ -103,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
-      - uses: hashicorp/actions-go-build@v1
+      - uses: hashicorp/actions-go-build@make-clean-flag-optional
         name: Build non-FIPS
         if : ${{ matrix.fips != '+fips1402' }}
         with:
@@ -146,7 +146,7 @@ jobs:
           go_version: ${{ needs.get-go-version.outputs.go-version }}
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
-          reproducible: assert
+          reproducible: nope
           clean: false
           instructions: |-
             mkdir -p .release/linux/package/usr/share/doc/$PKG_NAME
