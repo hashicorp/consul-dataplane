@@ -115,10 +115,6 @@ jobs:
           reproducible: assert
           instructions: |
             cp LICENSE $TARGET_DIR/LICENSE.txt
-            if [[ "${{ matrix.fips }}" == "+fips1402" ]]
-            then
-              sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
-            fi
             ${{ matrix.env }} go build -tags=${{ matrix.gotags }} -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
       - name: Build ubuntu-focal-builder image
@@ -154,7 +150,6 @@ jobs:
           instructions: |-
             mkdir -p .release/linux/package/usr/share/doc/$PKG_NAME
             cp LICENSE $TARGET_DIR/LICENSE.txt
-            
             #### Create a script file to run inside Docker with detailed logging ####
             
             cat > container_build_script.sh << 'EOF'
@@ -208,7 +203,7 @@ jobs:
             ls -la /build
             ls -la /build/dist
             # Executing the build command with detailed output
-            BUILD_CMD="$GO_ENV go build -v -tags=$GOTAGS -ldflags \"$GOLDFLAGS\"  -o \"/build/$BINARY_PATH\" -trimpath -buildvcs=false ./cmd/$BIN_NAME"
+            BUILD_CMD="$GO_ENV go build -v -tags=$GOTAGS -ldflags \"$GOLDFLAGS\"  -o \"/build/$BINARY_PATH\" -trimpath -buildvcs=false ./cmd/$BINARY_NAME"
             echo "Build command: $BUILD_CMD"
 
             # Use eval to properly execute the command
@@ -254,6 +249,7 @@ jobs:
             --env PKG_NAME=${{env.PKG_NAME}} \
             --env GOPRIVATE="github.com/hashicorp" \
             --env ELEVATED_GITHUB_TOKEN=${{ secrets.ELEVATED_GITHUB_TOKEN }} \
+            --env BINARY_NAME=$BIN_NAME \
             -v "$(pwd)":/build \
             -w /build \
             localhost:5000/ubuntu-focal-builder:${{ github.sha }} \
