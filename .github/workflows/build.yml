@@ -152,88 +152,87 @@ jobs:
           arch: ${{ matrix.goarch }}
           reproducible: assert
           instructions: |-
-            mkdir -p /build/dist
             mkdir -p .release/linux/package/usr/share/doc/$PKG_NAME
             cp LICENSE $TARGET_DIR/LICENSE.txt
             
             #### Create a script file to run inside Docker with detailed logging ####
             
-              cat > container_build_script.sh << 'EOF'
-              #!/bin/bash
-              set -x  # Print each command before execution
-  
-              echo "====== Environment inside container ======"
-              env | sort
-              git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
-  
-              if [ -n "$ELEVATED_GITHUB_TOKEN" ]; then
-                echo "Configuring Git with elevated GitHub token for authentication..."
-                git config --global url."https://${ELEVATED_GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-                git config --global url."https://${ELEVATED_GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
-              else
-                echo "WARNING: ELEVATED_GITHUB_TOKEN not provided. Private repository access may fail."
-                exit 1
-              fi
-               echo "Configuring Git for private repositories..."
-  
-              # Use .netrc for Git authentication - more reliable than url rewriting
-              cat > /tmp/.netrc << EON
-                machine github.com
-                login oauth2
-                password $ELEVATED_GITHUB_TOKEN
-              EON
-  
-              # Set permissions and tell Git where to find it
-              chmod 600 /tmp/.netrc
-              export HOME=/tmp
-  
-              # Verify Git can access a private repository
-              echo "Testing Git authentication..."
-              git ls-remote https://github.com/hashicorp/consul-dataplane.git HEAD || {
-                echo "Failed to authenticate with GitHub. Check token permissions."
-                exit 1
-              }
-  
-              # Ensure GOPRIVATE is set in the container
-              export GOPRIVATE=${GOPRIVATE:-github.com/hashicorp}
-  
-              # Show Go environment (excluding sensitive info)
-              go env | grep -v -E '(TOKEN|PASSWORD|SECRET|KEY)'
-              echo "========================================"
-  
-              echo "====== Starting build process ======"
-              echo "Go Environment: $GO_ENV"
-              echo "Go Tags: $GOTAGS"
-              echo "Gold Flags: $GOLDFLAGS"
-              echo "Binary will be output to: /build/$BINARY_PATH"
-              ls -la /build
-              ls -la /build/dist
-              # Executing the build command with detailed output
-              BUILD_CMD="$GO_ENV go build -tags=$GOTAGS -ldflags \"$GOLDFLAGS\"  -o \"/build/$BINARY_PATH\" -trimpath -buildvcs=false ./cmd/$BIN_NAME"
-              echo "Build command: $BUILD_CMD"
-  
-              # Use eval to properly execute the command
-              eval "$BUILD_CMD"
-              BUILD_STATUS=$?
-              echo "======Binary exists - Checking package DL dependencies======"
-              readelf -sW /build/dist/consul-dataplane | grep GLIBC_ || echo "No GLIBC symbols found."
-              echo "Go build exit status: $BUILD_STATUS"
-  
-              if [ $BUILD_STATUS -ne 0 ]; then
-              echo "ERROR: Go build failed with status $BUILD_STATUS"
-              # Display more diagnostic information
-              echo "Go version:"
-              go version
-              echo "Go environment:"
-              go env
-              exit $BUILD_STATUS
-              fi
-  
-              echo "====== Listing build output ======"
-              ls -la /build/
-              ls -la /build/dist/
-              echo "====== Build process completed successfully ======"
-              EOF
+            cat > container_build_script.sh << 'EOF'
+            #!/bin/bash
+            set -x  # Print each command before execution
+            mkdir -p /build/dist
+            echo "====== Environment inside container ======"
+            env | sort
+            git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
+
+            if [ -n "$ELEVATED_GITHUB_TOKEN" ]; then
+              echo "Configuring Git with elevated GitHub token for authentication..."
+              git config --global url."https://${ELEVATED_GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+              git config --global url."https://${ELEVATED_GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
+            else
+              echo "WARNING: ELEVATED_GITHUB_TOKEN not provided. Private repository access may fail."
+              exit 1
+            fi
+             echo "Configuring Git for private repositories..."
+
+            # Use .netrc for Git authentication - more reliable than url rewriting
+            cat > /tmp/.netrc << EON
+              machine github.com
+              login oauth2
+              password $ELEVATED_GITHUB_TOKEN
+            EON
+
+            # Set permissions and tell Git where to find it
+            chmod 600 /tmp/.netrc
+            export HOME=/tmp
+
+            # Verify Git can access a private repository
+            echo "Testing Git authentication..."
+            git ls-remote https://github.com/hashicorp/consul-dataplane.git HEAD || {
+              echo "Failed to authenticate with GitHub. Check token permissions."
+              exit 1
+            }
+
+            # Ensure GOPRIVATE is set in the container
+            export GOPRIVATE=${GOPRIVATE:-github.com/hashicorp}
+
+            # Show Go environment (excluding sensitive info)
+            go env | grep -v -E '(TOKEN|PASSWORD|SECRET|KEY)'
+            echo "========================================"
+
+            echo "====== Starting build process ======"
+            echo "Go Environment: $GO_ENV"
+            echo "Go Tags: $GOTAGS"
+            echo "Gold Flags: $GOLDFLAGS"
+            echo "Binary will be output to: /build/$BINARY_PATH"
+            ls -la /build
+            ls -la /build/dist
+            # Executing the build command with detailed output
+            BUILD_CMD="$GO_ENV go build -v -tags=$GOTAGS -ldflags \"$GOLDFLAGS\"  -o \"/build/$BINARY_PATH\" -trimpath -buildvcs=false ./cmd/$BIN_NAME"
+            echo "Build command: $BUILD_CMD"
+
+            # Use eval to properly execute the command
+            eval "$BUILD_CMD"
+            BUILD_STATUS=$?
+            echo "======Binary exists - Checking package DL dependencies======"
+            readelf -sW /build/dist/consul-dataplane | grep GLIBC_ || echo "No GLIBC symbols found."
+            echo "Go build exit status: $BUILD_STATUS"
+
+            if [ $BUILD_STATUS -ne 0 ]; then
+            echo "ERROR: Go build failed with status $BUILD_STATUS"
+            # Display more diagnostic information
+            echo "Go version:"
+            go version
+            echo "Go environment:"
+            go env
+            exit $BUILD_STATUS
+            fi
+
+            echo "====== Listing build output ======"
+            ls -la /build/
+            ls -la /build/dist/
+            echo "====== Build process completed successfully ======"
+            EOF
             ###### end of script file #####
             
             
