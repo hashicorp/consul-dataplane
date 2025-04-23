@@ -79,6 +79,11 @@ jobs:
       - get-go-version
       - get-product-version
     runs-on: ubuntu-22.04 # the GLIBC is too high on 22.04
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     strategy:
       matrix:
         include:
