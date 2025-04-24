@@ -48,6 +48,7 @@ jobs:
             **.md
             _doc/**
             .changelog/**
+            .github/CODEOWNERS
       - name: Print changed files
         env:
           SKIPPABLE_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
