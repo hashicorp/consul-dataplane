@@ -1,3 +1,8 @@
+## 1.6.4 (April 24, 2025)
+* Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+* Upgraded `envoy` to 1.33.2
+* Upgraded `Go` to 1.23.8
+
 ## 1.6.3 (March 15, 2025)
 IMPROVEMENTS:
 
