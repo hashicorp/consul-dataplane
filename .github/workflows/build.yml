@@ -39,6 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
+      shared-ldflags: ${{ steps.shared-ldflags.outputs.shared-ldflags }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: get product version
@@ -46,7 +47,13 @@ jobs:
         run: |
           make version
           echo "product-version=$(make version)" >> $GITHUB_OUTPUT
-
+      - name: Set shared -ldflags
+        id: shared-ldflags
+        run: |
+          T="github.com/hashicorp/consul-dataplane/pkg/version"
+          echo "shared-ldflags=-X ${T}.GitCommit=${GITHUB_SHA::8} \
+          -X ${T}.GitDescribe=${{ steps.get-product-version.outputs.product-version }} \
+          " >> "$GITHUB_OUTPUT"
   generate-metadata-file:
     needs: get-product-version
     runs-on: ubuntu-latest
@@ -71,7 +78,12 @@ jobs:
     needs:
       - get-go-version
       - get-product-version
-    runs-on: ubuntu-20.04 # the GLIBC is too high on 22.04
+    runs-on: ubuntu-22.04 # the GLIBC is too high on 22.04
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     strategy:
       matrix:
         include:
@@ -91,7 +103,13 @@ jobs:
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
-      - uses: hashicorp/actions-go-build@v1
+      - uses: hashicorp/actions-go-build@make-clean-flag-optional
+        name: Build non-FIPS
+        if : ${{!matrix.fips }}
+        env:
+          PRODUCT_VERSION: ${{ needs.get-product-version.outputs.product-version }}
+          CGO_ENABLED: "0"
+          GOLDFLAGS: "${{needs.get-product-version.outputs.shared-ldflags}}"
         with:
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -101,11 +119,147 @@ jobs:
           reproducible: assert
           instructions: |
             cp LICENSE $TARGET_DIR/LICENSE.txt
-            if [[ "${{ matrix.fips }}" == "+fips1402" ]]
-            then
-              sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
-            fi
             ${{ matrix.env }} go build -tags=${{ matrix.gotags }} -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
+
+      - name: Build ubuntu-focal-builder image
+        if: ${{ matrix.goos != 'windows' && matrix.fips == '+fips1402' }}
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4
+        with:
+          platforms: linux/amd64 # we only ever build amd64 images because we always run on amd64 runners and cross-compile inside the container if needed
+          context: .github/containers/ubuntu/
+          build-args: |
+            GO_VERSION=${{ needs.get-go-version.outputs.go-version }}
+          push: true
+          tags: localhost:5000/ubuntu-focal-builder:${{ github.sha }}
+
+      - uses: hashicorp/actions-go-build@make-clean-flag-optional
+        name: Build FIPS non-windows
+        if: ${{ matrix.goos != 'windows' && matrix.fips == '+fips1402' }}
+        env:
+          PRODUCT_VERSION: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
+          GO_ENV: "${{ matrix.env }}"
+          GO_VERSION: ${{ needs.get-go-version.outputs.go-version }}
+          GOLDFLAGS: "${{needs.get-product-version.outputs.shared-ldflags}}"
+          BINARY_PATH: "dist/${{ env.PKG_NAME }}"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOTAGS: ${{ matrix.gotags }}
+        with:
+          product_name: ${{ env.PKG_NAME }}
+          product_version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
+          go_version: ${{ needs.get-go-version.outputs.go-version }}
+          os: ${{ matrix.goos }}
+          arch: ${{ matrix.goarch }}
+          reproducible: nope
+          clean: false
+          instructions: |-
+            mkdir -p .release/linux/package/usr/share/doc/$PKG_NAME
+            cp LICENSE $TARGET_DIR/LICENSE.txt
+            #### Create a script file to run inside Docker with detailed logging ####
+            
+            cat > container_build_script.sh << 'EOF'
+            #!/bin/bash
+            set -x  # Print each command before execution
+            mkdir -p /build/dist
+            echo "====== Environment inside container ======"
+            env | sort
+            git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
+
+            if [ -n "$ELEVATED_GITHUB_TOKEN" ]; then
+              echo "Configuring Git with elevated GitHub token for authentication..."
+              git config --global url."https://${ELEVATED_GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+              git config --global url."https://${ELEVATED_GITHUB_TOKEN}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
+            else
+              echo "WARNING: ELEVATED_GITHUB_TOKEN not provided. Private repository access may fail."
+              exit 1
+            fi
+             echo "Configuring Git for private repositories..."
+
+            # Use .netrc for Git authentication - more reliable than url rewriting
+            cat > /tmp/.netrc << EON
+              machine github.com
+              login oauth2
+              password $ELEVATED_GITHUB_TOKEN
+            EON
+
+            # Set permissions and tell Git where to find it
+            chmod 600 /tmp/.netrc
+            export HOME=/tmp
+
+            # Verify Git can access a private repository
+            echo "Testing Git authentication..."
+            git ls-remote https://github.com/hashicorp/consul-dataplane.git HEAD || {
+              echo "Failed to authenticate with GitHub. Check token permissions."
+              exit 1
+            }
+
+            # Ensure GOPRIVATE is set in the container
+            export GOPRIVATE=${GOPRIVATE:-github.com/hashicorp}
+
+            # Show Go environment (excluding sensitive info)
+            go env | grep -v -E '(TOKEN|PASSWORD|SECRET|KEY)'
+            echo "========================================"
+
+            echo "====== Starting build process ======"
+            echo "Go Environment: $GO_ENV"
+            echo "Go Tags: $GOTAGS"
+            echo "Gold Flags: $GOLDFLAGS"
+            echo "Binary will be output to: /build/$BINARY_PATH"
+            ls -la /build
+            ls -la /build/dist
+            # Executing the build command with detailed output
+            BUILD_CMD="$GO_ENV go build -v -tags=$GOTAGS -ldflags \"$GOLDFLAGS\"  -o \"/build/$BINARY_PATH\" -trimpath -buildvcs=false ./cmd/$BINARY_NAME"
+            echo "Build command: $BUILD_CMD"
+
+            # Use eval to properly execute the command
+            eval "$BUILD_CMD"
+            BUILD_STATUS=$?
+            echo "======Binary exists - Checking package DL dependencies======"
+            readelf -sW /build/dist/consul-dataplane | grep GLIBC_ || echo "No GLIBC symbols found."
+            echo "Go build exit status: $BUILD_STATUS"
+
+            if [ $BUILD_STATUS -ne 0 ]; then
+            echo "ERROR: Go build failed with status $BUILD_STATUS"
+            # Display more diagnostic information
+            echo "Go version:"
+            go version
+            echo "Go environment:"
+            go env
+            exit $BUILD_STATUS
+            fi
+
+            echo "====== Listing build output ======"
+            ls -la /build/
+            ls -la /build/dist/
+            echo "====== Build process completed successfully ======"
+            EOF
+            ###### end of script file #####
+            
+            
+            # Make the script executable
+            chmod +x container_build_script.sh
+
+            ESCAPED_GOLDFLAGS=$(echo "${{env.GOLDFLAGS}}" | sed 's/"/\\"/g')
+            echo "Running Docker container..."
+            docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env HOME=/tmp \
+            --env PRODUCT_VERSION=${{env.PRODUCT_VERSION}} \
+            --env GOLDFLAGS="$ESCAPED_GOLDFLAGS" \
+            --env BINARY_PATH=${{env.BINARY_PATH}} \
+            --env GOOS=${{env.GOOS}} \
+            --env GOARCH=${{env.GOARCH}} \
+            --env GOTAGS=${{env.GOTAGS}} \
+            --env GO_ENV="${{env.GO_ENV}}" \
+            --env PKG_NAME=${{env.PKG_NAME}} \
+            --env GOPRIVATE="github.com/hashicorp" \
+            --env ELEVATED_GITHUB_TOKEN=${{ secrets.ELEVATED_GITHUB_TOKEN }} \
+            --env BINARY_NAME=$BIN_NAME \
+            -v "$(pwd)":/build \
+            -w /build \
+            localhost:5000/ubuntu-focal-builder:${{ github.sha }} \
+            /build/container_build_script.sh
+            ls -la ./dist
 
       - name: Copy license file
         if: ${{ matrix.goos == 'linux' }}
@@ -155,7 +309,7 @@ jobs:
       - get-go-version
       - get-product-version
       - build-linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         # This is the subset of architectures we build binaries for officially
@@ -178,7 +332,6 @@ jobs:
           echo "full_dev_tag=${{ env.version }}" >> $GITHUB_ENV
           echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" 
           echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" >> $GITHUB_ENV
-
       - name: Docker Build (Action)
         if: ${{ !matrix.fips }}
         uses: hashicorp/actions-docker-build@v2
@@ -343,12 +496,12 @@ jobs:
         server:
           - version: v1.15.0-dev
             image: hashicorppreview/consul:1.15-dev
-          - version: v1.17.0-dev
-            image: hashicorppreview/consul:1.17-dev
           - version: v1.18.0-dev
             image: hashicorppreview/consul:1.18-dev
           - version: v1.19.0-dev
             image: hashicorppreview/consul:1.19-dev
+          - version: v1.20.0-dev
+            image: hashicorppreview/consul:1.20-dev
         dataplane:
           - image_suffix: ""
             docker_target: "release-default"
