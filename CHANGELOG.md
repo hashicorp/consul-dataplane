@@ -1,3 +1,17 @@
+## 1.7.0 (May 6, 2025)
+
+SECURITY:
+
+* Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+* Upgraded `envoy` to 1.33.2
+* Upgraded `Go` to 1.23.8
+
+IMPROVEMENTS:
+
+* Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
+* Update Envoy version from 1.32.1 to 1.33.0 [[GH-685](https://github.com/hashicorp/consul-dataplane/pull/685)]
+* Upgrade to use Go 1.23.6 [[GH-696](https://github.com/hashicorp/consul-dataplane/pull/696)]
+
 ## 1.7.0-rc2 (April 24, 2025)
 
 * Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
