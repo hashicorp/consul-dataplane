@@ -1,0 +1,3 @@
+```release-note:security
+CVE: update tj-actions/changed-files to fix CVE-2025-30066
+```
