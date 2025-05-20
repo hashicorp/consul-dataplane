@@ -127,7 +127,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.4 as release-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.6-1747218906 as release-ubi
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
@@ -169,7 +169,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.4 as release-fips-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.6-1747218906 as release-fips-ubi
 
 ARG BIN_NAME
 ENV BIN_NAME=$BIN_NAME
