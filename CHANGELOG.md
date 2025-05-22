@@ -1,3 +1,9 @@
+## 1.5.8 (May 22, 2025)
+
+SECURITY:
+
+* CVE: update tj-actions/changed-files to fix CVE-2025-30066 [[GH-738](https://github.com/hashicorp/consul-dataplane/pull/738)]
+
 ## 1.5.7 (April 24, 2025)
 
 * Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
