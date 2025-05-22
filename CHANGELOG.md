@@ -1,9 +1,17 @@
+## 1.6.5 (May 22, 2025)
+
+SECURITY:
+
+* CVE: update tj-actions/changed-files to fix CVE-2025-30066 [[GH-738](https://github.com/hashicorp/consul-dataplane/pull/738)]
+
 ## 1.6.4 (April 24, 2025)
+
 * Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
 * Upgraded `envoy` to 1.33.2
 * Upgraded `Go` to 1.23.8
 
 ## 1.6.3 (March 15, 2025)
+
 IMPROVEMENTS:
 
 * Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
