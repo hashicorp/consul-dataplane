@@ -1,3 +1,9 @@
+## 1.7.1 (May 22, 2025)
+
+SECURITY:
+
+* CVE: update tj-actions/changed-files to fix CVE-2025-30066 [[GH-738](https://github.com/hashicorp/consul-dataplane/pull/738)]
+
 ## 1.7.0 (May 6, 2025)
 
 SECURITY:
