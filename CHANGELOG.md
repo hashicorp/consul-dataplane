@@ -1,3 +1,80 @@
+## 1.7.1 (May 22, 2025)
+
+SECURITY:
+
+* CVE: update tj-actions/changed-files to fix CVE-2025-30066 [[GH-738](https://github.com/hashicorp/consul-dataplane/pull/738)]
+
+## 1.6.5 (May 22, 2025)
+
+SECURITY:
+
+* CVE: update tj-actions/changed-files to fix CVE-2025-30066 [[GH-738](https://github.com/hashicorp/consul-dataplane/pull/738)]
+
+## 1.5.8 (May 22, 2025)
+
+SECURITY:
+
+* CVE: update tj-actions/changed-files to fix CVE-2025-30066 [[GH-738](https://github.com/hashicorp/consul-dataplane/pull/738)]
+
+## 1.7.0 (May 6, 2025)
+
+SECURITY:
+
+* Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+* Upgraded `envoy` to 1.33.2
+* Upgraded `Go` to 1.23.8
+
+IMPROVEMENTS:
+
+* Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
+* Update Envoy version from 1.32.1 to 1.33.0 [[GH-685](https://github.com/hashicorp/consul-dataplane/pull/685)]
+* Upgrade to use Go 1.23.6 [[GH-696](https://github.com/hashicorp/consul-dataplane/pull/696)]
+
+## 1.7.0-rc2 (April 24, 2025)
+
+* Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+* Upgraded `envoy` to 1.33.2
+* Upgraded `Go` to 1.23.8
+
+## 1.6.4 (April 24, 2025)
+
+* Upgraded `x/net` to 0.38.0. This resolves [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+* Upgraded `envoy` to 1.33.2
+* Upgraded `Go` to 1.23.8
+
+## 1.6.3 (March 15, 2025)
+
+IMPROVEMENTS:
+
+* Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
+
+## 1.5.6 (March 15, 2025)
+
+IMPROVEMENTS:
+
+* Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
+
+## 1.7.0-rc1 (March 10, 2025)
+
+IMPROVEMENTS:
+
+* Triggering graceful startup if startup-grace-period-seconds is greater than 0 [[GH-687](https://github.com/hashicorp/consul-dataplane/pull/687)]
+* Update Envoy version from 1.32.1 to 1.33.0 [[GH-685](https://github.com/hashicorp/consul-dataplane/pull/685)]
+* Upgrade to use Go 1.23.6 [[GH-696](https://github.com/hashicorp/consul-dataplane/pull/696)]
+
+## 1.5.5 (January 10, 2025)
+
+SECURITY:
+
+* Upgrade to support Envoy `1.29.12`. [[GH-676](https://github.com/hashicorp/consul-dataplane/pull/676)]
+* Updated golang.org/x/net dependency to 0.34.0 to fix vulnerability [[GO-2024-3333](https://pkg.go.dev/vuln/GO-2024-3333)]
+
+## 1.6.2 (January 7, 2024)
+
+SECURITY:
+
+* Upgrade to support Envoy `1.32.3`. [[GH-672](https://github.com/hashicorp/consul-dataplane/pull/672)]
+
 ## 1.6.1 (November 1, 2024)
 
 SECURITY:
