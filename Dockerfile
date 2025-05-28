@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-FROM envoyproxy/envoy-distroless:v1.33.0 as envoy-binary
+FROM envoyproxy/envoy-distroless:v1.33.2 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM debian:bullseye-slim AS setcap-envoy-binary
@@ -24,10 +24,11 @@ COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
 RUN apt-get update && apt install -y libcap2-bin
+RUN apt-get update && apt-get install -y libc6
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
-FROM hashicorp/envoy-fips:1.33.0-fips1402 as envoy-fips-binary
+FROM hashicorp/envoy-fips:1.33.2-fips1402 as envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
 FROM debian:bullseye-slim AS setcap-envoy-fips-binary
@@ -40,6 +41,7 @@ COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
 RUN apt-get update && apt install -y libcap2-bin
+RUN apt-get update && apt-get install -y libc6
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
