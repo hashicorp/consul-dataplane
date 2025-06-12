@@ -72,6 +72,10 @@ func canAccess(ip string, port int) (bool, error) {
 	}
 
 	bytes, err := io.ReadAll(rsp.Body)
+	if err != nil {
+		return false, err
+	}
+
 	return false, fmt.Errorf("unexpected response status: %d - body: %s", rsp.StatusCode, bytes)
 }
 

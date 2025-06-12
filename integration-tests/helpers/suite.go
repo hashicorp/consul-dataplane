@@ -197,7 +197,7 @@ func (s *Suite) Volume(t *testing.T) *Volume {
 
 		v, err := docker.VolumeCreate(
 			s.Context(t),
-			volume.VolumeCreateBody{
+			volume.CreateOptions{
 				Name: fmt.Sprintf("%s-volume", s.Name),
 			},
 		)
@@ -242,7 +242,12 @@ func (c *Container) Network() container.NetworkMode {
 // ContainerLogs returns the container's logs.
 func (c *Container) ContainerLogs(t *testing.T) string {
 	rc, err := c.Logs(context.Background())
-	defer rc.Close()
+	defer func(rc io.ReadCloser) {
+		err := rc.Close()
+		if err != nil {
+			t.Logf("failed to close container logs: %v", err)
+		}
+	}(rc)
 
 	require.NoError(t, err)
 	out, err := io.ReadAll(rc)
