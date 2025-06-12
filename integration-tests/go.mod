@@ -1,15 +1,15 @@
 module github.com/hashicorp/consul-dataplane/integration-tests
 
-go 1.20
+go 1.24.4
 
 require (
-	github.com/docker/docker v20.10.20+incompatible
+	github.com/docker/docker v23.0.15+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/hashicorp/consul/api v1.29.1
 	github.com/miekg/dns v1.1.50
 	github.com/stretchr/testify v1.8.4
 	github.com/testcontainers/testcontainers-go v0.17.0
-	golang.org/x/mod v0.12.0
+	golang.org/x/mod v0.25.0
 	gopkg.in/square/go-jose.v2 v2.5.1
 )
 
@@ -50,11 +50,11 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
-	golang.org/x/crypto v0.22.0 // indirect
+	golang.org/x/crypto v0.39.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
-	golang.org/x/net v0.24.0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
+	golang.org/x/net v0.41.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230526203410-71b5a4ffd15e // indirect
 	google.golang.org/grpc v1.56.3 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
