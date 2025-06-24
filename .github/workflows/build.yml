@@ -341,8 +341,6 @@ jobs:
     strategy:
       matrix:
         server:
-          - version: v1.15.0-dev
-            image: hashicorppreview/consul:1.15-dev
           - version: v1.18.0-dev
             image: hashicorppreview/consul:1.18-dev
           - version: v1.19.0-dev
