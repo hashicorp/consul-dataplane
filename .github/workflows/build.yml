@@ -71,7 +71,7 @@ jobs:
     needs:
       - get-go-version
       - get-product-version
-    runs-on: ubuntu-20.04 # the GLIBC is too high on 22.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         include:
@@ -341,14 +341,14 @@ jobs:
     strategy:
       matrix:
         server:
-          - version: v1.15.0-dev
-            image: hashicorppreview/consul:1.15-dev
           - version: v1.18.0-dev
             image: hashicorppreview/consul:1.18-dev
           - version: v1.19.0-dev
             image: hashicorppreview/consul:1.19-dev
           - version: v1.20.0-dev
             image: hashicorppreview/consul:1.20-dev
+          - version: v1.21.0-dev
+            image: hashicorppreview/consul:1.21-dev
         dataplane:
           - image_suffix: ""
             docker_target: "release-default"
