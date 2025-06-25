@@ -1,0 +1,5 @@
+```release-note:security
+cve: upgrade golang.org/x/net package to address CVE:
+- [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+- [GHSA-vvgc-356p-c3xw](https://osv.dev/vulnerability/GHSA-vvgc-356p-c3xw)
+```
