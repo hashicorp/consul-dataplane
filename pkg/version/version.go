@@ -17,7 +17,7 @@ var (
 	//
 	// Version must conform to the format expected by github.com/hashicorp/go-version
 	// for tests to work.
-	Version = "pajay.rao-CSL-11066-envoy-update-1.34.x-1"
+	Version = "0.0.0"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
