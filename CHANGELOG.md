@@ -1,3 +1,12 @@
+## 1.7.2 (June 25, 2025)
+
+SECURITY:
+
+* cve: upgrade golang.org/x/net package to address CVE:
+- [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+- [GHSA-vvgc-356p-c3xw](https://osv.dev/vulnerability/GHSA-vvgc-356p-c3xw) [[GH-764](https://github.com/hashicorp/consul-dataplane/pull/764)]
+* security: upgraded go version to 1.23.10 [[GH-759](https://github.com/hashicorp/consul-dataplane/pull/759)]
+
 ## 1.7.1 (May 22, 2025)
 
 SECURITY:
