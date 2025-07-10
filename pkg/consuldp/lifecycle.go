@@ -106,15 +106,18 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 	}
 
 	// Start the proxy lifecycle management server
-	go m.startLifecycleServer()
+	readyCh := make(chan struct{})
+	go m.startLifecycleServer(readyCh)
+	<-readyCh // Wait until server signals it's ready
 
 	return nil
 }
 
 // startLifecycleServer starts the main proxy lifecycle management server that
 // exposes HTTP endpoints for proxy lifecycle control.
-func (m *lifecycleConfig) startLifecycleServer() {
+func (m *lifecycleConfig) startLifecycleServer(readyCh chan<- struct{}) {
 	m.logger.Info("starting proxy lifecycle management server", "address", m.lifecycleServer.Addr)
+	close(readyCh) // Signal that server is about to start listening
 	err := m.lifecycleServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		m.logger.Error("failed to serve proxy lifecycle management requests", "error", err)
