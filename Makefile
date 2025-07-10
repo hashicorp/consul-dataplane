@@ -16,6 +16,8 @@ PLATFORM = $(OS)/$(ARCH)
 DIST     = dist/$(PLATFORM)
 BIN      = $(DIST)/$(BIN_NAME)
 
+GOTAGS=hashicorpmetrics
+
 VERSION = $(shell ./build-scripts/version.sh pkg/version/version.go)
 GOLANG_VERSION ?= $(shell head -n 1 .go-version)
 BOOTSTRAP_PACKAGE_DIR=internal/bootstrap
@@ -44,7 +46,7 @@ dist: ## make dist directory and ignore everything
 
 .PHONY: bin
 bin: dist ## Build the binary
-	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o $(BIN) ./cmd/$(BIN_NAME)
+	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 go build -tags="$(GOTAGS)" -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o $(BIN) ./cmd/$(BIN_NAME)
 
 .PHONY: dev
 dev: bin ## Build binary and copy to the destination
