@@ -1,3 +1,11 @@
+## 1.8.0 (July 21, 2025)
+
+IMPROVEMENTS:
+
+* `Update `golang.org/x/net` to v0.37.0.`
+* `Update `golang.org/x/sys` to v0.31.0.`
+* `Update `golang.org/x/text` to v0.23.0.` [[GH-702](https://github.com/hashicorp/consul-dataplane/pull/702)]
+
 ## 1.7.1 (May 22, 2025)
 
 SECURITY:
