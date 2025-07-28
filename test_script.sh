@@ -6,7 +6,7 @@ HELM_CHART=../consul-k8s/charts/consul
 
 cd $CONSUL_DATAPLANE
 make docker
-docker tag consul-dataplane:1.7.0-dev consul-dataplane:local
+docker tag consul-dataplane:1.6.2 consul-dataplane:local
 kind load docker-image consul-dataplane:local
 cd -
 

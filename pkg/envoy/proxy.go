@@ -392,7 +392,14 @@ func (p *Proxy) Ready() (bool, error) {
 		// Query ready endpoint to check if proxy is Ready
 		envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
 		rsp, err := p.client.Get(envoyReadyURL)
-		defer rsp.Body.Close()
+		if rsp != nil {
+			defer rsp.Body.Close()
+			body, _ := io.ReadAll(rsp.Body)
+			p.cfg.Logger.Info("envoy: ready endpoint response",
+				"status", rsp.StatusCode,
+				"body", string(body),
+			)
+		}
 		if err != nil {
 			p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
 			return false, err

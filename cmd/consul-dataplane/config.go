@@ -233,7 +233,7 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			}
 		},
 		"envoy": {
-			"adminBindAddress": "127.0.0.1",
+			"adminBindAddress": "0.0.0.0",
 			"adminBindPort": 19000,
 			"readyBindPort": 0,
 			"concurrency": 2,

@@ -21,7 +21,7 @@ const (
 	// defaultLifecycleBindPort is the port which will serve the proxy lifecycle HTTP
 	// endpoints on the loopback interface.
 	defaultLifecycleBindPort = "20300"
-	cdpLifecycleBindAddr     = "127.0.0.1"
+	cdpLifecycleBindAddr     = "0.0.0.0"
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 
 	defaultLifecycleShutdownPath = "/graceful_shutdown"
@@ -215,7 +215,15 @@ func (m *lifecycleConfig) gracefulShutdown() {
 func (m *lifecycleConfig) gracefulStartupHandler(rw http.ResponseWriter, _ *http.Request) {
 	//Unlike in gracefulShutdown, we want to delay the OK response until envoy is ready
 	//in order to block application container.
+	m.logger.Info("gracefulStartupHandler called")
 	m.gracefulStartup()
+	// return response body ok
+	rw.Header().Set("Content-Type", "text/plain")
+	_, err := rw.Write([]byte("Envoy is ready"))
+	if err != nil {
+		return
+	}
+	// Return HTTP 200 Success
 	rw.WriteHeader(http.StatusOK)
 }
 
@@ -225,7 +233,7 @@ func (m *lifecycleConfig) gracefulStartup() {
 	if m.startupGracePeriodSeconds == 0 {
 		return
 	}
-
+	m.logger.Info("starting block wait for envoy to get ready")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(m.startupGracePeriodSeconds)*time.Second)
 	defer cancel()
 
@@ -241,6 +249,7 @@ func (m *lifecycleConfig) gracefulStartup() {
 				cancel()
 				break
 			}
+			m.logger.Info("envoy not ready yet sleeping for 50ms")
 			time.Sleep(50 * time.Millisecond)
 		}
 	}()
