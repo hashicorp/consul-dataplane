@@ -1,3 +1,9 @@
+## 1.6.7 (July 18, 2025)
+
+SECURITY:
+
+* Upgraded `envoy` to 1.32.8
+
 ## 1.6.6 (June 25, 2025)
 
 SECURITY:
