@@ -16,8 +16,9 @@ import (
 type FlagOpts struct {
 	dataplaneConfig DataplaneConfigFlags
 
-	printVersion bool
-	configFile   string
+	printVersion     bool
+	checkProxyHealth bool
+	configFile       string
 }
 
 type DataplaneConfigFlags struct {
@@ -233,7 +234,7 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			}
 		},
 		"envoy": {
-			"adminBindAddress": "0.0.0.0",
+			"adminBindAddress": "127.0.0.1",
 			"adminBindPort": 19000,
 			"readyBindPort": 0,
 			"concurrency": 2,
