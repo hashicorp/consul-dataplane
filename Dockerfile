@@ -11,10 +11,10 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-FROM envoyproxy/envoy-distroless:v1.34.3 as envoy-binary
+FROM envoyproxy/envoy-distroless:v1.32.8 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
-FROM debian:bookworm-slim AS setcap-envoy-binary
+FROM debian:bullseye-slim AS setcap-envoy-binary
 
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
@@ -27,10 +27,10 @@ RUN apt-get update && apt install -y libcap2-bin
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
-FROM hashicorp/envoy-fips:1.33.0-fips1402 as envoy-fips-binary
+FROM hashicorp/envoy-fips:1.32.5-fips1402 as envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
-FROM debian:bookworm-slim AS setcap-envoy-fips-binary
+FROM debian:bullseye-slim AS setcap-envoy-fips-binary
 
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
@@ -56,7 +56,7 @@ RUN apk add dumb-init
 
 # release-default release image
 # -----------------------------------
-FROM gcr.io/distroless/base-debian12 AS release-default
+FROM gcr.io/distroless/base-debian11 AS release-default
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
@@ -91,7 +91,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 
 # FIPS release-default release image
 # -----------------------------------
-FROM gcr.io/distroless/base-debian12 AS release-fips-default
+FROM gcr.io/distroless/base-debian11 AS release-fips-default
 
 ARG BIN_NAME
 ARG PRODUCT_VERSION
