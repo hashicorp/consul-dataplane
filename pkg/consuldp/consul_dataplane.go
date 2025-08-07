@@ -227,6 +227,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
 
 	cdp.logger.Info("configuring envoy and xDS")
+
 	proxy, err := envoy.NewProxy(cdp.envoyProxyConfig(cfg))
 	if err != nil {
 		cdp.logger.Error("failed to create new proxy", "error", err)
@@ -341,6 +342,7 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 		Logger:          cdp.logger,
 		LogJSON:         cdp.cfg.Logging.LogJSON,
 		BootstrapConfig: cfg,
+		ExecutablePath:  cdp.cfg.Envoy.ExecutablePath,
 		ExtraArgs:       extraArgs,
 	}
 }
