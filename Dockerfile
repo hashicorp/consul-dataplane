@@ -47,7 +47,7 @@ RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 # either).
 ARG GOLANG_VERSION
 FROM golang:${GOLANG_VERSION}-alpine as go-discover
-RUN CGO_ENABLED=0 go install github.com/hashicorp/go-discover/cmd/discover@275a71457aa412bf20df9f9b77c380667164a5e6
+RUN CGO_ENABLED=0 go install github.com/hashicorp/go-discover/cmd/discover@v1.1.0
 
 # Pull in dumb-init from alpine, as our distroless release image doesn't have a
 # package manager and there's no RPM package for UBI.
