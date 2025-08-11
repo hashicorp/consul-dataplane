@@ -14,7 +14,8 @@ import (
 )
 
 type FlagOpts struct {
-	dataplaneConfig DataplaneConfigFlags
+	dataplaneConfig  DataplaneConfigFlags
+	checkProxyHealth bool
 
 	printVersion bool
 	configFile   string
