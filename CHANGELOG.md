@@ -1,3 +1,11 @@
+## 1.6.8 (August 14, 2025)
+
+SECURITY:
+
+* go: upgrade go version to 1.24.5 [[GH-800](https://github.com/hashicorp/consul-dataplane/pull/800)]
+* go: upgrade go version to 40c38fd658f0fd07ce74f2ee51b8abd3bfed01b3 [[GH-807](https://github.com/hashicorp/consul-dataplane/pull/807)]
+* update: envoy to 1.32.9 [[GH-823](https://github.com/hashicorp/consul-dataplane/pull/823)]
+
 ## 1.6.7 (July 18, 2025)
 
 SECURITY:
