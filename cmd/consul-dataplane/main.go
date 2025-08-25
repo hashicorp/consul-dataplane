@@ -257,7 +257,13 @@ func runProxyReadyCmd(config DataplaneConfigFlags) {
 		adminPort = *flagOpts.dataplaneConfig.Envoy.AdminBindPort
 	}
 
-	var envoyAdminURL = fmt.Sprintf("http://127.0.0.1:%d/ready", adminPort)
+	client := http.DefaultClient
+
+	doHealthCheck(adminPort, client, os.Exit)
+}
+
+func doHealthCheck(adminPort int, client *http.Client, exitFunc func(int)) {
+	envoyAdminURL := fmt.Sprintf("http://127.0.0.1:%d/ready", adminPort)
 
 	// Create a context with a timeout for the HTTP request. This prevents
 	// the check from hanging indefinitely. A short timeout is best for probes.
@@ -268,14 +274,16 @@ func runProxyReadyCmd(config DataplaneConfigFlags) {
 	req, err := http.NewRequestWithContext(ctx, "GET", envoyAdminURL, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
-		os.Exit(1) // Exit with a non-zero code for failure.
+		exitFunc(1)
+		return
 	}
 
 	// Perform the HTTP request.
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to Envoy admin endpoint: %v\n", err)
-		os.Exit(1) // Exit with a non-zero code for failure.
+		exitFunc(1)
+		return
 	}
 	defer resp.Body.Close()
 
@@ -283,9 +291,9 @@ func runProxyReadyCmd(config DataplaneConfigFlags) {
 	// A status code between 200 and 399 indicates success.
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		fmt.Println("Envoy proxy is ready.")
-		os.Exit(0) // Exit with status code 0 for success.
+		exitFunc(0)
 	} else {
 		fmt.Fprintf(os.Stderr, "Envoy proxy is not ready. Received status code: %d\n", resp.StatusCode)
-		os.Exit(1) // Exit with a non-zero code for failure.
+		exitFunc(1)
 	}
 }
