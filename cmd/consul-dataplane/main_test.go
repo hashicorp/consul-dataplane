@@ -101,6 +101,8 @@ func captureOutput(t *testing.T, f func()) string {
 	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatalf("failed to copy output: %v", err)
+	}
 	return buf.String()
 }
