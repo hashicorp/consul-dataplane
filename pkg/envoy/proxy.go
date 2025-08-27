@@ -396,6 +396,10 @@ func (p *Proxy) Ready() (bool, error) {
 			p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
 			return false, err
 		}
+		if rsp != nil {
+			defer rsp.Body.Close()
+		}
+
 		return rsp.StatusCode == 200, nil
 	default:
 		return false, nil

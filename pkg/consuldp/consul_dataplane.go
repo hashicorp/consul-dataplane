@@ -249,8 +249,6 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
-	cdp.lifecycleConfig.gracefulStartup()
-
 	go func() {
 		select {
 		case <-ctx.Done():
