@@ -257,9 +257,7 @@ func runProxyReadyCmd(config DataplaneConfigFlags) {
 		adminPort = *flagOpts.dataplaneConfig.Envoy.AdminBindPort
 	}
 
-	client := http.DefaultClient
-
-	doHealthCheck(adminPort, client, os.Exit)
+	doHealthCheck(adminPort, http.DefaultClient, os.Exit)
 }
 
 func doHealthCheck(adminPort int, client *http.Client, exitFunc func(int)) {
@@ -289,7 +287,7 @@ func doHealthCheck(adminPort int, client *http.Client, exitFunc func(int)) {
 
 	// For a Kubernetes probe, the only thing that matters is the status code.
 	// A status code between 200 and 399 indicates success.
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusBadRequest {
 		fmt.Println("Envoy proxy is ready.")
 		exitFunc(0)
 	} else {

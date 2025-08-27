@@ -22,25 +22,25 @@ func TestDoHealthCheck(t *testing.T) {
 	}{
 		{
 			name:           "success with 200",
-			statusCode:     200,
+			statusCode:     http.StatusOK,
 			expectedExit:   0,
 			expectedOutput: "Envoy proxy is ready.\n",
 		},
 		{
-			name:           "success with 299",
-			statusCode:     299,
+			name:           "success with 204",
+			statusCode:     http.StatusNoContent,
 			expectedExit:   0,
 			expectedOutput: "Envoy proxy is ready.\n",
 		},
 		{
 			name:           "failure with 404",
-			statusCode:     404,
+			statusCode:     http.StatusNotFound,
 			expectedExit:   1,
 			expectedOutput: "Envoy proxy is not ready. Received status code: 404\n",
 		},
 		{
 			name:           "failure with 500",
-			statusCode:     500,
+			statusCode:     http.StatusInternalServerError,
 			expectedExit:   1,
 			expectedOutput: "Envoy proxy is not ready. Received status code: 500\n",
 		},
