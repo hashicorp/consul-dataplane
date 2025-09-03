@@ -1,3 +1,68 @@
+## 1.8.1 (August 14, 2025)
+
+SECURITY:
+
+* go: upgrade go version to 1.24.5 [[GH-800](https://github.com/hashicorp/consul-dataplane/pull/800)]
+* go: upgrade go discover version to 40c38fd658f0fd07ce74f2ee51b8abd3bfed01b3 [[GH-807](https://github.com/hashicorp/consul-dataplane/pull/807)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.34.4 [[GH-808](https://github.com/hashicorp/consul-dataplane/pull/808)]
+
+## 1.7.4 (August 14, 2025)
+
+SECURITY:
+
+* go: upgrade go version to 1.24.5 [[GH-800](https://github.com/hashicorp/consul-dataplane/pull/800)]
+* go: upgrade go discover version to 40c38fd658f0fd07ce74f2ee51b8abd3bfed01b3 [[GH-807](https://github.com/hashicorp/consul-dataplane/pull/807)]
+* update: envoy to 1.33.6 [[GH-822](https://github.com/hashicorp/consul-dataplane/pull/822)]
+
+## 1.6.8 (August 14, 2025)
+
+SECURITY:
+
+* go: upgrade go version to 1.24.5 [[GH-800](https://github.com/hashicorp/consul-dataplane/pull/800)]
+* go: upgrade go version to 40c38fd658f0fd07ce74f2ee51b8abd3bfed01b3 [[GH-807](https://github.com/hashicorp/consul-dataplane/pull/807)]
+* update: envoy to 1.32.9 [[GH-823](https://github.com/hashicorp/consul-dataplane/pull/823)]
+
+## 1.8.0 (July 21, 2025)
+
+IMPROVEMENTS:
+
+* `Update `golang.org/x/net` to v0.37.0.`
+* `Update `golang.org/x/sys` to v0.31.0.`
+* `Update `golang.org/x/text` to v0.23.0.` [[GH-702](https://github.com/hashicorp/consul-dataplane/pull/702)]
+
+## 1.7.3 (July 18, 2025)
+
+SECURITY:
+
+* Upgraded `envoy` to 1.33.5
+
+## 1.6.7 (July 18, 2025)
+
+SECURITY:
+
+* Upgraded `envoy` to 1.32.8
+
+## 1.7.2 (June 25, 2025)
+
+SECURITY:
+
+* cve: upgrade golang.org/x/net package to address CVE:
+- [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+- [GHSA-vvgc-356p-c3xw](https://osv.dev/vulnerability/GHSA-vvgc-356p-c3xw) [[GH-764](https://github.com/hashicorp/consul-dataplane/pull/764)]
+* security: upgraded go version to 1.23.10 [[GH-759](https://github.com/hashicorp/consul-dataplane/pull/759)]
+
+## 1.6.6 (June 25, 2025)
+
+SECURITY:
+
+* cve: upgrade golang.org/x/net package to address CVE:
+- [GO-2025-3595](https://pkg.go.dev/vuln/GO-2025-3595)
+- [GHSA-vvgc-356p-c3xw](https://osv.dev/vulnerability/GHSA-vvgc-356p-c3xw) [[GH-764](https://github.com/hashicorp/consul-dataplane/pull/764)]
+* security: upgraded go version to 1.23.10 [[GH-759](https://github.com/hashicorp/consul-dataplane/pull/759)]
+
 ## 1.7.1 (May 22, 2025)
 
 SECURITY:

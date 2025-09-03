@@ -8,10 +8,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hashicorp/consul-dataplane/pkg/consuldp"
 	"github.com/hashicorp/consul-dataplane/pkg/version"
@@ -26,6 +28,8 @@ func init() {
 	flags = flag.NewFlagSet("", flag.ContinueOnError)
 	flagOpts = &FlagOpts{}
 	flags.BoolVar(&flagOpts.printVersion, "version", false, "Prints the current version of consul-dataplane.")
+
+	flags.BoolVar(&flagOpts.checkProxyHealth, "check-proxy-health", false, "checks envoy proxy health and exits with 0 if healthy, 1 otherwise.")
 
 	StringVar(flags, &flagOpts.dataplaneConfig.Mode, "mode", "DP_MODE", "dataplane mode. Value can be:\n"+
 		"1. sidecar - used when running as a sidecar to Consul services with xDS Server, Envoy, and DNS Server running; OR\n"+
@@ -157,6 +161,17 @@ func run() error {
 		return nil
 	}
 
+	consulDPDefaultFlags, err := buildDefaultConsulDPFlags()
+	if err != nil {
+		return err
+	}
+
+	if flagOpts.checkProxyHealth {
+		fmt.Printf("Checking envoy proxy health\n")
+		runProxyReadyCmd(consulDPDefaultFlags)
+		return nil
+	}
+
 	readServiceIDFromFile()
 	readProxyIDFromFile()
 	validateFlags()
@@ -229,5 +244,54 @@ func readProxyIDFromFile() {
 		}
 		s := string(id)
 		flagOpts.dataplaneConfig.Proxy.ID = &s
+	}
+}
+
+func runProxyReadyCmd(config DataplaneConfigFlags) {
+	// Define the Envoy admin endpoint URL. This is typically internal and
+	// only accessible from within the Pod on the loopback interface.
+
+	adminPort := *config.Envoy.AdminBindPort
+
+	if flagOpts.dataplaneConfig.Envoy.AdminBindPort != nil {
+		adminPort = *flagOpts.dataplaneConfig.Envoy.AdminBindPort
+	}
+
+	doHealthCheck(adminPort, http.DefaultClient, os.Exit)
+}
+
+func doHealthCheck(adminPort int, client *http.Client, exitFunc func(int)) {
+	envoyAdminURL := fmt.Sprintf("http://127.0.0.1:%d/ready", adminPort)
+
+	// Create a context with a timeout for the HTTP request. This prevents
+	// the check from hanging indefinitely. A short timeout is best for probes.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Create a new HTTP request with the specified context.
+	req, err := http.NewRequestWithContext(ctx, "GET", envoyAdminURL, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
+		exitFunc(1)
+		return
+	}
+
+	// Perform the HTTP request.
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error connecting to Envoy admin endpoint: %v\n", err)
+		exitFunc(1)
+		return
+	}
+	defer resp.Body.Close()
+
+	// For a Kubernetes probe, the only thing that matters is the status code.
+	// A status code between 200 and 399 indicates success.
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusBadRequest {
+		fmt.Println("Envoy proxy is ready.")
+		exitFunc(0)
+	} else {
+		fmt.Fprintf(os.Stderr, "Envoy proxy is not ready. Received status code: %d\n", resp.StatusCode)
+		exitFunc(1)
 	}
 }
