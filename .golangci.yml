@@ -12,6 +12,10 @@ linters:
           - staticcheck
         path: (pkg/consuldp/bootstrap.go)
         text: 'SA1019:'
+      - linters:
+          - staticcheck
+        text: 'ST1005:'
+
     paths:
       - third_party$
       - builtin$
