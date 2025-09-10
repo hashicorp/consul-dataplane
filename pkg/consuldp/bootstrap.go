@@ -91,11 +91,11 @@ func (cdp *ConsulDataplane) bootstrapConfig(
 	}
 
 	if cdp.xdsServer.listenerNetwork == "unix" {
-		args.GRPC.AgentSocket = cdp.xdsServer.listenerAddress
+		args.AgentSocket = cdp.xdsServer.listenerAddress
 	} else {
 		xdsServerFullAddr := strings.Split(cdp.xdsServer.listenerAddress, ":")
-		args.GRPC.AgentAddress = xdsServerFullAddr[0]
-		args.GRPC.AgentPort = xdsServerFullAddr[1]
+		args.AgentAddress = xdsServerFullAddr[0]
+		args.AgentPort = xdsServerFullAddr[1]
 	}
 
 	if path := prom.CACertsPath; path != "" {
