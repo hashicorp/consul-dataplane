@@ -26,4 +26,3 @@ jobs:
           BACKPORT_TARGET_TEMPLATE: "release/{{.target}}.x"
           GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
           BACKPORT_MERGE_COMMIT: true
-          ENABLE_VERSION_MANIFESTS: true
