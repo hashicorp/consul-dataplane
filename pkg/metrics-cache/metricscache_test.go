@@ -36,10 +36,10 @@ func TestMetricsCache_BasicPath(t *testing.T) {
 
 	// Samples based off setting twice: once at 10, once at 110
 	mysamples := data[0].Samples["mysample"]
-	require.EqualValues(t, 2, mysamples.AggregateSample.Count)
-	require.EqualValues(t, 110, mysamples.AggregateSample.Sum)
-	require.EqualValues(t, 10, mysamples.AggregateSample.Min)
-	require.EqualValues(t, 100, mysamples.AggregateSample.Max)
+	require.EqualValues(t, 2, mysamples.Count)
+	require.EqualValues(t, 110, mysamples.Sum)
+	require.EqualValues(t, 10, mysamples.Min)
+	require.EqualValues(t, 100, mysamples.Max)
 
 	// Keys based off a single value of 3
 	mykey := data[0].Points["mykey"]
@@ -47,18 +47,18 @@ func TestMetricsCache_BasicPath(t *testing.T) {
 
 	// counter's based off being set four times with values 4, 8, 16, 32
 	mycounter := data[0].Counters["mycounter"]
-	require.EqualValues(t, 4, mycounter.AggregateSample.Count)
-	require.EqualValues(t, 60, mycounter.AggregateSample.Sum)
-	require.EqualValues(t, 4, mycounter.AggregateSample.Min)
-	require.EqualValues(t, 32, mycounter.AggregateSample.Max)
+	require.EqualValues(t, 4, mycounter.Count)
+	require.EqualValues(t, 60, mycounter.Sum)
+	require.EqualValues(t, 4, mycounter.Min)
+	require.EqualValues(t, 32, mycounter.Max)
 
 	sink.IncrCounter([]string{"mycounter"}, 2)
 	data = realSink.Data()
 	mycounter = data[0].Counters["mycounter"]
-	require.EqualValues(t, 5, mycounter.AggregateSample.Count)
-	require.EqualValues(t, 62, mycounter.AggregateSample.Sum)
-	require.EqualValues(t, 2, mycounter.AggregateSample.Min)
-	require.EqualValues(t, 32, mycounter.AggregateSample.Max)
+	require.EqualValues(t, 5, mycounter.Count)
+	require.EqualValues(t, 62, mycounter.Sum)
+	require.EqualValues(t, 2, mycounter.Min)
+	require.EqualValues(t, 32, mycounter.Max)
 
 }
 
@@ -108,10 +108,10 @@ func TestMetricsCache_ParallelTest(t *testing.T) {
 	mysamples := data[0].Samples["mysample"]
 	mykey := data[0].Points["mykey"]
 	mycounter := data[0].Counters["mycounter"]
-	require.EqualValues(t, 100, mysamples.AggregateSample.Count)
+	require.EqualValues(t, 100, mysamples.Count)
 	require.EqualValues(t, 100, mygauge.Value)
 
 	require.EqualValues(t, 100, len(mykey))
-	require.EqualValues(t, 100, mycounter.AggregateSample.Count)
+	require.EqualValues(t, 100, mycounter.Count)
 
 }
