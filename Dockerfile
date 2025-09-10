@@ -81,9 +81,16 @@ COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
+
+# Since we can't know at build time if a runtime will attempt to bind to privileged ports,
+# include a version that supports privileged ports and a version that doesn't.
+# Determine at runtime which to use. This prevents a blanket requirement for NET_BIND_SERVICE
+# in use cases which actually don't require it.
+COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/privileged-envoy
+COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/privileged-$BIN_NAME
 
 USER 100
 
@@ -115,9 +122,16 @@ COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap-envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap-envoy-fips-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
+
+# Since we can't know at build time if a runtime will attempt to bind to privileged ports,
+# include a version that supports privileged ports and a version that doesn't.
+# Determine at runtime which to use. This prevents a blanket requirement for NET_BIND_SERVICE
+# in use cases which actually don't require it.
+COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
+COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/privileged-envoy
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/$BIN_NAME /usr/local/bin/privileged-$BIN_NAME
 
 USER 100
 
@@ -158,9 +172,16 @@ RUN groupadd --gid 1000 $PRODUCT_NAME && \
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
+
+# Since we can't know at build time if a runtime will attempt to bind to privileged ports,
+# include a version that supports privileged ports and a version that doesn't.
+# Determine at runtime which to use. This prevents a blanket requirement for NET_BIND_SERVICE
+# in use cases which actually don't require it.
+COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
+COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-binary /usr/local/bin/envoy /usr/local/bin/privileged-envoy
+COPY --from=setcap-envoy-binary /usr/local/bin/$BIN_NAME /usr/local/bin/privileged-$BIN_NAME
 
 USER 100
 ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
@@ -200,9 +221,16 @@ RUN groupadd --gid 1000 $PRODUCT_NAME && \
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
-COPY --from=setcap-envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
-COPY --from=setcap-envoy-fips-binary /usr/local/bin/$BIN_NAME /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
+
+# Since we can't know at build time if a runtime will attempt to bind to privileged ports,
+# include a version that supports privileged ports and a version that doesn't.
+# Determine at runtime which to use. This prevents a blanket requirement for NET_BIND_SERVICE
+# in use cases which actually don't require it.
+COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
+COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/privileged-envoy
+COPY --from=setcap-envoy-fips-binary /usr/local/bin/$BIN_NAME /usr/local/bin/privileged-$BIN_NAME
 
 USER 100
 ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]

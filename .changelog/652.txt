@@ -1,0 +1,3 @@
+```release-note:improvement
+The Docker image now includes both privileged and non-privileged binaries for both consul-dataplane and envoy. You can use `privileged-consul-dataplane` as the container command to run with the necessary capabilities for binding to privileged ports, or use the default binaries for standard use cases.
+```
