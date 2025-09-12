@@ -56,7 +56,7 @@ RUN apk add dumb-init
 
 # release-default release image
 # -----------------------------------
-FROM gcr.io/distroless/base-debian12 AS release-default
+FROM ubuntu AS release-default
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
