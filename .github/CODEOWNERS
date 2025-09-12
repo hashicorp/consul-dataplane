@@ -1,5 +1,8 @@
-* @hashicorp/consul-selfmanage-maintainers
+# Temporary code owners for the soft code freeze to fix backport assistant issues
+* @vikramarjuna @sreeram77
 
-# release configuration
-/.release/                              @hashicorp/consul-selfmanage-maintainers @hashicorp/team-selfmanaged-releng
-/.github/workflows/build.yml            @hashicorp/consul-selfmanage-maintainers @hashicorp/team-selfmanaged-releng
+# * @hashicorp/consul-selfmanage-maintainers
+
+# # release configuration
+# /.release/                              @hashicorp/consul-selfmanage-maintainers @hashicorp/team-selfmanaged-releng
+# /.github/workflows/build.yml            @hashicorp/consul-selfmanage-maintainers @hashicorp/team-selfmanaged-releng
