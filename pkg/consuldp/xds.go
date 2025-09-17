@@ -5,8 +5,8 @@ package consuldp
 
 import (
 	"context"
-	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/armon/go-metrics"
@@ -54,7 +54,7 @@ func (cdp *ConsulDataplane) setupXDSServer() error {
 		address = cdp.cfg.XDSServer.BindAddress[len("unix://"):]
 	} else {
 		network = "tcp"
-		address = fmt.Sprintf("%s:%d", cdp.cfg.XDSServer.BindAddress, cdp.cfg.XDSServer.BindPort)
+		address = net.JoinHostPort(cdp.cfg.XDSServer.BindAddress, strconv.Itoa(cdp.cfg.XDSServer.BindPort))
 	}
 
 	lis, err := net.Listen(network, address)

@@ -654,7 +654,6 @@ func (c *BootstrapConfig) generateListenerConfig(args *BootstrapTplArgs, bindAdd
 		clusterPort = prometheusBackendPort
 		clusterName = "prometheus_backend"
 	}
-	
 	if !strings.HasPrefix(matchValue, "/") {
 		// Must begin with '/' for match to work and to support request URL parsing.
 		//
