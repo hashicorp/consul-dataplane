@@ -90,7 +90,7 @@ func (cdp *ConsulDataplane) bootstrapConfig(
 	}
 
 	if cdp.xdsServer.listenerNetwork == "unix" {
-		args.GRPC.AgentSocket = cdp.xdsServer.listenerAddress
+		args.AgentSocket = cdp.xdsServer.listenerAddress
 	} else {
 		h, p, err := net.SplitHostPort(cdp.xdsServer.listenerAddress)
 		if err != nil {

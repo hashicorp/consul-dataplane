@@ -95,7 +95,7 @@ func validateConfig(cfg *Config) error {
 		return errors.New("non-local xDS bind address not allowed")
 	case cfg.Mode == ModeTypeSidecar && cfg.DNSServer.Port != -1 && !net.ParseIP(cfg.DNSServer.BindAddr).IsLoopback():
 		return errors.New("non-local DNS proxy bind address not allowed when running as a sidecar")
-	case cfg.Mode == ModeTypeDNSProxy && cfg.Proxy != nil && !(cfg.Proxy.Namespace == "" || cfg.Proxy.Namespace == "default"):
+	case cfg.Mode == ModeTypeDNSProxy && cfg.Proxy != nil && (cfg.Proxy.Namespace != "" && cfg.Proxy.Namespace != "default"):
 		return errors.New("namespace must be empty or set to 'default' when running in dns-proxy mode")
 	}
 
