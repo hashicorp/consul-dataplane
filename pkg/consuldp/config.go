@@ -309,6 +309,8 @@ type EnvoyConfig struct {
 	StartupGracePeriodSeconds int
 	// GracefulStartupPath is the path where the HTTP endpoint to initiate a graceful startup of Envoy is served.
 	GracefulStartupPath string
+	// GracefulAddr is the address on which the HTTP server for graceful shutdown endpoints will be available.
+	GracefulAddr string
 	// GracefulPort is the port on which the HTTP server for graceful shutdown endpoints will be available.
 	GracefulPort int
 	// DumpEnvoyConfigOnExitEnabled configures whether to call Envoy's /config_dump endpoint during consul-dataplane controlled shutdown.

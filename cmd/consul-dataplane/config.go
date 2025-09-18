@@ -141,6 +141,7 @@ type EnvoyFlags struct {
 	ShutdownDrainListenersEnabled *bool   `json:"shutdownDrainListenersEnabled,omitempty"`
 	ShutdownGracePeriodSeconds    *int    `json:"shutdownGracePeriodSeconds,omitempty"`
 	GracefulShutdownPath          *string `json:"gracefulShutdownPath,omitempty"`
+	GracefulAddr                  *string `json:"gracefulAddr,omitempty"`
 	GracefulPort                  *int    `json:"gracefulPort,omitempty"`
 	DumpEnvoyConfigOnExitEnabled  *bool   `json:"dumpEnvoyConfigOnExitEnabled,omitempty"`
 	//Time in seconds to wait for dataplane to be ready.
@@ -338,6 +339,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			ShutdownGracePeriodSeconds:    intVal(cfg.Envoy.ShutdownGracePeriodSeconds),
 			DumpEnvoyConfigOnExitEnabled:  boolVal(cfg.Envoy.DumpEnvoyConfigOnExitEnabled),
 			GracefulShutdownPath:          stringVal(cfg.Envoy.GracefulShutdownPath),
+			GracefulAddr:                  stringVal(cfg.Envoy.GracefulAddr),
 			GracefulPort:                  intVal(cfg.Envoy.GracefulPort),
 			StartupGracePeriodSeconds:     intVal(cfg.Envoy.StartupGracePeriodSeconds),
 			GracefulStartupPath:           stringVal(cfg.Envoy.GracefulStartupPath),
