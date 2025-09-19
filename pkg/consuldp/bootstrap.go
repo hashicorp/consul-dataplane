@@ -96,8 +96,8 @@ func (cdp *ConsulDataplane) bootstrapConfig(
 		if err != nil {
 			cdp.logger.Error("error splitting listenerAddress to host and port with error", err)
 		}
-		args.GRPC.AgentAddress = h
-		args.GRPC.AgentPort = p
+		args.AgentAddress = h
+		args.AgentPort = p
 	}
 
 	if path := prom.CACertsPath; path != "" {
