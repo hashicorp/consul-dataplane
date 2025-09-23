@@ -221,7 +221,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 
 	bootstrapCfg, cfg, err := cdp.bootstrapConfig(bootstrapParams)
 	if err != nil {
-		cdp.logger.Error("failed to get bootstrap config 2", "error", err)
+		cdp.logger.Error("failed to get bootstrap config", "error", err)
 		return fmt.Errorf("failed to get bootstrap config: %w", err)
 	}
 	cdp.logger.Debug("generated envoy bootstrap config", "config", string(cfg))
