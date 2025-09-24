@@ -6,6 +6,7 @@ package consuldp
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"sync"
@@ -36,6 +37,7 @@ type lifecycleConfig struct {
 	// consuldp proxy lifecycle management config
 	shutdownDrainListenersEnabled bool
 	shutdownGracePeriodSeconds    int
+	gracefulAddr                  string
 	gracefulPort                  int
 	gracefulShutdownPath          string
 	startupGracePeriodSeconds     int
@@ -58,6 +60,7 @@ func NewLifecycleConfig(cfg *Config, proxy envoy.ProxyManager) *lifecycleConfig 
 	return &lifecycleConfig{
 		shutdownDrainListenersEnabled: cfg.Envoy.ShutdownDrainListenersEnabled,
 		shutdownGracePeriodSeconds:    cfg.Envoy.ShutdownGracePeriodSeconds,
+		gracefulAddr:                  cfg.Envoy.GracefulAddr,
 		gracefulPort:                  cfg.Envoy.GracefulPort,
 		gracefulShutdownPath:          cfg.Envoy.GracefulShutdownPath,
 		dumpEnvoyConfigOnExitEnabled:  cfg.Envoy.DumpEnvoyConfigOnExitEnabled,
@@ -96,12 +99,16 @@ func (m *lifecycleConfig) startLifecycleManager(ctx context.Context) error {
 
 	// Determine what the proxy lifecycle management server bind port is. It can be
 	// set as a flag.
+	cdpLifecycleBindAddr := cdpLifecycleBindAddr
 	cdpLifecycleBindPort := defaultLifecycleBindPort
+	if m.gracefulAddr != "" {
+		cdpLifecycleBindAddr = m.gracefulAddr
+	}
 	if m.gracefulPort != 0 {
 		cdpLifecycleBindPort = strconv.Itoa(m.gracefulPort)
 	}
 	m.lifecycleServer = &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", cdpLifecycleBindAddr, cdpLifecycleBindPort),
+		Addr:    net.JoinHostPort(cdpLifecycleBindAddr, cdpLifecycleBindPort),
 		Handler: mux,
 	}
 

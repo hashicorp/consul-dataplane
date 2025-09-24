@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/mitchellh/mapstructure"
@@ -93,9 +92,12 @@ func (cdp *ConsulDataplane) bootstrapConfig(
 	if cdp.xdsServer.listenerNetwork == "unix" {
 		args.AgentSocket = cdp.xdsServer.listenerAddress
 	} else {
-		xdsServerFullAddr := strings.Split(cdp.xdsServer.listenerAddress, ":")
-		args.AgentAddress = xdsServerFullAddr[0]
-		args.AgentPort = xdsServerFullAddr[1]
+		h, p, err := net.SplitHostPort(cdp.xdsServer.listenerAddress)
+		if err != nil {
+			cdp.logger.Error("error splitting listenerAddress to host and port with error", err)
+		}
+		args.AgentAddress = h
+		args.AgentPort = p
 	}
 
 	if path := prom.CACertsPath; path != "" {

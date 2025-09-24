@@ -208,8 +208,8 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 
 	bootstrapParams, err := cdp.getBootstrapParams(ctx)
 	if err != nil {
-		cdp.logger.Error("failed to get bootstrap params", "error", err)
-		return fmt.Errorf("failed to get bootstrap config: %w", err)
+		cdp.logger.Error("failed to get bootstrap params ", "error", err)
+		return fmt.Errorf("failed to get bootstrap params: %w", err)
 	}
 	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
 
@@ -260,6 +260,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			doneCh <- err
 		case <-cdp.xdsServerExited():
 			// Initiate graceful shutdown of Envoy, kill if error
+			cdp.logger.Info("xds server exited. triggering quit")
 			if err := proxy.Quit(); err != nil {
 				cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", err)
 				if err := proxy.Kill(); err != nil {
@@ -270,6 +271,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		case <-cdp.metricsConfig.metricsServerExited():
 			doneCh <- errors.New("metrics server exited unexpectedly")
 		case <-cdp.lifecycleConfig.lifecycleServerExited():
+			cdp.logger.Info("lifecycleserver server exited. triggering quit")
 			// Initiate graceful shutdown of Envoy, kill if error
 			if err := proxy.Quit(); err != nil {
 				cdp.logger.Error("failed to stop proxy", "error", err)

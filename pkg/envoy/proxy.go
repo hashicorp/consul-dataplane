@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -207,7 +209,13 @@ func (p *Proxy) Drain() error {
 // Note: the caller is responsible for ensuring Quit is not called concurrently
 // with Run, as this is thread-unsafe.
 func (p *Proxy) Quit() error {
-	envoyShutdownUrl := fmt.Sprintf("http://%s:%v/quitquitquit", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+	envoyShutdownUrl := fmt.Sprintf(
+		"http://%s/quitquitquit",
+		net.JoinHostPort(
+			p.cfg.AdminAddr,
+			strconv.Itoa(p.cfg.AdminBindPort),
+		),
+	)
 
 	switch p.getState() {
 	case stateExited, stateStopped:

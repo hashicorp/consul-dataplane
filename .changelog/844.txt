@@ -1,0 +1,3 @@
+```release-note:security
+ipv6: Addition of IPv6 flags, which are related to consul-dataplane and envoy.
+```
