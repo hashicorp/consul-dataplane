@@ -60,7 +60,7 @@ func ExpectHTTPAccess(t *testing.T, ip string, port int) {
 }
 
 func canAccess(ip string, port int) (bool, error) {
-	url := fmt.Sprintf("http://%s:%d/", ip, port)
+	url := fmt.Sprintf("http://%s/", net.JoinHostPort(ip, strconv.Itoa(port)))
 	rsp, err := httpClient.Get(url)
 	if err != nil {
 		return false, err
@@ -103,7 +103,7 @@ func DNSLookup(t *testing.T, suite *Suite, protocol string, serverIP string, ser
 func GetMetrics(t *testing.T, ip string, port int) string {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s:%d/metrics", ip, port)
+	url := fmt.Sprintf("http://%s/metrics", net.JoinHostPort(ip, strconv.Itoa(port)))
 
 	rsp, err := httpClient.Get(url)
 	require.NoError(t, err)
@@ -123,7 +123,7 @@ func GetMetrics(t *testing.T, ip string, port int) string {
 func GetEnvoyClusters(t *testing.T, ip string, port int) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s:%d/clusters", ip, port)
+	url := fmt.Sprintf("http://%s/clusters", net.JoinHostPort(ip, strconv.Itoa(port)))
 
 	_, err := httpClient.Get(url)
 	require.NoError(t, err)
