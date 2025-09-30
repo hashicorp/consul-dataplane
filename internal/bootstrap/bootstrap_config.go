@@ -183,6 +183,10 @@ func (c *BootstrapConfig) Template() string {
 }
 
 func (c *BootstrapConfig) GenerateJSON(args *BootstrapTplArgs, omitDeprecatedTags bool) ([]byte, error) {
+
+	if args.GRPC.AgentTLS && args.AgentCAPEM == "" {
+		return nil, fmt.Errorf("envoy expects agent_ca_pem when agent_tls is true")
+	}
 	if err := c.ConfigureArgs(args, omitDeprecatedTags); err != nil {
 		return nil, err
 	}
@@ -654,7 +658,7 @@ func (c *BootstrapConfig) generateListenerConfig(args *BootstrapTplArgs, bindAdd
 		clusterPort = prometheusBackendPort
 		clusterName = "prometheus_backend"
 	}
-	
+
 	if !strings.HasPrefix(matchValue, "/") {
 		// Must begin with '/' for match to work and to support request URL parsing.
 		//
