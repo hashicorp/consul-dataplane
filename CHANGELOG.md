@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ##  1.9.0-rc1 (September 30, 2025)
+=======
+## 1.9.0-rc1 (September 30, 2025)
+>>>>>>> a5b7ed9 (Update CHANGELOG.md (#865))
 
 SECURITY:
 
