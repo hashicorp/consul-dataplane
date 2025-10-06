@@ -276,6 +276,7 @@ type PrometheusTelemetryConfig struct {
 
 // EnvoyConfig contains configuration for the Envoy process.
 type EnvoyConfig struct {
+	ExecutablePath string
 	// AdminBindAddress is the address on which the Envoy admin server will be available.
 	AdminBindAddress string
 	// AdminBindPort is the port on which the Envoy admin server will be available.

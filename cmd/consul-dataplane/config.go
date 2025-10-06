@@ -137,6 +137,7 @@ type EnvoyFlags struct {
 	Concurrency      *int    `json:"concurrency,omitempty"`
 	DrainTimeSeconds *int    `json:"drainTimeSeconds,omitempty"`
 	DrainStrategy    *string `json:"drainStrategy,omitempty"`
+	ExecutablePath   *string `json:"executablePath,omitempty"`
 
 	ShutdownDrainListenersEnabled *bool   `json:"shutdownDrainListenersEnabled,omitempty"`
 	ShutdownGracePeriodSeconds    *int    `json:"shutdownGracePeriodSeconds,omitempty"`
@@ -184,12 +185,7 @@ func (f *FlagOpts) buildDataplaneConfig(extraArgs []string) (*consuldp.Config, e
 		return nil, err
 	}
 
-	consuldpRuntimeConfig, err := constructRuntimeConfig(consulDPDefaultFlags, extraArgs)
-	if err != nil {
-		return nil, err
-	}
-
-	return consuldpRuntimeConfig, nil
+	return constructRuntimeConfig(consulDPDefaultFlags, extraArgs)
 }
 
 // Constructs a config based on the values present in the config json file
@@ -330,6 +326,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 		Envoy: &consuldp.EnvoyConfig{
 			AdminBindAddress:              stringVal(cfg.Envoy.AdminBindAddr),
 			AdminBindPort:                 intVal(cfg.Envoy.AdminBindPort),
+			ExecutablePath:                stringVal(cfg.Envoy.ExecutablePath),
 			ReadyBindAddress:              stringVal(cfg.Envoy.ReadyBindAddr),
 			ReadyBindPort:                 intVal(cfg.Envoy.ReadyBindPort),
 			EnvoyConcurrency:              intVal(cfg.Envoy.Concurrency),

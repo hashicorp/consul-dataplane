@@ -1695,3 +1695,71 @@ func TestAppendTelemetryCollectorMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestBootstrapConfig_GenerateJSON_TLSValidation(t *testing.T) {
+	// Helper function to create a minimal valid BootstrapTplArgs
+	minimalArgs := func() *BootstrapTplArgs {
+		return &BootstrapTplArgs{
+			GRPC: GRPC{
+				AgentAddress: "127.0.0.1",
+				AgentPort:    "8502",
+				AgentTLS:     false,
+			},
+			ProxyCluster:          "test-proxy",
+			ProxyID:               "test-proxy",
+			NodeName:              "test-node",
+			ProxySourceService:    "test-service",
+			AdminBindAddress:      "127.0.0.1",
+			AdminBindPort:         "19000",
+			LocalAgentClusterName: "consul-dataplane",
+		}
+	}
+
+	tests := []struct {
+		name        string
+		args        *BootstrapTplArgs
+		wantErr     bool
+		expectedErr string
+	}{
+		{
+			name:    "valid config without TLS",
+			args:    minimalArgs(),
+			wantErr: false,
+		},
+		{
+			name: "valid agent TLS config with CA",
+			args: func() *BootstrapTplArgs {
+				args := minimalArgs()
+				args.GRPC.AgentTLS = true
+				args.AgentCAPEM = "-----BEGIN CERTIFICATE-----MIICertificate-----END CERTIFICATE-----"
+				return args
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "invalid agent TLS config without CA",
+			args: func() *BootstrapTplArgs {
+				args := minimalArgs()
+				args.GRPC.AgentTLS = true
+				args.AgentCAPEM = ""
+				return args
+			}(),
+			wantErr:     true,
+			expectedErr: "envoy expects agent_ca_pem when agent_tls is true",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bc := &BootstrapConfig{}
+			_, err := bc.GenerateJSON(tt.args, false)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
