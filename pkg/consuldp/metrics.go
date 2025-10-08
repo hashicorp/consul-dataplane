@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -48,11 +49,11 @@ const (
 	// metrics. The envoy bootstrap config uses this port to setup the publicly
 	// available scrape url that prometheus listener which will point to this port
 	defaultMergedMetricsBackendBindPort = "20100"
-	mergedMetricsBackendBindHost        = "127.0.0.1:"
+	mergedMetricsBackendBindHost        = "[::1]:"
 
 	// The consul dataplane specific metrics will be exposed on this port on the loopback
 	cdpMetricsBindPort = "20101"
-	cdpMetricsBindAddr = "127.0.0.1:" + cdpMetricsBindPort
+	cdpMetricsBindAddr = "[::1]:" + cdpMetricsBindPort
 	cdpMetricsUrl      = "http://" + cdpMetricsBindAddr
 
 	// Distinguishing values for the type of sinks that are being used
@@ -180,7 +181,7 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 			mux.HandleFunc("/stats/prometheus", m.mergedMetricsHandler)
 			// Retain request query for Envoy endpoint to enable customizing response (see
 			// https://www.envoyproxy.io/docs/envoy/latest/operations/admin#get--stats?format=prometheus&usedonly).
-			envoyUrlFn, err := retainQueryUrlFn(fmt.Sprintf("http://%s:%v/stats/prometheus", m.envoyAdminAddr, m.envoyAdminBindPort))
+			envoyUrlFn, err := retainQueryUrlFn(fmt.Sprintf("http://%s/stats/prometheus", net.JoinHostPort(m.envoyAdminAddr, strconv.Itoa(m.envoyAdminBindPort))))
 			if err != nil {
 				return err
 			}
