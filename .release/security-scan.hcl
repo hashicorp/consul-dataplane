@@ -22,26 +22,26 @@ container {
   }
 
   triage {
-                suppress {
-                        vulnerabilities = [
-              "CVE-2025-6965",
-              "CVE-2025-6395",
-              "CVE-2024-12797",
-              "CVE-2025-5702",
-              "CVE-2025-8058",
-              "CVE-2024-4067",
-              "CVE-2025-31115",
-              "CVE-2025-3576",
-              "CVE-2025-6021",
-              "CVE-2025-25724",
-              "CVE-2024-57970",
-              "CVE-2025-32414",
-              "CVE-2024-52533",
-              "CVE-2025-5914",
-              "CVE-2025-3277",
-              "CVE-2024-40896"
-            ]
-        }
+    suppress {
+      vulnerabilities = [
+        "CVE-2025-6965",
+        "CVE-2025-6395",
+        "CVE-2024-12797",
+        "CVE-2025-5702",
+        "CVE-2025-8058",
+        "CVE-2024-4067",
+        "CVE-2025-31115",
+        "CVE-2025-3576",
+        "CVE-2025-6021",
+        "CVE-2025-25724",
+        "CVE-2024-57970",
+        "CVE-2025-32414",
+        "CVE-2024-52533",
+        "CVE-2025-5914",
+        "CVE-2025-3277",
+        "CVE-2024-40896"
+      ]
+    }
   }
 }
 
@@ -56,7 +56,7 @@ binary {
 
 repository {
   go_modules = true
-  npm        = true  
+  npm        = true
   osv        = true
 
   secrets {
@@ -67,12 +67,12 @@ repository {
     suppress {
       # Only remaining vulnerabilities in integration tests (archived go-jose v2)
       vulnerabilities = [
-        "CVE-2024-28180",          
-        "GHSA-c5q2-7r4c-mv6g",     
-        "GO-2024-2631"             
+        "CVE-2024-28180",
+        "GHSA-c5q2-7r4c-mv6g",
+        "GO-2024-2631"
       ]
       paths = [
-        # SHA1 usage in bootstrap config is for non-security purposes  
+        # SHA1 usage in bootstrap config is for non-security purposes
         "internal/bootstrap/bootstrap_config.go"
       ]
     }
