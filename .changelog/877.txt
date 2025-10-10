@@ -1,0 +1,3 @@
+```release-note:security
+dependencies: Updated integration-tests dependencies and added CVE suppressions to address security vulnerabilities in test suite
+```
