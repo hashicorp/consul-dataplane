@@ -53,3 +53,28 @@ binary {
     all = true
   }
 }
+
+repository {
+  go_modules = true
+  npm        = true  
+  osv        = true
+
+  secrets {
+    all = true
+  }
+
+  triage {
+    suppress {
+      # Only remaining vulnerabilities in integration tests (archived go-jose v2)
+      vulnerabilities = [
+        "CVE-2024-28180",          
+        "GHSA-c5q2-7r4c-mv6g",     
+        "GO-2024-2631"             
+      ]
+      paths = [
+        # SHA1 usage in bootstrap config is for non-security purposes  
+        "internal/bootstrap/bootstrap_config.go"
+      ]
+    }
+  }
+}
