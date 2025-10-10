@@ -49,11 +49,11 @@ const (
 	// metrics. The envoy bootstrap config uses this port to setup the publicly
 	// available scrape url that prometheus listener which will point to this port
 	defaultMergedMetricsBackendBindPort = "20100"
-	mergedMetricsBackendBindHost        = "[::1]:"
+	mergedMetricsBackendBindHost        = "[::]:"
 
 	// The consul dataplane specific metrics will be exposed on this port on the loopback
 	cdpMetricsBindPort = "20101"
-	cdpMetricsBindAddr = "[::1]:" + cdpMetricsBindPort
+	cdpMetricsBindAddr = "[::]:" + cdpMetricsBindPort
 	cdpMetricsUrl      = "http://" + cdpMetricsBindAddr
 
 	// Distinguishing values for the type of sinks that are being used
