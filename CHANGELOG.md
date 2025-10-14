@@ -1,12 +1,5 @@
 ## 1.6.9 (September 27, 2025)
 
-go run github.com/hashicorp/go-changelog/cmd/changelog-build@latest \
-		-last-release v1.6.8 \
-		-entries-dir .changelog/ \
-		-changelog-template .changelog/changelog.tmpl \
-		-note-template .changelog/note.tmpl \
-		-this-release 95df89095502df880522b28c514082ba37115961
-
 SECURITY:
 
 * go: upgrade go version to 1.25.1 [[GH-839](https://github.com/hashicorp/consul-dataplane/pull/839)]
