@@ -1,10 +1,4 @@
 ## 1.8.2 (September 27, 2025)
-go run github.com/hashicorp/go-changelog/cmd/changelog-build@latest \
-		-last-release v1.8.1 \
-		-entries-dir .changelog/ \
-		-changelog-template .changelog/changelog.tmpl \
-		-note-template .changelog/note.tmpl \
-		-this-release e1ae083ae2bf6bdf6e7415996912ec02bf66fa3f
 
 SECURITY:
 
