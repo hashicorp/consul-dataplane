@@ -13,7 +13,9 @@ SECURITY:
 
 FEATURES:
 
-* Implemented a subcommand "check-proxy-health" which checks whether locally running envoy proxy is ready or not by calling http endpoint /ready on evoy admin URL. This is implemented for kubelet startup and liveness probes when consul-dataplane is registered as sidecar container. [[GH-799](https://github.com/hashicorp/consul-dataplane/pull/799)]## 1.7.4 (August 14, 2025)
+* Implemented a subcommand "check-proxy-health" which checks whether locally running envoy proxy is ready or not by calling http endpoint /ready on evoy admin URL. This is implemented for kubelet startup and liveness probes when consul-dataplane is registered as sidecar container. [[GH-799](https://github.com/hashicorp/consul-dataplane/pull/799)]
+
+## 1.7.4 (August 14, 2025)
 
 SECURITY:
 
