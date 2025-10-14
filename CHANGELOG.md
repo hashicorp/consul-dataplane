@@ -1,3 +1,20 @@
+## 1.6.9 (September 27, 2025)
+
+go run github.com/hashicorp/go-changelog/cmd/changelog-build@latest \
+		-last-release v1.6.8 \
+		-entries-dir .changelog/ \
+		-changelog-template .changelog/changelog.tmpl \
+		-note-template .changelog/note.tmpl \
+		-this-release 95df89095502df880522b28c514082ba37115961
+
+SECURITY:
+
+* go: upgrade go version to 1.25.1 [[GH-839](https://github.com/hashicorp/consul-dataplane/pull/839)]
+
+FEATURES:
+
+* Implemented a subcommand "check-proxy-health" which checks whether locally running envoy proxy is ready or not by calling http endpoint /ready on evoy admin URL. This is implemented for kubelet startup and liveness probes when consul-dataplane is registered as sidecar container. [[GH-799](https://github.com/hashicorp/consul-dataplane/pull/799)]
+
 ## 1.6.8 (August 14, 2025)
 
 SECURITY:
