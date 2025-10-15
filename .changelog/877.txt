@@ -1,0 +1,9 @@
+```release-note:security
+Updated integration-tests dependencies and added CVE suppressions. Fixed docker/distribution compatibility issue by pinning to v2.8.2+incompatible to resolve reference.SplitHostname undefined error. This addresses CVEs
+
+[CVE-2024-28180]        (https://github.com/advisories/GHSA-c5q2-7r4c-mv6g) (`go-jose v2`),
+[GHSA-c5q2-7r4c-mv6g]   (https://github.com/advisories/GHSA-c5q2-7r4c-mv6g) (`go-jose v2`), and
+[GO-2024-2631]          (https://pkg.go.dev/vuln/GO-2024-2631)              (`go-jose v2`)
+
+in integration test dependencies. These vulnerabilities affect only test environments and do not impact production consul-dataplane deployments.
+```
