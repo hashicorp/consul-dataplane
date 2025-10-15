@@ -13,9 +13,10 @@
 # See `security-scanner` docs or run with `--help` for scan target syntax.
 
 container {
-  dependencies = true
-  alpine_secdb = true
-  osv          = true
+  dependencies    = true
+  alpine_security = true
+  osv             = true
+  go_modules      = true
 
   secrets {
     all = true
