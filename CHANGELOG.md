@@ -1,3 +1,9 @@
+## 1.9.0-rc2 (October 15, 2025)
+
+SECURITY:
+
+* go: upgrade go version to 1.25.3 [[GH-889](https://github.com/hashicorp/consul-dataplane/pull/889)]
+
 ## 1.9.0-rc1 (September 30, 2025)
 
 SECURITY:
