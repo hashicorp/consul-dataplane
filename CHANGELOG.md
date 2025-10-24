@@ -11,6 +11,22 @@ IMPROVEMENTS:
 * The Docker image now includes both privileged and non-privileged binaries for both consul-dataplane and envoy. You can use `privileged-consul-dataplane` as the container command to run with the necessary capabilities for binding to privileged ports, or use the default binaries for standard use cases. [[GH-652](https://github.com/hashicorp/consul-dataplane/pull/652)]
 * Update Envoy version to 1.35.3 [[GH-857](https://github.com/hashicorp/consul-dataplane/pull/857)]
 
+## 1.9.0-rc2 (October 15, 2025)
+
+SECURITY:
+
+ * go: upgrade go version to 1.25.3 [[GH-889](https://github.com/hashicorp/consul-dataplane/pull/889)]
+
+## 1.9.0-rc1 (September 30, 2025)
+
+SECURITY:
+
+build: upgrade go-discover version to 1.1.0 [GH-803]
+ipv6: Addition of IPv6 flags, which are related to consul-dataplane and envoy. [GH-844]
+IMPROVEMENTS:
+
+The Docker image now includes both privileged and non-privileged binaries for both consul-dataplane and envoy. You can use privileged-consul-dataplane as the container command to run with the necessary capabilities for binding to privileged ports, or use the default binaries for standard use cases. [GH-652]
+Update Envoy version to 1.35.3 [GH-857]
 
 ## 1.8.1 (August 14, 2025)
 
