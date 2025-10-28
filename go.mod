@@ -1,13 +1,13 @@
 module github.com/hashicorp/consul-dataplane
 
-go 1.25.1
+go 1.25.3
 
 require (
 	dario.cat/mergo v1.0.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/hashi-derek/grpc-proxy v0.0.0-20231207191910-191266484d75
 	github.com/hashicorp/consul-server-connection-manager v0.1.12
-	github.com/hashicorp/consul/proto-public v0.6.4
+	github.com/hashicorp/consul/proto-public v0.7.0
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
