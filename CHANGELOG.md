@@ -1,3 +1,20 @@
+## 1.8.5 (November 16, 2025)
+SECURITY:
+
+* Updated integration-tests dependencies and added CVE suppressions. Fixed docker/distribution compatibility issue by pinning to v2.8.2+incompatible to resolve reference.SplitHostname undefined error. This addresses CVEs
+
+[CVE-2024-28180]        (https://github.com/advisories/GHSA-c5q2-7r4c-mv6g) (`go-jose v2`),
+[GHSA-c5q2-7r4c-mv6g]   (https://github.com/advisories/GHSA-c5q2-7r4c-mv6g) (`go-jose v2`), and
+[GO-2024-2631]          (https://pkg.go.dev/vuln/GO-2024-2631)              (`go-jose v2`)
+
+in integration test dependencies. These vulnerabilities affect only test environments and do not impact production consul-dataplane deployments. [[GH-877](https://github.com/hashicorp/consul-dataplane/pull/877)]
+* Upgrade to use Go 1.25.3 [[GH-890](https://github.com/hashicorp/consul-dataplane/pull/890)]
+* build: upgrade go-discover version to 1.1.0 [[GH-803](https://github.com/hashicorp/consul-dataplane/pull/803)]
+* ipv6: Addition of IPv6 flags, which are related to consul-dataplane and envoy. [[GH-844](https://github.com/hashicorp/consul-dataplane/pull/844)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.35.3 [[GH-857](https://github.com/hashicorp/consul-dataplane/pull/857)]
 ## 1.9.0-rc2 (October 15, 2025)
 
 SECURITY:
