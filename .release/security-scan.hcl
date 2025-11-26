@@ -47,7 +47,10 @@ container {
         "GO-2025-4134",
         "GO-2025-4135",
         "GHSA-f6x5-jh6r-wrfv",
-        "GHSA-j5w8-q4qc-rx2x"
+        "GHSA-j5w8-q4qc-rx2x",
+        "CVE-2025-9230",
+        "CVE-2025-9714",
+        "CVE-2024-56433"
       ]
     }
   }
