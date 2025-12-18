@@ -212,7 +212,9 @@ LABEL name=${BIN_NAME}\
 
 COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
-RUN microdnf install -y shadow-utils
+RUN microdnf update -y && \
+    microdnf install -y shadow-utils && \
+    microdnf clean all
 
 # Create a non-root user to run the software.
 RUN groupadd --gid 1000 $PRODUCT_NAME && \
