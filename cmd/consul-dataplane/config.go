@@ -21,6 +21,7 @@ type FlagOpts struct {
 	configFile   string
 }
 
+// DataplaneConfigFlags holds the configuration flags for consul-dataplane
 type DataplaneConfigFlags struct {
 	Mode      *string        `json:"mode,omitempty"`
 	Consul    ConsulFlags    `json:"consul,omitempty"`
