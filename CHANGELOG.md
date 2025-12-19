@@ -1,3 +1,9 @@
+## 1.7.9 (December 19, 2025)
+
+SECURITY:
+
+* Add microdnf upgrade in dockerfile to include future security fixes [[GH-936](https://github.com/hashicorp/consul-dataplane/pull/936)]
+
 ## 1.7.6 (October 28, 2025)
 
 IMPROVEMENTS:
