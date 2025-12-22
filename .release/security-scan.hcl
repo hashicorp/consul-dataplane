@@ -59,7 +59,7 @@ container {
         "DEBIAN-CVE-2025-27587",
         "DLA-3942-2",
         "DLA-4176-1",
-        "DLA-4321-1"
+        "DLA-4321-1",
         # Go Modules Scanner usr/local/bin/discover
         "GHSA-4f99-4q7p-p3gh",
         "GO-2025-4116",
