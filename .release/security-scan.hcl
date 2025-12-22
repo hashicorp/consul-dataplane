@@ -42,7 +42,32 @@ container {
         "CVE-2024-52533",
         "CVE-2025-5914",
         "CVE-2025-3277",
-        "CVE-2024-40896"
+        "CVE-2024-40896",
+        # Dependency Scanner
+        "DLA-3972-1", # var/lib/dpkg/status.d/tzdata:
+        "DLA-4085-1",
+        "DLA-4105-1",
+        "DLA-4403-1",
+        "DEBIAN-CVE-2023-5678", # var/lib/dpkg/status.d/openssl:
+        "DEBIAN-CVE-2024-0727",
+        "DEBIAN-CVE-2024-2511",
+        "DEBIAN-CVE-2024-4741",
+        "DEBIAN-CVE-2024-5535",
+        "DEBIAN-CVE-2024-9143",
+        "DEBIAN-CVE-2024-13176",
+        "DEBIAN-CVE-2025-9230",
+        "DEBIAN-CVE-2025-27587",
+        "DLA-3942-2",
+        "DLA-4176-1",
+        "DLA-4321-1"
+        # Go Modules Scanner usr/local/bin/discover
+        "GHSA-4f99-4q7p-p3gh",
+        "GO-2025-4116",
+        "GO-2025-4134",
+        "GO-2025-4135",
+        "GO-2025-4188",
+        "GHSA-f6x5-jh6r-wrfv",
+        "GHSA-j5w8-q4qc-rx2x",
       ]
     }
   }
