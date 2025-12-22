@@ -27,6 +27,7 @@ container {
   triage {
     suppress {
       vulnerabilities = [
+        # TODO Fix all the CVEs listed below or justify why they can be ignored.
         "CVE-2025-6965",
         "CVE-2025-6395",
         "CVE-2024-12797",
