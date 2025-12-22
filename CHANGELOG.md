@@ -1,6 +1,7 @@
 ## 1.9.2 (December 18, 2025)
 SECURITY:
 
+* go: Upgrade golang to 1.25.5. [[GH-934](https://github.com/hashicorp/consul-dataplane/pull/934)]
 * Add microdnf upgrade in dockerfile to include future security fixes [[GH-931](https://github.com/hashicorp/consul-dataplane/pull/931)]
 
 ## 1.9.0 (October 27, 2025)
