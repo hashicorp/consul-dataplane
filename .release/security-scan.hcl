@@ -48,10 +48,10 @@ container {
         "GHSA-f6x5-jh6r-wrfv", 
         "GHSA-j5w8-q4qc-rx2x",
         "GHSA-4f99-4q7p-p3gh",
-        "GO-2025-4135",
+        "GO-2025-4135",             
         "GO-2025-4116",
         "GO-2025-4134",
-        "CVE-2006-1174",
+        "CVE-2006-1174",   #var/lib/rpm/rpmdb.sqlite:1:1
         "CVE-2010-5298",
         "CVE-2014-3505",
         "CVE-2014-3513",
