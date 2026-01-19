@@ -14,8 +14,7 @@ ARG GOLANG_VERSION
 FROM envoyproxy/envoy-distroless:v1.33.6 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
-FROM debian:bullseye-slim AS setcap-envoy-binary
-
+FROM debian:bookworm-slim AS setcap-envoy-binary
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
 ARG TARGETOS
@@ -23,7 +22,7 @@ ARG TARGETOS
 COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
-RUN apt-get update && apt install -y libcap2-bin
+RUN apt-get update && apt-get upgrade -y && apt install -y libcap2-bin && rm -rf /var/lib/apt/lists/*
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
@@ -56,7 +55,7 @@ RUN apk add dumb-init
 
 # release-default release image
 # -----------------------------------
-FROM gcr.io/distroless/base-debian11 AS release-default
+FROM gcr.io/distroless/base-debian12 AS release-default
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
@@ -98,7 +97,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 
 # FIPS release-default release image
 # -----------------------------------
-FROM gcr.io/distroless/base-debian11 AS release-fips-default
+FROM gcr.io/distroless/base-debian12 AS release-fips-default
 
 ARG BIN_NAME
 ARG PRODUCT_VERSION
@@ -163,7 +162,11 @@ LABEL name=${BIN_NAME}\
 
 COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
-RUN microdnf install -y shadow-utils
+# FIX: Added microdnf update to patch UBI layer
+RUN microdnf update -y && \
+    microdnf install -y shadow-utils && \
+    microdnf clean all
+
 
 # Create a non-root user to run the software.
 RUN groupadd --gid 1000 $PRODUCT_NAME && \
