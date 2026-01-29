@@ -1,4 +1,4 @@
-## 1.7.10 (October 28, 2025)
+## 1.7.10 (January 23, 2026)
 SECURITY:
 
 * Upgrade go version to 1.25.5 [[GH-955](https://github.com/hashicorp/consul-dataplane/pull/955)]
