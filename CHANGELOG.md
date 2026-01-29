@@ -5,7 +5,7 @@ SECURITY:
 
 IMPROVEMENTS:
 
-* Update Envoy version to 1.34.12 [[GH-975](https://github.com/hashicorp/consul-dataplane/pull/975)]
+* Update Envoy version to 1.34.12 [[GH-974](https://github.com/hashicorp/consul-dataplane/pull/974)]
 
 ## 1.8.3 (October 28, 2025)
 
