@@ -1,3 +1,12 @@
+## 1.8.8 (January 23, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.5 [[GH-955](https://github.com/hashicorp/consul-dataplane/pull/955)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.34.12 [[GH-975](https://github.com/hashicorp/consul-dataplane/pull/975)]
+
 ## 1.8.3 (October 28, 2025)
 
 IMPROVEMENTS:
