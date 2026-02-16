@@ -191,7 +191,7 @@ func (s *Suite) Volume(t *testing.T) *Volume {
 	defer s.mu.Unlock()
 
 	if s.volume == nil {
-		docker, err := testcontainers.NewDockerClientWithOpts(context.Background())
+		docker, err := testcontainers.NewDockerClientWithOpts(s.Context(t))
 		require.NoError(t, err)
 
 		v, err := docker.VolumeCreate(
