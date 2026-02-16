@@ -84,9 +84,6 @@ require (
 	gotest.tools/v3 v3.5.2 // indirect
 )
 
-// Hack for the latest version of testcontainers to work
-// https://golang.testcontainers.org/quickstart/#2-install-testcontainers-for-go
-replace github.com/docker/docker => github.com/docker/docker v27.3.1+incompatible
 
 // Fix compatibility issue with docker/distribution and reference packages
 replace github.com/docker/distribution => github.com/docker/distribution v2.8.2+incompatible
