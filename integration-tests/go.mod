@@ -20,7 +20,6 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/containerd/containerd v1.7.28 // indirect
-	github.com/containerd/continuity v0.4.5 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -70,7 +69,7 @@ require (
 
 // Hack for the latest version of testcontainers to work
 // https://golang.testcontainers.org/quickstart/#2-install-testcontainers-for-go
-replace github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013203545-33ab36d6b304+incompatible // 22.06 branch
+replace github.com/docker/docker => github.com/docker/docker v24.0.9+incompatible
 
 // Fix compatibility issue with docker/distribution and reference packages
 replace github.com/docker/distribution => github.com/docker/distribution v2.8.2+incompatible
