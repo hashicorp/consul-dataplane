@@ -123,7 +123,7 @@ jobs:
 
       - name: Build ubuntu-focal-builder image
         if: ${{ matrix.goos != 'windows' && matrix.fips == '+fips1402' }}
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4
+        uses: docker/build-push-action@v2
         with:
           platforms: linux/amd64 # we only ever build amd64 images because we always run on amd64 runners and cross-compile inside the container if needed
           context: .github/containers/ubuntu/
