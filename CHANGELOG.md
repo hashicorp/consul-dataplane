@@ -1,3 +1,10 @@
+
+## 1.7.11 (February 19, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.7 [[GH-985](https://github.com/hashicorp/consul-dataplane/pull/985)]
+* go: upgrade go discover version to c9daf450621856f81604e3495af612b95db907d5 [[GH-997](https://github.com/hashicorp/consul-dataplane/pull/997)]
+
 ## 1.7.10 (January 23, 2026)
 SECURITY:
 
