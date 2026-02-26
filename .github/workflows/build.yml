@@ -3,6 +3,7 @@ name: build
 # We now default to running this workflow on every pull_request push
 # in addition to protected branch push.
 #
+# Why we run it
 # This provides fast feedback when build issues occur, so they can be
 # fixed prior to being merged.
 #
