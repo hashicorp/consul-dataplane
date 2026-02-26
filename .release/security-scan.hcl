@@ -122,6 +122,7 @@ container {
         "DEBIAN-CVE-2025-69418",
         "DEBIAN-CVE-2025-69421",
         "CVE-2025-69419",
+        "DLA-4490-1",
       ]
     }
   }
