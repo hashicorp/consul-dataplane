@@ -17,6 +17,7 @@ jobs:
       # We only allow use of conditional skip in two scenarios:
       #   1. PRs
       #   2. Pushes (merges) to protected branches (`main`, `release/**`)
+      #   3. Pushes to allowed special branches (e.g., `fixcves`)
       #
       # The second scenario is the only place we can be sure that checking just the
       # latest change on the branch is sufficient. In PRs, we need to check _all_ commits.
@@ -24,7 +25,7 @@ jobs:
       # workflow, since `base_ref` (the target branch of a PR) is only available in
       # `pull_request` events, not `push`.
       - name: Error if conditional check is not allowed
-        if: ${{ !github.base_ref && !github.ref_protected }}
+        if: ${{ !github.base_ref && !github.ref_protected && github.ref_name != 'fixcves' }}
         run: |
           echo "Conditional skip requires a PR event with 'base_ref' or 'push' to a protected branch."
           echo "github.base_ref: ${{ github.base_ref }}"
