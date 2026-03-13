@@ -5,7 +5,7 @@ go 1.25.7
 require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/hashicorp/consul/api v1.33.2
+	github.com/hashicorp/consul/api v1.33.4
 	github.com/miekg/dns v1.1.50
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.32.0
@@ -83,7 +83,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )
-
 
 // Fix compatibility issue with docker/distribution and reference packages
 replace github.com/docker/distribution => github.com/docker/distribution v2.8.2+incompatible
