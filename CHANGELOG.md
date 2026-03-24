@@ -3,7 +3,7 @@ SECURITY:
 
 * security: upgrade go version to 1.25.8 
 * security: upgrade envoy version to v1.34.13 
-* security: update google.golang.org/grpc to fix CVE-2026-33186 [[GH-1035](https://github.com/hashicorp/consul-dataplane/pull/1035)]
+* security: update google.golang.org/grpc to fix CVE-2026-33186 [[GH-1028](https://github.com/hashicorp/consul-dataplane/pull/1028)]
 
 ## 1.7.12 (February 26, 2026)
 SECURITY:
