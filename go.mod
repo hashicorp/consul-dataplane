@@ -3,7 +3,7 @@ module github.com/hashicorp/consul-dataplane
 go 1.25.8
 
 require (
-	dario.cat/mergo v1.0.2
+	dario.cat/mergo v1.0.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/hashi-derek/grpc-proxy v0.0.0-20231207191910-191266484d75
 	github.com/hashicorp/consul-server-connection-manager v0.1.12
