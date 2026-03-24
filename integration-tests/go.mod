@@ -3,7 +3,7 @@ module github.com/hashicorp/consul-dataplane/integration-tests
 go 1.25.8
 
 require (
-	github.com/docker/docker v27.3.1+incompatible
+	github.com/docker/docker v28.0.0+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/hashicorp/consul/api v1.33.4
 	github.com/miekg/dns v1.1.50
