@@ -1,3 +1,9 @@
+## 1.9.6 (March 25, 2026)
+SECURITY:
+
+* security: upgrade go version to 1.25.8 
+* security: update google.golang.org/grpc to fix CVE-2026-33186 [[GH-1028](https://github.com/hashicorp/consul-dataplane/pull/1028)]
+
 ## 1.9.5 (February 26, 2026)
 SECURITY:
 
