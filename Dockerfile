@@ -56,7 +56,7 @@ RUN apk add dumb-init
 
 # release-default release image
 # -----------------------------------
-FROM gcr.io/distroless/base-debian11 AS release-default
+FROM gcr.io/distroless/base-debian12 AS release-default
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
@@ -98,7 +98,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 
 # FIPS release-default release image
 # -----------------------------------
-FROM gcr.io/distroless/base-debian11 AS release-fips-default
+FROM gcr.io/distroless/base-debian12 AS release-fips-default
 
 ARG BIN_NAME
 ARG PRODUCT_VERSION
