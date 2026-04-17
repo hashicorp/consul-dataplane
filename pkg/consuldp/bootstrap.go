@@ -104,9 +104,6 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 	}
 
 	var bootstrapConfig bootstrap.BootstrapConfig
-	if envoy.ReadyBindAddress != "" && envoy.ReadyBindPort != 0 {
-		bootstrapConfig.ReadyBindAddr = net.JoinHostPort(envoy.ReadyBindAddress, strconv.Itoa(envoy.ReadyBindPort))
-	}
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
 		if rsp.BootstrapConfig != nil {
@@ -124,6 +121,18 @@ func (cdp *ConsulDataplane) bootstrapConfig(ctx context.Context) (*bootstrap.Boo
 		// metrics (Envoy + Dataplane + service metrics).
 		// Documentation: https://www.consul.io/commands/connect/envoy#prometheus-backend-port
 		args.PrometheusBackendPort = strconv.Itoa(prom.MergePort)
+	}
+
+	// NOTE: ReadyBindAddr must be set AFTER WeakDecode/bootstrapConfigFromCfg above,
+	// because those operations overwrite all fields in bootstrapConfig from the Consul
+	// central proxy config, resetting ReadyBindAddr to empty. Default address to
+	// 0.0.0.0 when only port is specified.
+	if envoy.ReadyBindPort != 0 {
+		addr := envoy.ReadyBindAddress
+		if addr == "" {
+			addr = "0.0.0.0"
+		}
+		bootstrapConfig.ReadyBindAddr = net.JoinHostPort(addr, strconv.Itoa(envoy.ReadyBindPort))
 	}
 
 	bootstrapConfig.Logger = cdp.logger.Named("bootstrap-config")

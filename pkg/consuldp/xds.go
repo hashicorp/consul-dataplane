@@ -26,8 +26,10 @@ const (
 // director is the helper called by the unknown service gRPC handler. This helper is responsible for injecting the ACL token
 // into the outgoing Consul server request and returning the target consul server gRPC connection.
 func (cdp *ConsulDataplane) director(ctx context.Context, fullMethodName string) (context.Context, *grpc.ClientConn, error) {
+	cdp.logger.Info("xDS director called", "method", fullMethodName)
 	// check to ensure other unknown/unregistered RPCs are not proxied to the target consul server.
 	if !strings.Contains(fullMethodName, envoyADSMethodName) {
+		cdp.logger.Warn("xDS director rejecting unknown method", "method", fullMethodName)
 		return ctx, nil, status.Errorf(codes.Unimplemented, "Unknown method %s", fullMethodName)
 	}
 
@@ -40,6 +42,7 @@ func (cdp *ConsulDataplane) director(ctx context.Context, fullMethodName string)
 	}
 	mdCopy.Set(metadataKeyToken, cdp.aclToken)
 	outCtx := metadata.NewOutgoingContext(ctx, mdCopy)
+	cdp.logger.Info("xDS director proxying to server", "serverConn_target", cdp.serverConn.Target(), "serverConn_state", cdp.serverConn.GetState().String())
 	return outCtx, cdp.serverConn, nil
 }
 
@@ -118,7 +121,10 @@ func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServ
 
 func (cdp *ConsulDataplane) streamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		return handler(srv, &metricServerStream{ss})
+		cdp.logger.Info("xDS stream interceptor called", "method", info.FullMethod, "isClientStream", info.IsClientStream, "isServerStream", info.IsServerStream)
+		err := handler(srv, &metricServerStream{ss})
+		cdp.logger.Info("xDS stream interceptor done", "method", info.FullMethod, "error", err)
+		return err
 	}
 }
 

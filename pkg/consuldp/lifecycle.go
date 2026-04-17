@@ -20,7 +20,7 @@ import (
 const (
 	// defaultLifecycleBindPort is the port which will serve the proxy lifecycle HTTP
 	// endpoints on the loopback interface.
-	defaultLifecycleBindPort = "20300"
+	defaultLifecycleBindPort = "20600"
 	cdpLifecycleBindAddr     = "127.0.0.1"
 	cdpLifecycleUrl          = "http://" + cdpLifecycleBindAddr
 

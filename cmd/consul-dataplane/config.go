@@ -240,7 +240,7 @@ func buildDefaultConsulDPFlags() (DataplaneConfigFlags, error) {
 			"shutdownDrainListenersEnabled": false,
 			"shutdownGracePeriodSeconds": 0,
 			"gracefulShutdownPath": "/graceful_shutdown",
-			"gracefulPort": 20300,
+			"gracefulPort": 20600,
 			"dumpEnvoyConfigOnExitEnabled": false,
 			"gracefulStartupPath": "/graceful_startup",
 			"startupGracePeriodSeconds": 0

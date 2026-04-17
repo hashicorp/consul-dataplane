@@ -1,0 +1,11 @@
+apiVersion: v1
+data:
+  token: NjFmNjlhMjctMDI4ZC1hZDc2LWU0ZTUtYjUzODMzNGNhZjNl
+kind: Secret
+metadata:
+  labels:
+    managed-by: consul-k8s
+  name: bootstrap-acl-token
+  namespace: consul
+type: Opaque
+# the token: 61f69a27-028d-ad76-e4e5-b538334caf3e

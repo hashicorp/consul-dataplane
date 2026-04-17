@@ -1,0 +1,56 @@
+global:
+  name: "consul"
+  logLevel: info
+  image: "hashicorp/consul-enterprise:$CONSUL_ENTERPRISE_VERSION-ent"
+  # imageK8S: "hashicorp/consul-k8s-control-plane:$CONSUL_K8S_VERSION"
+  enterpriseLicense:
+    secretName: "consul-ent-license"
+    secretKey: "key"
+  enableConsulNamespaces: true 
+  tls:
+    enabled: true
+    enableAutoEncrypt: true
+  adminPartitions:
+    enabled: false
+  acls:
+    manageSystemACLs: true
+    bootstrapToken:
+      secretName: bootstrap-acl-token
+      secretKey: token
+  gossipEncryption:
+    autoGenerate: true
+
+server:
+  replicas: 1
+  securityContext: 
+    fsGroup: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+    runAsUser: 0
+
+connectInject:
+  replicas: 1
+  enabled: true
+  apiGateway:
+    enabled: true
+    image: hashicorp/consul-api-gateway:$APIGW_VERSION
+    managedGatewayClass:
+      serviceType: NodePort
+
+client:
+  enabled: true
+  securityContext: 
+    fsGroup: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+    runAsUser: 0
+ui:
+  enabled: true
+  service:
+    enabled: true
+    type: NodePort
+    port:
+      https: 8501
+    nodePort:
+      https: 30001
+
