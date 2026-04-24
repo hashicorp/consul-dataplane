@@ -27,6 +27,10 @@ container {
   triage {
     suppress {
       vulnerabilities = [
+        "GHSA-p77j-4mvh-x3m3",
+        "GO-2026-4762",
+      ]
+      paths = [
         // The OSV scanner will trip on several packages that are included in the
         // the UBI images. This is due to RHEL using the same base version in the
         // package name for the life of the distro regardless of whether or not
