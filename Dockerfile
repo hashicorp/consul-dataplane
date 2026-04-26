@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-FROM hashicorp/envoy:1.35.3 as envoy-binary
+FROM hashicorp/envoy:1.37.2 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-binary
@@ -27,7 +27,7 @@ RUN apt-get update && apt install -y libcap2-bin
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
 RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 
-FROM hashicorp/envoy-fips:1.33.0-fips1402 as envoy-fips-binary
+FROM hashicorp/envoy-fips:1.37.2-fips1402 as envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-fips-binary
@@ -141,7 +141,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.6 as release-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.7 as release-ubi
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
