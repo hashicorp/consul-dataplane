@@ -1,3 +1,16 @@
+## 2.0.0-rc1 (April 27, 2026)
+SECURITY:
+
+* - security: upgrade go version to 1.26 [[GH-1049](https://github.com/hashicorp/consul-dataplane/pull/1049)]
+* Add microdnf upgrade in dockerfile to include future security fixes [[GH-917](https://github.com/hashicorp/consul-dataplane/pull/917)]
+* Update to UBI base image to 9.7. [[GH-1050](https://github.com/hashicorp/consul-dataplane/pull/1050)]
+* Upgrade to use Go 1.25.3 [[GH-890](https://github.com/hashicorp/consul-dataplane/pull/890)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.37.2 [[GH-1052](https://github.com/hashicorp/consul-dataplane/pull/1052)]
+* security: Upgrade golang to 1.25.2. [[GH-883](https://github.com/hashicorp/consul-dataplane/pull/883)]
+
 ## 1.9.6 (March 25, 2026)
 SECURITY:
 
