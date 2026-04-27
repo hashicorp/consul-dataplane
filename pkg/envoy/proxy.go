@@ -179,7 +179,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 // Note: the caller is responsible for ensuring Drain is not called concurrently
 // with Run, as this is thread-unsafe.
 func (p *Proxy) Drain() error {
-	envoyDrainListenersUrl := fmt.Sprintf("http://%s/drain_listeners?inboundonly&graceful", net.JoinHostPort(p.cfg.AdminAddr, strconv.Itoa(p.cfg.AdminBindPort)))
+	envoyDrainListenersUrl := fmt.Sprintf("http://%s/drain_listeners?inboundonly&graceful&skip_exit", net.JoinHostPort(p.cfg.AdminAddr, strconv.Itoa(p.cfg.AdminBindPort)))
 	switch p.getState() {
 	case stateExited:
 		// Nothing to do!
