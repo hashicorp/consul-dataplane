@@ -1,0 +1,3 @@
+```release-note:bug
+- envoy: prevent graceful shutdown errors from closing errorExitCh, which caused Envoy to be killed immediately bypassing the configured grace period
+```
