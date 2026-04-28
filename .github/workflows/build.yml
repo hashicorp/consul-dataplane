@@ -345,7 +345,7 @@ jobs:
             image: hashicorppreview/consul:1.21-dev
           - version: v1.22.0-dev
             image: hashicorppreview/consul:1.22-dev
-          - version: v2.0-dev
+          - version: v2.0.0-dev
             image: hashicorppreview/consul:2.0-dev
         dataplane:
           - image_suffix: ""
