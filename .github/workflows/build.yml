@@ -287,7 +287,7 @@ jobs:
           smoke_test: |
             TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
-              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}}."
+              echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
             fi
             echo "Test PASSED"
@@ -341,12 +341,12 @@ jobs:
     strategy:
       matrix:
         server:
-          - version: v1.18.0-dev
-            image: hashicorppreview/consul:1.18-dev
           - version: v1.21.0-dev
             image: hashicorppreview/consul:1.21-dev
           - version: v1.22.0-dev
             image: hashicorppreview/consul:1.22-dev
+          - version: v2.0.0-dev
+            image: hashicorppreview/consul:2.0-dev
         dataplane:
           - image_suffix: ""
             docker_target: "release-default"
@@ -372,6 +372,8 @@ jobs:
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
+          cache: true
+          cache-dependency-path: integration-tests/go.sum
       - id: run-tests
         run: cd integration-tests && go test -v -output-dir=./output -dataplane-image=hashicorppreview/${{env.repo}}:${{env.dev_tag}}-${{github.sha}} -server-image=${{matrix.server.image}} -server-version=${{matrix.server.version}}
         continue-on-error: true
