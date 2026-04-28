@@ -279,7 +279,10 @@ func (p *Proxy) DumpConfig() error {
 }
 
 func (p *Proxy) dumpConfig() error {
-	envoyConfigDumpUrl := fmt.Sprintf("http://%s:%v/config_dump?include_eds", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+	envoyConfigDumpUrl := fmt.Sprintf(
+		"http://%s/config_dump?include_eds",
+		net.JoinHostPort(p.cfg.AdminAddr, strconv.Itoa(p.cfg.AdminBindPort)),
+	)
 
 	rsp, err := p.client.Get(envoyConfigDumpUrl)
 	if err != nil {
@@ -390,7 +393,10 @@ func (p *Proxy) Ready() (bool, error) {
 		return false, nil
 	case stateRunning, stateInitial:
 		// Query ready endpoint to check if proxy is Ready
-		envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+		envoyReadyURL := fmt.Sprintf(
+			"http://%s/ready",
+			net.JoinHostPort(p.cfg.AdminAddr, strconv.Itoa(p.cfg.AdminBindPort)),
+		)
 		rsp, err := p.client.Get(envoyReadyURL)
 		if err != nil {
 			p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)
