@@ -1,4 +1,4 @@
-## 2.0.0-rc1 (April 27, 2026)
+## 2.0.0-rc1 (April 29, 2026)
 SECURITY:
 
 * - security: upgrade go version to 1.26 [[GH-1049](https://github.com/hashicorp/consul-dataplane/pull/1049)]
@@ -10,6 +10,11 @@ IMPROVEMENTS:
 
 * Update Envoy version to 1.37.2 [[GH-1052](https://github.com/hashicorp/consul-dataplane/pull/1052)]
 * security: Upgrade golang to 1.25.2. [[GH-883](https://github.com/hashicorp/consul-dataplane/pull/883)]
+
+BUG FIXES:
+
+* - envoy: add `skip_exit` to `drain_listeners` admin API call to prevent premature pod termination when upgrading to Envoy 1.37+ [[GH-1061](https://github.com/hashicorp/consul-dataplane/pull/1061)]
+* - envoy: prevent graceful shutdown errors from closing errorExitCh, which caused Envoy to be killed immediately bypassing the configured grace period [[GH-1072](https://github.com/hashicorp/consul-dataplane/pull/1072)]
 
 ## 1.9.6 (March 25, 2026)
 SECURITY:
