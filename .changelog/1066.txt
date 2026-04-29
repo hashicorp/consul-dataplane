@@ -1,0 +1,2 @@
+```release-note:bug
+- envoy: use safe host:port construction for remaining admin API URLs to avoid malformed admin endpoint URLs with IPv6 addresses
