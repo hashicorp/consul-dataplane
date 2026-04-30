@@ -26,6 +26,7 @@ container {
   # periodically cleaned up to remove items that are no longer found by the scanner.
   triage {
     suppress {
+      vulnerabilities = []
       paths = [
         // The OSV scanner will trip on several packages that are included in the
         // the UBI images. This is due to RHEL using the same base version in the
