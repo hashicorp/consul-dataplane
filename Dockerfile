@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-FROM envoyproxy/envoy:distroless-v1.34.12 as envoy-binary
+FROM envoyproxy/envoy:distroless-v1.34.13 as envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-binary
@@ -47,7 +47,7 @@ RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
 # either).
 ARG GOLANG_VERSION
 FROM golang:${GOLANG_VERSION}-alpine as go-discover
-RUN CGO_ENABLED=0 go install github.com/hashicorp/go-discover/cmd/discover@c9daf450621856f81604e3495af612b95db907d5
+RUN CGO_ENABLED=0 go install github.com/hashicorp/go-discover/cmd/discover@af02dbc355bc5f4b35044742b3618dcbd6426bdb
 
 # Pull in dumb-init from alpine, as our distroless release image doesn't have a
 # package manager and there's no RPM package for UBI.
@@ -141,7 +141,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.6 as release-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.7 as release-ubi
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
@@ -163,7 +163,9 @@ LABEL name=${BIN_NAME}\
 
 COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
-RUN microdnf install -y shadow-utils
+RUN microdnf update -y && \
+    microdnf install -y shadow-utils && \
+    microdnf clean all
 
 # Create a non-root user to run the software.
 RUN groupadd --gid 1000 $PRODUCT_NAME && \
@@ -190,7 +192,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.6 as release-fips-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.7 as release-fips-ubi
 
 ARG BIN_NAME
 ENV BIN_NAME=$BIN_NAME
