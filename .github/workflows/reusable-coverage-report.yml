@@ -127,14 +127,39 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           PCT=$(echo "$TOTAL" | tr -d '%')
-          if awk "BEGIN {exit !($PCT >= 75)}"; then COLOR="brightgreen"
-          elif awk "BEGIN {exit !($PCT >= 60)}"; then COLOR="green"
-          elif awk "BEGIN {exit !($PCT >= 40)}"; then COLOR="yellow"
-          else COLOR="red"
+          if awk "BEGIN {exit !($PCT >= 75)}"; then COLOR="#4c1"
+          elif awk "BEGIN {exit !($PCT >= 60)}"; then COLOR="#97CA00"
+          elif awk "BEGIN {exit !($PCT >= 40)}"; then COLOR="#dfb317"
+          else COLOR="#e05d44"
           fi
 
-          printf '{"schemaVersion":1,"label":"coverage","message":"%s","color":"%s"}\n' \
-            "$TOTAL" "$COLOR" > /tmp/coverage-badge.json
+          # Compute dynamic text widths: label "coverage" = 62px, value width ~7px/char
+          LABEL="coverage"
+          LABEL_W=62
+          VAL_LEN=${#TOTAL}
+          VAL_W=$(( VAL_LEN * 7 + 10 ))
+          TOTAL_W=$(( LABEL_W + VAL_W ))
+          LABEL_MID=$(( LABEL_W / 2 + 1 ))
+          VAL_MID=$(( LABEL_W + VAL_W / 2 ))
+
+          cat > /tmp/coverage.svg <<SVGEOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="${TOTAL_W}" height="20">
+            <linearGradient id="s" x2="0" y2="100%">
+              <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+              <stop offset="1" stop-opacity=".1"/>
+            </linearGradient>
+            <rect rx="3" width="${TOTAL_W}" height="20" fill="#555"/>
+            <rect rx="3" x="${LABEL_W}" width="${VAL_W}" height="20" fill="${COLOR}"/>
+            <rect x="${LABEL_W}" width="4" height="20" fill="${COLOR}"/>
+            <rect rx="3" width="${TOTAL_W}" height="20" fill="url(#s)"/>
+            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+              <text x="${LABEL_MID}" y="15" fill="#010101" fill-opacity=".3">${LABEL}</text>
+              <text x="${LABEL_MID}" y="14">${LABEL}</text>
+              <text x="${VAL_MID}" y="15" fill="#010101" fill-opacity=".3">${TOTAL}</text>
+              <text x="${VAL_MID}" y="14">${TOTAL}</text>
+            </g>
+          </svg>
+          SVGEOF
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -150,8 +175,8 @@ jobs:
             git -C /tmp/badges-wt rm -rf . --quiet 2>/dev/null || true
           fi
 
-          cp /tmp/coverage-badge.json /tmp/badges-wt/coverage.json
-          git -C /tmp/badges-wt add coverage.json
+          cp /tmp/coverage.svg /tmp/badges-wt/coverage.svg
+          git -C /tmp/badges-wt add coverage.svg
           if git -C /tmp/badges-wt diff --staged --quiet; then
             echo "Badge unchanged, skipping commit"
           else
