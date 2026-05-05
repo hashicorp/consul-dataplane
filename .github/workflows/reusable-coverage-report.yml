@@ -46,13 +46,20 @@ jobs:
             echo "$PROFILES" | xargs gocovmerge > merged-coverage.out
           fi
 
+          # Exclude generated mock files — Go 1.20+ includes all compiled packages
+          # in the profile (even those without test files), which inflates the denominator.
           TOTAL=$(awk '
             /^mode:/ { next }
+            /\/mocks\/|\/mock_/ { next }
             { stmts += $2; if ($3 > 0) covered += $2 }
             END { if (stmts > 0) printf "%.1f%%", covered/stmts*100; else print "0.0%" }
           ' merged-coverage.out)
           echo "Total coverage: $TOTAL"
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+
+          # Strip mock lines from profile before generating HTML and per-package summary.
+          grep -v -e '/mocks/' -e '/mock_' merged-coverage.out > filtered-coverage.out || true
+          mv filtered-coverage.out merged-coverage.out
 
           # Package-level summary grouped by top-level directory.
           # go tool cover -func separates fields with variable numbers of tabs,
