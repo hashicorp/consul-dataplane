@@ -337,3 +337,85 @@ func TestNewConsulDPError(t *testing.T) {
 		})
 	}
 }
+
+// TestCategorizeFeatures verifies that categorizeFeatures correctly splits
+// a server's advertised feature map into available and missing slices.
+func TestCategorizeFeatures(t *testing.T) {
+	all := []string{"FEATURE_A", "FEATURE_B", "FEATURE_C"}
+
+	tests := []struct {
+		name              string
+		advertised        map[string]bool
+		expectedAvailable []string
+		expectedMissing   []string
+	}{
+		{
+			name:              "server advertises all features",
+			advertised:        map[string]bool{"FEATURE_A": true, "FEATURE_B": true, "FEATURE_C": true},
+			expectedAvailable: []string{"FEATURE_A", "FEATURE_B", "FEATURE_C"},
+			expectedMissing:   nil,
+		},
+		{
+			name:              "server advertises no features",
+			advertised:        map[string]bool{},
+			expectedAvailable: nil,
+			expectedMissing:   []string{"FEATURE_A", "FEATURE_B", "FEATURE_C"},
+		},
+		{
+			name:              "server advertises some features",
+			advertised:        map[string]bool{"FEATURE_A": true, "FEATURE_C": true},
+			expectedAvailable: []string{"FEATURE_A", "FEATURE_C"},
+			expectedMissing:   []string{"FEATURE_B"},
+		},
+		{
+			name:              "server advertises a feature not in expected list",
+			advertised:        map[string]bool{"FEATURE_A": true, "FEATURE_UNKNOWN": true},
+			expectedAvailable: []string{"FEATURE_A"},
+			expectedMissing:   []string{"FEATURE_B", "FEATURE_C"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			available, missing := categorizeFeatures(all, tc.advertised)
+			require.Equal(t, tc.expectedAvailable, available)
+			require.Equal(t, tc.expectedMissing, missing)
+		})
+	}
+}
+
+// TestLegacyCompatDisabledFeatures verifies that legacyCompatDisabledFeatures
+// returns the correct list only when compatibility mode is active.
+func TestLegacyCompatDisabledFeatures(t *testing.T) {
+	t.Run("returns disabled features when in legacy compat mode", func(t *testing.T) {
+		cdp := &ConsulDataplane{isLegacyCompatMode: true}
+		disabled := cdp.legacyCompatDisabledFeatures()
+		require.Equal(t, []string{"central-telemetry-config"}, disabled)
+	})
+
+	t.Run("returns nil when not in legacy compat mode", func(t *testing.T) {
+		cdp := &ConsulDataplane{isLegacyCompatMode: false}
+		disabled := cdp.legacyCompatDisabledFeatures()
+		require.Nil(t, disabled)
+	})
+}
+
+// TestNewConsulDP_LegacyServerCompatMode verifies that NewConsulDP correctly
+// sets isLegacyCompatMode from the EnableLegacyServerCompatibility config field.
+func TestNewConsulDP_LegacyServerCompatMode(t *testing.T) {
+	t.Run("isLegacyCompatMode is true when flag is enabled", func(t *testing.T) {
+		cfg := validConfig(ModeTypeSidecar)
+		cfg.Consul.EnableLegacyServerCompatibility = true
+		cdp, err := NewConsulDP(cfg)
+		require.NoError(t, err)
+		require.True(t, cdp.isLegacyCompatMode)
+	})
+
+	t.Run("isLegacyCompatMode is false when flag is not set", func(t *testing.T) {
+		cfg := validConfig(ModeTypeSidecar)
+		cfg.Consul.EnableLegacyServerCompatibility = false
+		cdp, err := NewConsulDP(cfg)
+		require.NoError(t, err)
+		require.False(t, cdp.isLegacyCompatMode)
+	})
+}

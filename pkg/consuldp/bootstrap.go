@@ -116,17 +116,28 @@ func (cdp *ConsulDataplane) bootstrapConfig(
 	}
 
 	if cdp.cfg.Telemetry.UseCentralConfig {
-		if err := mapstructure.WeakDecode(bootstrapParams.Config.AsMap(), &bootstrapConfig); err != nil {
-			return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
-		}
+		// Legacy-compat guard: older servers may return a nil proxy config
+		// struct inside the bootstrap params response. Calling AsMap() on a
+		// nil proto message panics. Skip central config and warn the operator.
+		if cdp.isLegacyCompatMode {
+			cdp.logger.Warn("[COMPAT] skipping central telemetry configuration: " +
+				"the connected Consul server does not support all required dataplane features. " +
+				"Re-enable central telemetry config after upgrading to a fully supported Consul version.")
+		} else if bootstrapParams.Config == nil {
+			cdp.logger.Warn("skipping central telemetry configuration: server returned no proxy config")
+		} else {
+			if err := mapstructure.WeakDecode(bootstrapParams.Config.AsMap(), &bootstrapConfig); err != nil {
+				return nil, nil, fmt.Errorf("failed parsing Proxy.Config: %w", err)
+			}
 
-		// Envoy is configured with a listener that proxies metrics from its
-		// own admin endpoint (localhost:19000/stats/prometheus). When central
-		// config is enabled, we set the PrometheusBackendPort to instead have
-		// Envoy proxy metrics from Consul Dataplane which serves merged
-		// metrics (Envoy + Dataplane + service metrics).
-		// Documentation: https://www.consul.io/commands/connect/envoy#prometheus-backend-port
-		args.PrometheusBackendPort = strconv.Itoa(prom.MergePort)
+			// Envoy is configured with a listener that proxies metrics from its
+			// own admin endpoint (localhost:19000/stats/prometheus). When central
+			// config is enabled, we set the PrometheusBackendPort to instead have
+			// Envoy proxy metrics from Consul Dataplane which serves merged
+			// metrics (Envoy + Dataplane + service metrics).
+			// Documentation: https://www.consul.io/commands/connect/envoy#prometheus-backend-port
+			args.PrometheusBackendPort = strconv.Itoa(prom.MergePort)
+		}
 	}
 
 	bootstrapConfig.Logger = cdp.logger.Named("bootstrap-config")

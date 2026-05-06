@@ -30,6 +30,23 @@ type ConsulConfig struct {
 	ServerWatchDisabled bool
 	// TLS contains the TLS settings for communicating with Consul servers.
 	TLS *TLSConfig
+	// EnableLegacyServerCompatibility activates a limited, time-bounded
+	// compatibility mode that allows newer consul-dataplane versions to connect
+	// to older Consul servers that do not yet advertise full dataplane feature
+	// support. It is designed to unblock in-place Consul upgrades when the
+	// control plane and data plane cannot be updated simultaneously.
+	//
+	// When enabled:
+	//   - The server feature gate is bypassed for the initial handshake.
+	//   - Features unsupported by the older server (e.g. central telemetry
+	//     configuration) are automatically disabled with a warning.
+	//   - All compatibility decisions are emitted as structured log events so
+	//     operators can track impact and verify readiness.
+	//
+	// WARNING: This flag is NOT intended for long-term or permanent use.
+	// It exists solely to unblock the upgrade path. Remove it once all
+	// Consul servers have been upgraded to a fully supported version.
+	EnableLegacyServerCompatibility bool
 }
 
 // DNSServerConfig is the configuration for the transparent DNS proxy that will forward requests to consul

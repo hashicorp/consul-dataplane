@@ -24,6 +24,29 @@ import (
 	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
 )
 
+// knownDataplaneFeatures is the ordered set of feature names that a fully-capable
+// Consul server is expected to advertise. It is used by categorizeFeatures
+// to produce available_features / missing_features log fields.
+var knownDataplaneFeatures = []string{
+	pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_WATCH_SERVERS.String(),
+	pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_EDGE_CERTIFICATE_MANAGEMENT.String(),
+	pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String(),
+}
+
+// categorizeFeatures splits the server's advertised feature map into
+// "available" and "missing" slices relative to the given expected set.
+// The resulting slices are suitable for structured log key-value fields.
+func categorizeFeatures(expected []string, advertised map[string]bool) (available, missing []string) {
+	for _, f := range expected {
+		if advertised[f] {
+			available = append(available, f)
+		} else {
+			missing = append(missing, f)
+		}
+	}
+	return
+}
+
 type xdsServer struct {
 	listener        net.Listener
 	listenerAddress string
@@ -47,6 +70,13 @@ type ConsulDataplane struct {
 	aclToken        string
 	metricsConfig   *metricsConfig
 	lifecycleConfig *lifecycleConfig
+
+	// isLegacyCompatMode is true when we are connected to a Consul server that
+	// does not advertise full dataplane feature support. Some optional features
+	// are automatically disabled or guarded to prevent failures against the
+	// older API surface. Set conservatively at construction time and refined
+	// once the server's actual feature set is known.
+	isLegacyCompatMode bool
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -68,7 +98,26 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 	return &ConsulDataplane{
 		logger: logger,
 		cfg:    cfg,
+		// Conservatively pre-set legacy compat mode from the config flag so that
+		// any code running before watcher.State() resolves already applies
+		// compatibility guards. The value is refined once the server's actual
+		// feature set is known.
+		isLegacyCompatMode: cfg.Consul.EnableLegacyServerCompatibility,
 	}, nil
+}
+
+// legacyCompatDisabledFeatures returns the authoritative list of consul-dataplane
+// features that are intentionally disabled while in legacy-server compatibility
+// mode. This is the single place to expand the list as new guards are added.
+func (cdp *ConsulDataplane) legacyCompatDisabledFeatures() []string {
+	if !cdp.isLegacyCompatMode {
+		return nil
+	}
+	return []string{
+		// The proxy config struct returned by older servers may be absent,
+		// so central telemetry config decoding is skipped to avoid a panic.
+		"central-telemetry-config",
+	}
 }
 
 func validateConfig(cfg *Config) error {
@@ -153,15 +202,55 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return err
 	}
 
+	var serverEvalFn discovery.ServerEvalFn
+
+	if cdp.cfg.Consul.EnableLegacyServerCompatibility {
+		cdp.logger.Warn("[COMPAT] legacy-server-compat is enabled — "+
+			"consul-dataplane will bypass the normal dataplane feature check to allow connection to older Consul servers. "+
+			"Features not supported by the server will be automatically disabled. "+
+			"This flag is intended for upgrade transitions only. "+
+			"Remove it once all Consul servers are on a fully supported version.",
+			"disabled_features", cdp.legacyCompatDisabledFeatures(),
+		)
+		// Controlled bypass: always accept the server but classify its features
+		// so anomalies (e.g. a fully-capable server with the flag still on) are
+		// immediately visible to the operator.
+		bootstrapFeature := pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String()
+		serverEvalFn = func(s discovery.State) bool {
+			available, missing := categorizeFeatures(knownDataplaneFeatures, s.DataplaneFeatures)
+			if s.DataplaneFeatures[bootstrapFeature] {
+				// Anomaly: this server already has full feature support. The flag
+				// is redundant — warn so the operator can clean it up.
+				cdp.logger.Warn("[COMPAT] server has full dataplane feature support — "+
+					"the legacy-server-compat flag is not required for this server. "+
+					"Consider removing it after verifying your environment.",
+					"server_address", s.Address.String(),
+					"available_features", available,
+					"missing_features", missing,
+				)
+			} else {
+				// Expected path: server lacks the bootstrap feature (older server).
+				cdp.logger.Info("[COMPAT] accepting server in legacy compatibility mode",
+					"server_address", s.Address.String(),
+					"available_features", available,
+					"missing_features", missing,
+				)
+			}
+			return true
+		}
+	} else {
+		serverEvalFn = discovery.SupportsDataplaneFeatures(
+			pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String(),
+		)
+	}
+
 	watcher, err := discovery.NewWatcher(ctx, discovery.Config{
 		Addresses:           cdp.cfg.Consul.Addresses,
 		GRPCPort:            cdp.cfg.Consul.GRPCPort,
 		ServerWatchDisabled: cdp.cfg.Consul.ServerWatchDisabled,
 		Credentials:         creds,
 		TLS:                 tls,
-		ServerEvalFn: discovery.SupportsDataplaneFeatures(
-			pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String(),
-		),
+		ServerEvalFn:        serverEvalFn,
 	}, cdp.logger.Named("server-connection-manager"))
 	if err != nil {
 		return err
@@ -178,6 +267,35 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.serverConn = state.GRPCConn
 	cdp.aclToken = state.Token
 	cdp.dpServiceClient = pbdataplane.NewDataplaneServiceClient(state.GRPCConn)
+
+	// Refine isLegacyCompatMode using the server's actual advertised feature set.
+	// The value was pre-set conservatively in NewConsulDP; here we either
+	// confirm it (server lacks required features) or downgrade it (server is
+	// fully capable despite the flag being set).
+	if cdp.isLegacyCompatMode {
+		bootstrapFeature := pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String()
+		available, missing := categorizeFeatures(knownDataplaneFeatures, state.DataplaneFeatures)
+		if state.DataplaneFeatures[bootstrapFeature] {
+			// Server is fully capable — downgrade to normal operation.
+			cdp.isLegacyCompatMode = false
+			cdp.logger.Info("[COMPAT] server has full dataplane feature support — "+
+				"compatibility guards have been lifted. "+
+				"Consider removing the legacy-server-compat flag.",
+				"server_address", state.Address.String(),
+				"available_features", available,
+				"missing_features", missing,
+			)
+		} else {
+			// Confirmed: server lacks required features — keep compat mode active.
+			cdp.logger.Warn("[COMPAT] server does not support all required dataplane features — "+
+				"running in legacy compatibility mode with reduced feature set.",
+				"server_address", state.Address.String(),
+				"available_features", available,
+				"missing_features", missing,
+				"disabled_features", cdp.legacyCompatDisabledFeatures(),
+			)
+		}
+	}
 
 	doneCh := make(chan error)
 

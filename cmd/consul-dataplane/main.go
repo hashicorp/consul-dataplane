@@ -46,6 +46,12 @@ func init() {
 
 	BoolVar(flags, &flagOpts.dataplaneConfig.Consul.ServerWatchDisabled, "server-watch-disabled", "DP_SERVER_WATCH_DISABLED", "Setting this prevents consul-dataplane from consuming the server update stream. This is useful for situations where Consul servers are behind a load balancer.")
 
+	BoolVar(flags, &flagOpts.dataplaneConfig.Consul.EnableLegacyServerCompatibility, "legacy-server-compat", "DP_LEGACY_SERVER_COMPAT",
+		"Enables a time-bounded compatibility mode that allows consul-dataplane to connect to older Consul servers "+
+			"that do not yet advertise full dataplane feature support, unblocking in-place Consul upgrades. "+
+			"Features unsupported by the older server are automatically disabled with a warning. "+
+			"WARNING: This is intended for upgrade transitions only and must be removed once all Consul servers are on a fully supported version.")
+
 	StringVar(flags, &flagOpts.dataplaneConfig.Logging.LogLevel, "log-level", "DP_LOG_LEVEL", "Log level of the messages to print. "+
 		"Available log levels are \"trace\", \"debug\", \"info\", \"warn\", and \"error\".")
 
