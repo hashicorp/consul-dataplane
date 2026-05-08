@@ -27,7 +27,24 @@ jobs:
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
-      - run: go test ./... -p 1 # disable parallelism to avoid port conflicts from default metrics and lifecycle server configuration
+      - run: go test ./... -p 1 -coverprofile=coverage.txt -covermode=set # disable parallelism to avoid port conflicts from default metrics and lifecycle server configuration
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: always()
+        with:
+          name: unit-tests-coverage
+          path: coverage.txt
+          if-no-files-found: ignore
+
+  coverage-report:
+    needs:
+      - get-go-version
+      - unit-tests
+    uses: ./.github/workflows/reusable-coverage-report.yml
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      go-version: ${{ needs.get-go-version.outputs.go-version }}
 
   integration-tests:
     name: integration-tests
