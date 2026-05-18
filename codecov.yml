@@ -1,0 +1,17 @@
+coverage:
+  status:
+    project:
+      default:
+        # Allow up to 2% drop in overall project coverage before failing.
+        target: auto
+        threshold: 2%
+    patch:
+      default:
+        # New code introduced in a PR should be at least 70% covered.
+        target: 70%
+        threshold: 10%
+
+ignore:
+  - "internal/mocks/**"
+  - "pkg/**/mock_*.go"
+  - "integration-tests/**"

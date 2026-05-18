@@ -43,6 +43,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
     with:
       go-version: ${{ needs.get-go-version.outputs.go-version }}
 
