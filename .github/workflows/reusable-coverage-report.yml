@@ -103,24 +103,6 @@ jobs:
             merged-coverage.out
             coverage.html
 
-      - name: Post PR comment
-        if: github.event_name == 'pull_request' && steps.coverage.outputs.total != 'N/A'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TOTAL: ${{ steps.coverage.outputs.total }}
-        run: |
-          BODY="### Go Test Coverage: **${TOTAL}**
-
-          See the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for the full per-package breakdown and downloadable HTML report."
-
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --repo "${{ github.repository }}" \
-            --body "$BODY" \
-            --edit-last 2>/dev/null || \
-          gh pr comment ${{ github.event.pull_request.number }} \
-            --repo "${{ github.repository }}" \
-            --body "$BODY"
-
       - name: Upload to Codecov
         if: steps.coverage.outputs.total != 'N/A'
         uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
