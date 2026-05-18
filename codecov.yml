@@ -1,0 +1,13 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+ignore:
+  - "internal/mocks/**"
+  - "pkg/**/mock_*.go"
+  - "integration-tests/**"
