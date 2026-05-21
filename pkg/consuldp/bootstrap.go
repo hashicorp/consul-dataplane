@@ -10,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hashicorp/consul/proto-public/pbdataplane"
+	"github.com/hashicorp/consul/proto-public/v2/pbdataplane"
 	"github.com/mitchellh/mapstructure"
 
 	"github.com/hashicorp/consul-dataplane/internal/bootstrap"

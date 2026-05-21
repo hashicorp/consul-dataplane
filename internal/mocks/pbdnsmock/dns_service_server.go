@@ -5,7 +5,7 @@ package pbdnsmock
 import (
 	context "context"
 
-	pbdns "github.com/hashicorp/consul/proto-public/pbdns"
+	pbdns "github.com/hashicorp/consul/proto-public/v2/pbdns"
 	mock "github.com/stretchr/testify/mock"
 )
 
