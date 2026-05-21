@@ -158,7 +158,7 @@ endif
 .PHONY: mocks
 mocks:
 	for pkg in pbdns pbresource; do \
-		mockery --srcpkg=github.com/hashicorp/consul/proto-public/$$pkg --output ./internal/mocks/$${pkg}mock --outpkg $${pkg}mock --case underscore --all; \
+		mockery --srcpkg=github.com/hashicorp/consul/proto-public/v2/$$pkg --output ./internal/mocks/$${pkg}mock --outpkg $${pkg}mock --case underscore --all; \
 	done
 
 .PHONY: go-mod-get

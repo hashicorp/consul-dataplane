@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/consul/proto-public/pbdns"
+	"github.com/hashicorp/consul/proto-public/v2/pbdns"
 	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc/metadata"
 )

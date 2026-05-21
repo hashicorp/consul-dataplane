@@ -14,8 +14,8 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
-	"github.com/hashicorp/consul/proto-public/pbdataplane"
-	"github.com/hashicorp/consul/proto-public/pbdns"
+	"github.com/hashicorp/consul/proto-public/v2/pbdataplane"
+	"github.com/hashicorp/consul/proto-public/v2/pbdns"
 	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 
