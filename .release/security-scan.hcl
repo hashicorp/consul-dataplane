@@ -30,14 +30,6 @@ container {
  
       ]
       paths = [
-       // The OSV scanner will trip on several packages that are included in the
-        // the UBI images. This is due to RHEL using the same base version in the
-        // package name for the life of the distro regardless of whether or not
-        // that version has been patched for security. Rather than enumate ever
-        // single CVE that the OSV scanner will find (several tens) we'll ignore
-        // the base UBI packages.
-        "usr/lib/sysimage/rpm/*",
-        "var/lib/rpm/*",
       ]
     }
   }
@@ -63,12 +55,7 @@ repository {
 
   triage {
     suppress {
-      # Only remaining vulnerabilities in integration tests (archived go-jose v2)
-      vulnerabilities = [
-        "CVE-2024-28180",
-        "GHSA-c5q2-7r4c-mv6g",
-        "GO-2024-2631"
-      ]
+      vulnerabilities = []
       paths = [
         # SHA1 usage in bootstrap config is for non-security purposes
         "internal/bootstrap/bootstrap_config.go"
