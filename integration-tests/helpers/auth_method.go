@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/hashicorp/consul/api"
 )
@@ -56,7 +56,7 @@ func (am *AuthMethod) GenerateToken(t *testing.T, service string) string {
 
 	token, err := jwt.Signed(signer).
 		Claims(claims).
-		CompactSerialize()
+		Serialize()
 	require.NoError(t, err)
 
 	return token
