@@ -51,6 +51,7 @@ RUN apk add --no-cache git
 RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
     cd /src/go-discover && \
     git checkout ca13b81fe744b323d3730020a898a288ce502069 && \
+    go get golang.org/x/net@v0.55.0 && \
     go get golang.org/x/crypto@v0.52.0 && \
     go mod tidy && \
     CGO_ENABLED=0 go build -o /go/bin/discover ./cmd/discover
