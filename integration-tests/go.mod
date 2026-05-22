@@ -1,16 +1,16 @@
 module github.com/hashicorp/consul-dataplane/integration-tests
 
-go 1.25.9
+go 1.26
 
 require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/docker/go-connections v0.5.0
-	github.com/hashicorp/consul/api v1.33.7
+	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/hashicorp/consul/api v1.34.3
 	github.com/miekg/dns v1.1.50
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.32.0
 	golang.org/x/mod v0.33.0
-	gopkg.in/square/go-jose.v2 v2.6.0
 )
 
 require (
@@ -74,11 +74,11 @@ require (
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/crypto v0.51.0 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
-	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
