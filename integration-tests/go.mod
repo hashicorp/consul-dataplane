@@ -1,12 +1,12 @@
 module github.com/hashicorp/consul-dataplane/integration-tests
 
-go 1.25.9
+go 1.26
 
 require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/go-jose/go-jose/v4 v4.1.4
-	github.com/hashicorp/consul/api v1.33.7
+	github.com/hashicorp/consul/api v1.34.3
 	github.com/miekg/dns v1.1.50
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.32.0
