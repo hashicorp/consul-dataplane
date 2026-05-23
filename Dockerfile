@@ -51,6 +51,7 @@ RUN apk add --no-cache git
 RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
     cd /src/go-discover && \
     git checkout ca13b81fe744b323d3730020a898a288ce502069 && \
+    go get golang.org/x/net@v0.55.0 && \
     go get golang.org/x/crypto@v0.52.0 && \
     go mod tidy && \
     CGO_ENABLED=0 go build -o /go/bin/discover ./cmd/discover
@@ -196,7 +197,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.6 as release-fips-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.8 as release-fips-ubi
 
 ARG BIN_NAME
 ENV BIN_NAME=$BIN_NAME
