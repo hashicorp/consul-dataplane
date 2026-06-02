@@ -1,3 +1,14 @@
+## 1.8.13 (May 23, 2026)
+SECURITY:
+
+* Upgrade dependencies to address CVE findings: migrate integration-tests from archived `go-jose.v2` to `go-jose/v4` (fixes CVE-2024-28180, GHSA-c5q2-7r4c-mv6g, GO-2024-2631), upgrade `golang.org/x/net` to v0.55.0, and patch `golang.org/x/crypto` to v0.52.0 in the bundled `go-discover` binary. [[GH-1107](https://github.com/hashicorp/consul-dataplane/pull/1107)]
+* Upgrade to use `x/net` 0.55.0.
+This resolves [GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918) [[GH-1084](https://github.com/hashicorp/consul-dataplane/pull/1084)]
+* Upgraded `envoy` to 1.35.10 [[GH-1134](https://github.com/hashicorp/consul-dataplane/pull/1134)]
+* go: upgrade go version to 1.26.2 [[GH-1124](https://github.com/hashicorp/consul-dataplane/pull/1124)]
+* security: Update to UBI base image to 9.8 for fixing [[CVE_2026-2100](https://access.redhat.com/security/cve/cve-2026-2100)] [[GH-1102](https://github.com/hashicorp/consul-dataplane/pull/1102)]
+
+
 ## 1.8.12 (April 25, 2026)
 
 SECURITY:
