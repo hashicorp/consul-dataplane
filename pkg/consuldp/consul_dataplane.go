@@ -106,10 +106,10 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 	}, nil
 }
 
-// legacyCompatDisabledFeatures returns the authoritative list of consul-dataplane
+// disabledFeaturesCompatibilityMode returns the authoritative list of consul-dataplane
 // features that are intentionally disabled while in legacy-server compatibility
 // mode. This is the single place to expand the list as new guards are added.
-func (cdp *ConsulDataplane) legacyCompatDisabledFeatures() []string {
+func (cdp *ConsulDataplane) disabledFeaturesCompatibilityMode() []string {
 	if !cdp.isLegacyCompatMode {
 		return nil
 	}
@@ -210,7 +210,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			"Features not supported by the server will be automatically disabled. "+
 			"This flag is intended for upgrade transitions only. "+
 			"Remove it once all Consul servers are on a fully supported version.",
-			"disabled_features", cdp.legacyCompatDisabledFeatures(),
+			"disabled_features", cdp.disabledFeaturesCompatibilityMode(),
 		)
 		// Controlled bypass: always accept the server but classify its features
 		// so anomalies (e.g. a fully-capable server with the flag still on) are
@@ -292,7 +292,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 				"server_address", state.Address.String(),
 				"available_features", available,
 				"missing_features", missing,
-				"disabled_features", cdp.legacyCompatDisabledFeatures(),
+				"disabled_features", cdp.disabledFeaturesCompatibilityMode(),
 			)
 		}
 	}
