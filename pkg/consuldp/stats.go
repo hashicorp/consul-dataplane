@@ -3,7 +3,7 @@
 
 package consuldp
 
-import "github.com/armon/go-metrics/prometheus"
+import "github.com/hashicorp/go-metrics/prometheus"
 
 var gauges = []prometheus.GaugeDefinition{
 	{

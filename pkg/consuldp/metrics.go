@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/armon/go-metrics/datadog"
-	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-metrics"
+	"github.com/hashicorp/go-metrics/datadog"
+	"github.com/hashicorp/go-metrics/prometheus"
 	"github.com/hashicorp/go-multierror"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -343,12 +343,20 @@ func (m *metricsConfig) getPromDefaults() (*prom.Registry, *prometheus.Prometheu
 	if err != nil {
 		return nil, nil, err
 	}
+	discGauges := make([]prometheus.GaugeDefinition, 0, len(discovery.Gauges))
+	for _, g := range discovery.Gauges {
+		discGauges = append(discGauges, prometheus.GaugeDefinition{Name: g.Name, Help: g.Help})
+	}
+	discSummaries := make([]prometheus.SummaryDefinition, 0, len(discovery.Summaries))
+	for _, s := range discovery.Summaries {
+		discSummaries = append(discSummaries, prometheus.SummaryDefinition{Name: s.Name, Help: s.Help})
+	}
 	opts := &prometheus.PrometheusOpts{
-		Expiration:       m.cfg.Prometheus.RetentionTime,
-		Registerer:       reg,
-		GaugeDefinitions: append(gauges, discovery.Gauges...),
+		Expiration:         m.cfg.Prometheus.RetentionTime,
+		Registerer:         reg,
+		GaugeDefinitions:   append(gauges, discGauges...),
 		// CounterDefinitions: ,
-		SummaryDefinitions: discovery.Summaries,
+		SummaryDefinitions: discSummaries,
 	}
 	return r, opts, nil
 }
