@@ -184,7 +184,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
@@ -209,7 +209,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
@@ -285,7 +285,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
@@ -310,7 +310,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}}."
               exit 1
