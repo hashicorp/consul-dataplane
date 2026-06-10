@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul-server-connection-manager/discovery"
+	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/stretchr/testify/require"
 )
 
@@ -336,4 +338,121 @@ func TestNewConsulDPError(t *testing.T) {
 			require.EqualError(t, err, tc.expectErr)
 		})
 	}
+}
+
+// TestCategorizeFeatures verifies that categorizeFeatures correctly splits
+// a server's advertised feature map into available and missing slices.
+func TestCategorizeFeatures(t *testing.T) {
+	all := []string{"FEATURE_A", "FEATURE_B", "FEATURE_C"}
+
+	tests := []struct {
+		name              string
+		advertised        map[string]bool
+		expectedAvailable []string
+		expectedMissing   []string
+	}{
+		{
+			name:              "server advertises all features",
+			advertised:        map[string]bool{"FEATURE_A": true, "FEATURE_B": true, "FEATURE_C": true},
+			expectedAvailable: []string{"FEATURE_A", "FEATURE_B", "FEATURE_C"},
+			expectedMissing:   nil,
+		},
+		{
+			name:              "server advertises no features",
+			advertised:        map[string]bool{},
+			expectedAvailable: nil,
+			expectedMissing:   []string{"FEATURE_A", "FEATURE_B", "FEATURE_C"},
+		},
+		{
+			name:              "server advertises some features",
+			advertised:        map[string]bool{"FEATURE_A": true, "FEATURE_C": true},
+			expectedAvailable: []string{"FEATURE_A", "FEATURE_C"},
+			expectedMissing:   []string{"FEATURE_B"},
+		},
+		{
+			name:              "server advertises a feature not in expected list",
+			advertised:        map[string]bool{"FEATURE_A": true, "FEATURE_UNKNOWN": true},
+			expectedAvailable: []string{"FEATURE_A"},
+			expectedMissing:   []string{"FEATURE_B", "FEATURE_C"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			available, missing := categorizeFeatures(all, tc.advertised)
+			require.Equal(t, tc.expectedAvailable, available)
+			require.Equal(t, tc.expectedMissing, missing)
+		})
+	}
+}
+
+// TestDisabledFeaturesCompatibilityMode verifies that disabledFeaturesCompatibilityMode
+// returns the correct list only when compatibility mode is active.
+func TestDisabledFeaturesCompatibilityMode(t *testing.T) {
+	t.Run("returns disabled features when in legacy compat mode", func(t *testing.T) {
+		cdp := &ConsulDataplane{isLegacyCompatMode: true}
+		disabled := cdp.disabledFeaturesCompatibilityMode()
+		require.Equal(t, []string{"central-telemetry-config"}, disabled)
+	})
+
+	t.Run("returns nil when not in legacy compat mode", func(t *testing.T) {
+		cdp := &ConsulDataplane{isLegacyCompatMode: false}
+		disabled := cdp.disabledFeaturesCompatibilityMode()
+		require.Nil(t, disabled)
+	})
+}
+
+// TestNewConsulDP_LegacyServerCompatMode verifies that NewConsulDP correctly
+// sets isLegacyCompatMode from the EnableLegacyServerCompatibility config field.
+func TestNewConsulDP_LegacyServerCompatMode(t *testing.T) {
+	t.Run("isLegacyCompatMode is true when flag is enabled", func(t *testing.T) {
+		cfg := validConfig(ModeTypeSidecar)
+		cfg.Consul.EnableLegacyServerCompatibility = true
+		cdp, err := NewConsulDP(cfg)
+		require.NoError(t, err)
+		require.True(t, cdp.isLegacyCompatMode)
+	})
+
+	t.Run("isLegacyCompatMode is false when flag is not set", func(t *testing.T) {
+		cfg := validConfig(ModeTypeSidecar)
+		cfg.Consul.EnableLegacyServerCompatibility = false
+		// NewConsulDP only constructs the struct it does not connect to a server,
+		// so no error is expected here regardless of the flag value. The actual
+		// server rejection (when legacy mode is off and the server lacks the required
+		// feature) happens later in Run() via serverEvalFn. That behaviour is
+		// covered by TestServerEvalFn_LegacyCompatDisabled.
+		cdp, err := NewConsulDP(cfg)
+		require.NoError(t, err)
+		require.False(t, cdp.isLegacyCompatMode)
+	})
+}
+
+// TestServerEvalFn_LegacyCompatDisabled verifies that when legacy-server-compat
+// is NOT enabled, a server that does not advertise
+// DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION is rejected (serverEvalFn
+// returns false). This is the unchanged default behaviour that the flag must
+// not silently break.
+func TestServerEvalFn_LegacyCompatDisabled(t *testing.T) {
+	bootstrapFeature := pbdataplane.DataplaneFeatures_DATAPLANE_FEATURES_ENVOY_BOOTSTRAP_CONFIGURATION.String()
+	serverEvalFn := discovery.SupportsDataplaneFeatures(bootstrapFeature)
+
+	t.Run("rejects server missing bootstrap feature when legacy mode is disabled", func(t *testing.T) {
+		state := discovery.State{
+			DataplaneFeatures: map[string]bool{
+				// Server does NOT advertise the required feature.
+			},
+		}
+		require.False(t, serverEvalFn(state),
+			"expected server to be rejected when bootstrap feature is missing and legacy-server-compat is disabled")
+	})
+
+	t.Run("accepts server with bootstrap feature when legacy mode is disabled", func(t *testing.T) {
+		state := discovery.State{
+			DataplaneFeatures: map[string]bool{
+				bootstrapFeature: true,
+			},
+		}
+		require.True(t, serverEvalFn(state),
+			"expected server to be accepted when bootstrap feature is present")
+	})
 }

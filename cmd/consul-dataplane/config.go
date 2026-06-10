@@ -37,6 +37,9 @@ type ConsulFlags struct {
 	Addresses           *string `json:"addresses,omitempty"`
 	GRPCPort            *int    `json:"grpcPort,omitempty"`
 	ServerWatchDisabled *bool   `json:"serverWatchDisabled,omitempty"`
+	// EnableLegacyServerCompatibility activates the legacy-server compatibility mode
+	// for connecting to older Consul servers during in-place upgrades.
+	EnableLegacyServerCompatibility *bool `json:"legacyServerCompatibility,omitempty"`
 
 	TLS         TLSFlags         `json:"tls,omitempty"`
 	Credentials CredentialsFlags `json:"credentials,omitempty"`
@@ -288,9 +291,10 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 
 	return &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
-			Addresses:           stringVal(cfg.Consul.Addresses),
-			GRPCPort:            intVal(cfg.Consul.GRPCPort),
-			ServerWatchDisabled: boolVal(cfg.Consul.ServerWatchDisabled),
+			Addresses:                       stringVal(cfg.Consul.Addresses),
+			GRPCPort:                        intVal(cfg.Consul.GRPCPort),
+			ServerWatchDisabled:             boolVal(cfg.Consul.ServerWatchDisabled),
+			EnableLegacyServerCompatibility: boolVal(cfg.Consul.EnableLegacyServerCompatibility),
 			Credentials: &consuldp.CredentialsConfig{
 				Type: consuldp.CredentialsType(stringVal(cfg.Consul.Credentials.Type)),
 				Static: consuldp.StaticCredentialsConfig{
