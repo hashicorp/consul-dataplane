@@ -11,7 +11,8 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-FROM hashicorp/envoy:1.37.2 AS envoy-binary
+ARG ENVOY_VERSION=1.37.2
+FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-binary
@@ -28,7 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libcap2-bin && 
     setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-FROM hashicorp/envoy-fips:1.37.2-fips1402 AS envoy-fips-binary
+FROM hashicorp/envoy-fips:${ENVOY_VERSION}-fips1402 AS envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-fips-binary
