@@ -111,6 +111,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 FROM gcr.io/distroless/base-debian12 AS release-fips-default
 
 ARG BIN_NAME=consul-dataplane
+ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
 ENV PRODUCT_NAME=$BIN_NAME
