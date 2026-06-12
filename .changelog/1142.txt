@@ -1,0 +1,3 @@
+```release-note:improvement
+dockerfile: update dockerfile following best practices and reduction of layers by merging RUN layers. Added ENVOY_VERSION arg to maintain it centrally for fips and non-fips versions.
+```
