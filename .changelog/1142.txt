@@ -1,3 +1,4 @@
-```release-note:improvement
+```release-note:security
+dockerfile: add `microdnf update -y` and `microdnf clean all` to non-FIPS UBI stage to apply latest security patches at build time
 dockerfile: update dockerfile following best practices and reduction of layers by merging RUN layers. Added ENVOY_VERSION arg to maintain it centrally for fips and non-fips versions.
 ```
