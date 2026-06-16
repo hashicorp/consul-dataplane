@@ -11,7 +11,8 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-FROM envoyproxy/envoy:distroless-v1.35.10 as envoy-binary
+ARG ENVOY_VERSION=1.37.2
+FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-binary
@@ -23,11 +24,12 @@ ARG TARGETOS
 COPY --from=envoy-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
-RUN apt-get update && apt install -y libcap2-bin
-RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
-RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
+RUN apt-get update && apt-get install -y --no-install-recommends libcap2-bin && \
+    setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy && \
+    setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-FROM hashicorp/envoy-fips:1.35.10-fips1402 as envoy-fips-binary
+FROM hashicorp/envoy-fips:${ENVOY_VERSION}-fips1402 AS envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-fips-binary
@@ -39,14 +41,15 @@ ARG TARGETOS
 COPY --from=envoy-fips-binary /usr/local/bin/envoy /usr/local/bin/
 COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /usr/local/bin/
 
-RUN apt-get update && apt install -y libcap2-bin
-RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy
-RUN setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME
+RUN apt-get update && apt-get install -y --no-install-recommends libcap2-bin && \
+    setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/envoy && \
+    setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # go-discover builds the discover binary (which we don't currently publish
 # either).
 ARG GOLANG_VERSION
-FROM golang:${GOLANG_VERSION}-alpine as go-discover
+FROM golang:${GOLANG_VERSION}-alpine AS go-discover
 RUN apk add --no-cache git
 RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
     cd /src/go-discover && \
@@ -58,8 +61,8 @@ RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
 
 # Pull in dumb-init from alpine, as our distroless release image doesn't have a
 # package manager and there's no RPM package for UBI.
-FROM alpine:latest AS dumb-init
-RUN apk add dumb-init
+FROM alpine:3.23 AS dumb-init
+RUN apk add --no-cache dumb-init
 
 # release-default release image
 # -----------------------------------
@@ -107,7 +110,8 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # -----------------------------------
 FROM gcr.io/distroless/base-debian12 AS release-fips-default
 
-ARG BIN_NAME
+ARG BIN_NAME=consul-dataplane
+ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
 ENV PRODUCT_NAME=$BIN_NAME
@@ -148,7 +152,7 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.8 as release-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.8 AS release-ubi
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
@@ -166,11 +170,13 @@ LABEL name=${BIN_NAME}\
       revision=${PRODUCT_REVISION} \
       summary="Consul dataplane connects an application to a Consul service mesh." \
       description="Consul dataplane connects an application to a Consul service mesh." \
-    org.opencontainers.image.licenses="MPL-2.0"
+      org.opencontainers.image.licenses="MPL-2.0"
 
 COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
-RUN microdnf install -y shadow-utils
+RUN microdnf update -y && \
+    microdnf install -y shadow-utils && \
+    microdnf clean all
 
 # Create a non-root user to run the software.
 RUN groupadd --gid 1000 $PRODUCT_NAME && \
@@ -197,9 +203,9 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # This image is based on the Red Hat UBI base image, and has the necessary
 # labels, license file, and non-root user.
 # -----------------------------------
-FROM registry.access.redhat.com/ubi9-minimal:9.8 as release-fips-ubi
+FROM registry.access.redhat.com/ubi9-minimal:9.8 AS release-fips-ubi
 
-ARG BIN_NAME
+ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
 ARG PRODUCT_VERSION
 ARG PRODUCT_REVISION
