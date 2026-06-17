@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.37.2
+ARG ENVOY_VERSION=1.37.4
 FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
