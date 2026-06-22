@@ -1,3 +1,14 @@
+## 1.8.14 (June 22, 2026)
+SECURITY:
+
+* dockerfile: add `microdnf update -y` and `microdnf clean all` to non-FIPS UBI stage to apply latest security patches at build time
+dockerfile: update dockerfile following best practices and reduction of layers by merging RUN layers. Added ENVOY_VERSION arg to maintain it centrally for fips and non-fips versions. [[GH-1142](https://github.com/hashicorp/consul-dataplane/pull/1142)]
+
+IMPROVEMENTS:
+
+* Add `-legacy-server-compat` flag (env: `DP_LEGACY_SERVER_COMPAT`) to enable a time-bounded compatibility mode that allows newer consul-dataplane versions to connect to older Consul servers that do not yet advertise full dataplane feature support. This unblocks in-place Consul upgrades where the control plane and data plane cannot be updated simultaneously. Features unsupported by the older server are automatically disabled with structured warnings. This flag is intended for upgrade transitions only and must be removed once all Consul servers are running a fully supported version. [[GH-1099](https://github.com/hashicorp/consul-dataplane/pull/1099)]
+* Update Envoy version to 1.35.12 [[GH-1161](https://github.com/hashicorp/consul-dataplane/pull/1161)]
+
 ## 1.8.13 (May 23, 2026)
 SECURITY:
 
