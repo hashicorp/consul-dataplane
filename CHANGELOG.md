@@ -1,3 +1,13 @@
+## 2.0.0 (June 22, 2026)
+SECURITY:
+
+* dockerfile: add `microdnf update -y` and `microdnf clean all` to non-FIPS UBI stage to apply latest security patches at build time
+dockerfile: update dockerfile following best practices and reduction of layers by merging RUN layers. Added ENVOY_VERSION arg to maintain it centrally for fips and non-fips versions. [[GH-1142](https://github.com/hashicorp/consul-dataplane/pull/1142)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.37.4 [[GH-1159](https://github.com/hashicorp/consul-dataplane/pull/1159)]
+
 ## 2.0.0 (May 23, 2026)
 
 SECURITY:
