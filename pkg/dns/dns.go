@@ -429,7 +429,7 @@ func rewriteQueryName(raw []byte, newName string) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("build dns name %q: %w", fqdn, err)
 	}
 	msg.Questions[0].Name = name
-	// Also rewrite additional / answer names if present (re-use same target).
+	// Re-pack the message to re-encode the updated QNAME.
 	rewritten, err := msg.Pack()
 	if err != nil {
 		return nil, "", fmt.Errorf("pack dns message: %w", err)
@@ -574,7 +574,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 
 	case domainClassExternal:
 		// Non-consul domain.
-		if !d.canTryEgressListener() {
+		if d.virtualDNSEgressAddr == "" || !d.canTryEgressListener() {
 			return d.queryConsul(raw, proto)
 		}
 
@@ -588,6 +588,10 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 		return resp, nil
 
 	case domainClassVirtual:
+		if d.virtualDNSInlineAddr == "" {
+			return d.queryConsul(raw, proto)
+		}
+
 		// Expand the short form to the full FQDN.
 		expandedName := expandVirtualFQDN(originalName, d.namespace, d.partition, d.datacenter)
 

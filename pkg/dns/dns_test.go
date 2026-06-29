@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/net/dns/dnsmessage"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/hashicorp/consul-dataplane/pkg/dns/mocks"
@@ -329,4 +330,349 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 			}
 		})
 	}
+}
+
+func (s *DNSTestSuite) Test_ClassifyDomain() {
+	testCases := map[string]domainClass{
+		"service.virtual.default.ns.default.ap.dc1.dc.consul": domainClassVirtual,
+		"service.default.consul":                               domainClassConsul,
+		"consul":                                               domainClassConsul,
+		"google.com":                                           domainClassExternal,
+	}
+
+	for domain, expected := range testCases {
+		s.Run(domain, func() {
+			s.Require().Equal(expected, classifyDomain(domain))
+		})
+	}
+}
+
+func (s *DNSTestSuite) Test_ExpandVirtualFQDN() {
+	testCases := []struct {
+		name      string
+		input     string
+		expected  string
+		defaultNS string
+		defaultAP string
+		defaultDC string
+	}{
+		{
+			name:      "short form",
+			input:     "service.virtual.consul",
+			expected:  "service.virtual.default.ns.default.ap.dc1.dc.consul",
+			defaultNS: "default",
+			defaultAP: "default",
+			defaultDC: "dc1",
+		},
+		{
+			name:      "override namespace and datacenter",
+			input:     "service.virtual.other.ns.dc2.dc.consul",
+			expected:  "service.virtual.other.ns.default.ap.dc2.dc.consul",
+			defaultNS: "default",
+			defaultAP: "default",
+			defaultDC: "dc1",
+		},
+		{
+			name:      "override all qualifiers",
+			input:     "service.virtual.team.ns.part.ap.dc2.dc.consul",
+			expected:  "service.virtual.team.ns.part.ap.dc2.dc.consul",
+			defaultNS: "default",
+			defaultAP: "default",
+			defaultDC: "dc1",
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			out := expandVirtualFQDN(tc.input, tc.defaultNS, tc.defaultAP, tc.defaultDC)
+			s.Require().Equal(tc.expected, out)
+		})
+	}
+}
+
+func (s *DNSTestSuite) Test_TriageAndResolve_ConsulDomain() {
+	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+	server := DNSServer{
+		client:    mockedDNSConsulClient,
+		logger:    hclog.Default(),
+		partition: "test-partition",
+		namespace: "test-namespace",
+		token:     "test-token",
+	}
+
+	query := buildDNSQuery(s.T(), "service.default.consul")
+	consulResp := buildDNSAnswerResponse(s.T(), "service.default.consul", "service.default.consul", dnsmessage.RCodeSuccess)
+
+	mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+		Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+		Once()
+
+	resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+	s.Require().NoError(err)
+	s.Require().Equal(consulResp, resp)
+}
+
+func (s *DNSTestSuite) Test_TriageAndResolve_ExternalDomain_EgressForwardingAndFallback() {
+	s.Run("uses egress listener for external domains", func() {
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+		query := buildDNSQuery(s.T(), "www.example.com")
+		expectedResp := buildDNSAnswerResponse(s.T(), "www.example.com", "www.example.com", dnsmessage.RCodeSuccess)
+
+		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+		s.Require().NoError(err)
+		defer udpConn.Close()
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			buf := make([]byte, 4096)
+			n, addr, readErr := udpConn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			_, _ = udpConn.WriteToUDP(expectedResp, addr)
+			_ = n
+		}()
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			virtualDNSEgressAddr: udpConn.LocalAddr().String(),
+		}
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(expectedResp, resp)
+		<-done
+	})
+
+	s.Run("falls back to consul on egress listener error", func() {
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+		query := buildDNSQuery(s.T(), "www.example.com")
+		consulResp := buildDNSAnswerResponse(s.T(), "www.example.com", "www.example.com", dnsmessage.RCodeSuccess)
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			partition:            "test-partition",
+			namespace:            "test-namespace",
+			token:                "test-token",
+			virtualDNSEgressAddr: "127.0.0.1:1",
+		}
+
+		mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+			Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+			Once()
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(consulResp, resp)
+		s.Require().False(server.canTryEgressListener())
+	})
+}
+
+func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
+	s.Run("inline hit rewrites response back to original name", func() {
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+
+		originalName := "service.virtual.consul"
+		expandedName := "service.virtual.default.ns.partition-vms.ap.dc1.dc.consul"
+		query := buildDNSQuery(s.T(), originalName)
+
+		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+		s.Require().NoError(err)
+		defer udpConn.Close()
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			buf := make([]byte, 4096)
+			n, addr, readErr := udpConn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			receivedName := firstQuestionNameFromRaw(s.T(), buf[:n])
+			s.Equal(canonicalName(expandedName), receivedName)
+			response := buildDNSAnswerResponse(s.T(), expandedName, expandedName, dnsmessage.RCodeSuccess)
+			_, _ = udpConn.WriteToUDP(response, addr)
+		}()
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			namespace:            "default",
+			partition:            "partition-vms",
+			datacenter:           "dc1",
+			virtualDNSInlineAddr: udpConn.LocalAddr().String(),
+		}
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(canonicalName(originalName), firstQuestionNameFromRaw(s.T(), resp))
+		s.Require().Equal(canonicalName(originalName), firstAnswerNameFromRaw(s.T(), resp))
+		<-done
+	})
+
+	s.Run("nxdomain from inline listener falls back to consul", func() {
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+
+		originalName := "service.virtual.consul"
+		expandedName := "service.virtual.default.ns.partition-vms.ap.dc1.dc.consul"
+		query := buildDNSQuery(s.T(), originalName)
+		consulResp := buildDNSAnswerResponse(s.T(), originalName, originalName, dnsmessage.RCodeSuccess)
+
+		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+		s.Require().NoError(err)
+		defer udpConn.Close()
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			buf := make([]byte, 4096)
+			n, addr, readErr := udpConn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			receivedName := firstQuestionNameFromRaw(s.T(), buf[:n])
+			s.Equal(canonicalName(expandedName), receivedName)
+			nx := buildDNSRCodeResponse(s.T(), expandedName, dnsmessage.RCodeNameError)
+			_, _ = udpConn.WriteToUDP(nx, addr)
+		}()
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			partition:            "partition-vms",
+			namespace:            "default",
+			token:                "test-token",
+			datacenter:           "dc1",
+			virtualDNSInlineAddr: udpConn.LocalAddr().String(),
+		}
+
+		mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+			Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+			Once()
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(consulResp, resp)
+		<-done
+	})
+
+	s.Run("inline listener error falls back to consul and marks listener unavailable", func() {
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+		query := buildDNSQuery(s.T(), "service.virtual.consul")
+		consulResp := buildDNSAnswerResponse(s.T(), "service.virtual.consul", "service.virtual.consul", dnsmessage.RCodeSuccess)
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			partition:            "partition-vms",
+			namespace:            "default",
+			token:                "test-token",
+			datacenter:           "dc1",
+			virtualDNSInlineAddr: "127.0.0.1:1",
+		}
+
+		mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+			Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+			Once()
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(consulResp, resp)
+		s.Require().False(server.canTryInlineListener())
+	})
+}
+
+func buildDNSQuery(t *testing.T, name string) []byte {
+	t.Helper()
+	qName, err := dnsmessage.NewName(canonicalName(name))
+	require.NoError(t, err)
+
+	msg := dnsmessage.Message{
+		Header: dnsmessage.Header{ID: 1, RecursionDesired: true},
+		Questions: []dnsmessage.Question{{
+			Name:  qName,
+			Type:  dnsmessage.TypeA,
+			Class: dnsmessage.ClassINET,
+		}},
+	}
+
+	raw, err := msg.Pack()
+	require.NoError(t, err)
+	return raw
+}
+
+func buildDNSRCodeResponse(t *testing.T, questionName string, rcode dnsmessage.RCode) []byte {
+	t.Helper()
+	qName, err := dnsmessage.NewName(canonicalName(questionName))
+	require.NoError(t, err)
+
+	msg := dnsmessage.Message{
+		Header: dnsmessage.Header{
+			ID:       1,
+			Response: true,
+			RCode:    rcode,
+		},
+		Questions: []dnsmessage.Question{{
+			Name:  qName,
+			Type:  dnsmessage.TypeA,
+			Class: dnsmessage.ClassINET,
+		}},
+	}
+
+	raw, err := msg.Pack()
+	require.NoError(t, err)
+	return raw
+}
+
+func buildDNSAnswerResponse(t *testing.T, questionName, answerName string, rcode dnsmessage.RCode) []byte {
+	t.Helper()
+	qName, err := dnsmessage.NewName(canonicalName(questionName))
+	require.NoError(t, err)
+	aName, err := dnsmessage.NewName(canonicalName(answerName))
+	require.NoError(t, err)
+
+	msg := dnsmessage.Message{
+		Header: dnsmessage.Header{
+			ID:       1,
+			Response: true,
+			RCode:    rcode,
+		},
+		Questions: []dnsmessage.Question{{
+			Name:  qName,
+			Type:  dnsmessage.TypeA,
+			Class: dnsmessage.ClassINET,
+		}},
+		Answers: []dnsmessage.Resource{{
+			Header: dnsmessage.ResourceHeader{
+				Name:  aName,
+				Type:  dnsmessage.TypeA,
+				Class: dnsmessage.ClassINET,
+				TTL:   1,
+			},
+			Body: &dnsmessage.AResource{A: [4]byte{127, 0, 0, 1}},
+		}},
+	}
+
+	raw, err := msg.Pack()
+	require.NoError(t, err)
+	return raw
+}
+
+func firstQuestionNameFromRaw(t *testing.T, raw []byte) string {
+	t.Helper()
+	var msg dnsmessage.Message
+	require.NoError(t, msg.Unpack(raw))
+	require.NotEmpty(t, msg.Questions)
+	return msg.Questions[0].Name.String()
+}
+
+func firstAnswerNameFromRaw(t *testing.T, raw []byte) string {
+	t.Helper()
+	var msg dnsmessage.Message
+	require.NoError(t, msg.Unpack(raw))
+	require.NotEmpty(t, msg.Answers)
+	return msg.Answers[0].Header.Name.String()
 }
