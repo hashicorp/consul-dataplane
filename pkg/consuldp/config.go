@@ -320,6 +320,13 @@ type EnvoyConfig struct {
 	ExtraArgs []string
 }
 
+const (
+	// VirtualDNSInlinePort is the port for Envoy's inline DNS table listener.
+	VirtualDNSInlinePort = 8653
+	// VirtualDNSEgressPort is the port for Envoy's external DNS forwarder listener.
+	VirtualDNSEgressPort = 8654
+)
+
 // XDSServer contains the configuration of the xDS server.
 type XDSServer struct {
 	// BindAddress is the address on which the Envoy xDS server will be available.

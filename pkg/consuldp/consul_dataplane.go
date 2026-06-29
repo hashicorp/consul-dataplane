@@ -186,7 +186,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	if cdp.cfg.Mode == ModeTypeDNSProxy {
 		// start up DNS server with the configuration from the consul-dataplane flags / environment variables since
 		// envoy bootstrapping is bypassed.
-		if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, cdp.cfg.Proxy.Namespace, cdp.cfg.Proxy.Partition); err != nil {
+		if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, cdp.cfg.Proxy.Namespace, cdp.cfg.Proxy.Partition, ""); err != nil {
 			cdp.logger.Error("failed to start the dns proxy", "error", err)
 			return err
 		}
@@ -214,7 +214,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
 
 	// start up DNS server with envoy bootstrap params.
-	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition); err != nil {
+	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition, bootstrapParams.Datacenter); err != nil {
 		cdp.logger.Error("failed to start the dns proxy", "error", err)
 		return err
 	}
@@ -287,17 +287,27 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 }
 
 func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,
-	dnsConfig *DNSServerConfig, namespace, partition string) error {
+	dnsConfig *DNSServerConfig, namespace, partition, datacenter string) error {
 	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
 
+	var (
+		virtualDNSInlineAddr string
+		virtualDNSEgressAddr string
+	)
+	virtualDNSInlineAddr = fmt.Sprintf("127.0.0.1:%d", VirtualDNSInlinePort)
+	virtualDNSEgressAddr = fmt.Sprintf("127.0.0.1:%d", VirtualDNSEgressPort)
+
 	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
-		BindAddr:  dnsConfig.BindAddr,
-		Port:      dnsConfig.Port,
-		Client:    dnsClientInterface,
-		Logger:    cdp.logger,
-		Partition: partition,
-		Namespace: namespace,
-		Token:     cdp.aclToken,
+		BindAddr:             dnsConfig.BindAddr,
+		Port:                 dnsConfig.Port,
+		Client:               dnsClientInterface,
+		Logger:               cdp.logger,
+		Partition:            partition,
+		Namespace:            namespace,
+		Token:                cdp.aclToken,
+		Datacenter:           datacenter,
+		VirtualDNSInlineAddr: virtualDNSInlineAddr,
+		VirtualDNSEgressAddr: virtualDNSEgressAddr,
 	})
 	if err == dns.ErrServerDisabled {
 		cdp.logger.Info("dns server disabled: configure the Consul DNS port to enable")
