@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/hashicorp/consul/proto-public/pbdns"
