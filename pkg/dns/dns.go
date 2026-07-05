@@ -47,6 +47,10 @@ type DNSServerParams struct {
 	VirtualDNSInlineAddr string
 	// VirtualDNSEgressAddr is the address of Envoy's egress DNS listener (127.0.0.1:8654).
 	VirtualDNSEgressAddr string
+	// UpstreamIndex, when set, is consulted during virtual-FQDN expansion to
+	// fill missing namespace/partition/datacenter tokens from the real upstream
+	// identity (decoded from CDS SNIs) instead of the source proxy defaults.
+	UpstreamIndex *UpstreamIndex
 }
 
 // DNSServerInterface is the interface for athe DNSServer
@@ -77,6 +81,7 @@ type DNSServer struct {
 	datacenter           string
 	virtualDNSInlineAddr string
 	virtualDNSEgressAddr string
+	upstreamIndex        *UpstreamIndex
 
 	listenerHealthLock            sync.Mutex
 	inlineListenerUnavailableTill time.Time
@@ -102,6 +107,7 @@ func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
 	s.virtualDNSEgressAddr = p.VirtualDNSEgressAddr
 	s.namespace = p.Namespace
 	s.token = p.Token
+	s.upstreamIndex = p.UpstreamIndex
 	return s, nil
 }
 
@@ -362,31 +368,25 @@ func classifyDomain(name string) domainClass {
 	return domainClassExternal
 }
 
-// expandVirtualFQDN expands any of the 8 short-form virtual domain names into
-// the canonical form:
-//
-//	<svc>.virtual.<ns>.ns.<partition>.ap.<dc>.dc.consul
-//
-// Missing components are filled from the server's own namespace, partition and
-// datacenter.
-func expandVirtualFQDN(name, defaultNS, defaultPartition, defaultDC string) string {
+// parseVirtualTokens splits a virtual domain name into its service name and any
+// explicitly supplied namespace/partition/datacenter tokens. Tokens that are
+// not present in the query are returned as empty strings (callers decide how to
+// fill them). ok is false when name is not a virtual domain.
+func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 
 	// Find the service name: everything up to the first ".virtual." segment.
 	virtualIdx := strings.Index(name, ".virtual.")
 	if virtualIdx < 0 {
-		return name
+		return "", "", "", "", false
 	}
-	svc := name[:virtualIdx]
+	svc = name[:virtualIdx]
+	svc = strings.TrimSuffix(svc, ".service")
 	// Remainder after "<svc>.virtual." — may be empty (just "consul") or have
 	// ns/ap/dc qualifiers.
 	remainder := name[virtualIdx+len(".virtual."):]
 	// Strip trailing ".consul" if present.
 	remainder = strings.TrimSuffix(remainder, ".consul")
-
-	ns := defaultNS
-	partition := defaultPartition
-	dc := defaultDC
 
 	// Parse remainder tokens separated by ".":
 	// Possible patterns of (label, qualifier) pairs: ns, ap, dc in any order.
@@ -405,6 +405,70 @@ func expandVirtualFQDN(name, defaultNS, defaultPartition, defaultDC string) stri
 		}
 	}
 
+	return svc, ns, partition, dc, true
+}
+
+// expandVirtualFQDN expands any of the 8 short-form virtual domain names into
+// the canonical form:
+//
+//	<svc>.virtual.<ns>.ns.<partition>.ap.<dc>.dc.consul
+//
+// Missing components are filled from the provided default namespace, partition
+// and datacenter.
+// func expandVirtualFQDN(name, defaultNS, defaultPartition, defaultDC string) string {
+// 	svc, ns, partition, dc, ok := parseVirtualTokens(name)
+// 	if !ok {
+// 		return strings.ToLower(strings.TrimSuffix(name, "."))
+// 	}
+// 	if ns == "" {
+// 		ns = defaultNS
+// 	}
+// 	if partition == "" {
+// 		partition = defaultPartition
+// 	}
+// 	if dc == "" {
+// 		dc = defaultDC
+// 	}
+// 	return fmt.Sprintf("%s.virtual.%s.ns.%s.ap.%s.dc.consul", svc, ns, partition, dc)
+// }
+
+// expandVirtualName expands a short-form virtual domain name into its canonical
+// FQDN. Missing namespace/partition/datacenter tokens are first resolved from
+// the upstream identity advertised through CDS (the same raw identity the
+// control plane used to build Envoy's inline DNS table); any still-missing
+// tokens fall back to the source proxy's own namespace/partition/datacenter.
+// This keeps the dataplane's expansion consistent with Envoy's inline answer in
+// cross-partition, cross-namespace, and cross-datacenter scenarios.
+func (d *DNSServer) expandVirtualName(name string) string {
+	svc, ns, partition, dc, ok := parseVirtualTokens(name)
+	if !ok {
+		return strings.ToLower(strings.TrimSuffix(name, "."))
+	}
+
+	// Consult the upstream index using any explicit tokens as constraints.
+	// A unique match fills the tokens the query left unspecified.
+	if comp, found := d.upstreamIndex.Lookup(svc, ns, partition, dc); found {
+		if ns == "" {
+			ns = comp.Namespace
+		}
+		if partition == "" {
+			partition = comp.Partition
+		}
+		if dc == "" {
+			dc = comp.Datacenter
+		}
+	}
+
+	// Fill anything still unspecified from the source proxy defaults.
+	if ns == "" {
+		ns = d.namespace
+	}
+	if partition == "" {
+		partition = d.partition
+	}
+	if dc == "" {
+		dc = d.datacenter
+	}
 	return fmt.Sprintf("%s.virtual.%s.ns.%s.ap.%s.dc.consul", svc, ns, partition, dc)
 }
 
@@ -593,7 +657,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 		}
 
 		// Expand the short form to the full FQDN.
-		expandedName := expandVirtualFQDN(originalName, d.namespace, d.partition, d.datacenter)
+		expandedName := d.expandVirtualName(originalName)
 
 		// Rewrite the query with the expanded name before forwarding to Envoy.
 		rewrittenQuery, _, err := rewriteQueryName(raw, expandedName)

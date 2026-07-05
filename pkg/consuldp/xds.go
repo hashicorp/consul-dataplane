@@ -15,6 +15,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
+	"github.com/hashicorp/consul-dataplane/pkg/dns"
 )
 
 const (
@@ -118,15 +120,23 @@ func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServ
 
 func (cdp *ConsulDataplane) streamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		return handler(srv, &metricServerStream{ss})
+		return handler(srv, &metricServerStream{ServerStream: ss, upstreamIndex: cdp.upstreamIndex})
 	}
 }
 
 type metricServerStream struct {
 	grpc.ServerStream
+	// upstreamIndex, when set, receives CDS cluster SNIs decoded from the
+	// server->Envoy frames that pass through this stream.
+	upstreamIndex *dns.UpstreamIndex
 }
 
 func (s *metricServerStream) SendMsg(m interface{}) error {
+	// Tap CDS frames on their way to Envoy to keep the upstream identity index
+	// current. This reads a copy of the frame's bytes and never mutates m, so
+	// opaque passthrough is unaffected.
+	tapClusterFrame(s.upstreamIndex, m)
+
 	err := s.ServerStream.SendMsg(m)
 	if err == nil {
 		metrics.SetGauge([]string{"envoy_connected"}, 1)

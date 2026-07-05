@@ -47,6 +47,11 @@ type ConsulDataplane struct {
 	aclToken        string
 	metricsConfig   *metricsConfig
 	lifecycleConfig *lifecycleConfig
+	// upstreamIndex maps upstream service identities decoded from CDS SNIs on
+	// the proxied xDS stream. It is consulted during virtual-FQDN expansion so
+	// the dataplane fills missing tokens from the real upstream identity rather
+	// than the source proxy defaults.
+	upstreamIndex *dns.UpstreamIndex
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -66,8 +71,9 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 	})
 
 	return &ConsulDataplane{
-		logger: logger,
-		cfg:    cfg,
+		logger:        logger,
+		cfg:           cfg,
+		upstreamIndex: dns.NewUpstreamIndex(),
 	}, nil
 }
 
@@ -308,6 +314,7 @@ func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,
 		Datacenter:           datacenter,
 		VirtualDNSInlineAddr: virtualDNSInlineAddr,
 		VirtualDNSEgressAddr: virtualDNSEgressAddr,
+		UpstreamIndex:        cdp.upstreamIndex,
 	})
 	if err == dns.ErrServerDisabled {
 		cdp.logger.Info("dns server disabled: configure the Consul DNS port to enable")
