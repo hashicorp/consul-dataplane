@@ -550,7 +550,7 @@ func isNXDOMAIN(raw []byte) bool {
 	if err := msg.Unpack(raw); err != nil {
 		return false
 	}
-	return msg.Header.RCode == dnsmessage.RCodeNameError
+	return msg.RCode == dnsmessage.RCodeNameError
 }
 
 // forwardUDP sends a raw DNS query to addr and returns the raw response.
