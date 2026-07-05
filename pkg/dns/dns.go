@@ -255,11 +255,11 @@ func (d *DNSServer) proxyTCP(ctx context.Context) {
 		if err != nil {
 			d.logger.Warn("failure to accept tcp connection", "error", err)
 		}
-		go d.proxyTCPAcceptedConn(ctx, c, d.client)
+		go d.proxyTCPAcceptedConn(ctx, c)
 	}
 }
 
-func (d *DNSServer) proxyTCPAcceptedConn(ctx context.Context, conn net.Conn, client pbdns.DNSServiceClient) {
+func (d *DNSServer) proxyTCPAcceptedConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	logger := d.logger.Named("tcp")
 	for {
@@ -509,8 +509,14 @@ func rewriteResponseName(raw []byte, expandedName, originalName string) ([]byte,
 	if err := msg.Unpack(raw); err != nil {
 		return raw, nil // best-effort; return original on parse failure
 	}
-	expanded := dnsmessage.MustNewName(canonicalName(expandedName))
-	original := dnsmessage.MustNewName(canonicalName(originalName))
+	expanded, err := dnsmessage.NewName(canonicalName(expandedName))
+	if err != nil {
+		return raw, nil
+	}
+	original, err := dnsmessage.NewName(canonicalName(originalName))
+	if err != nil {
+		return raw, nil
+	}
 
 	rewrite := func(name *dnsmessage.Name) {
 		if name.String() == expanded.String() {
