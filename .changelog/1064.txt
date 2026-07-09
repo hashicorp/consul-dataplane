@@ -1,0 +1,3 @@
+```release-note:bug
+- envoy: add `skip_exit` to `drain_listeners` admin API call to prevent premature pod termination when upgrading to Envoy 1.37+
+```
