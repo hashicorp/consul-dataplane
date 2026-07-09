@@ -27,6 +27,7 @@ container {
   triage {
     suppress {
       vulnerabilities = [
+        "GO-2026-5932", // Fix not available as of yet
       ]
       paths = [
         // The OSV scanner will trip on several packages that are included in the
