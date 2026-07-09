@@ -1,3 +1,12 @@
+## 2.0.2 (July 9, 2026)
+SECURITY:
+
+* Update the Consul Build Go base image to `alpine3.24` [[GH-1181](https://github.com/hashicorp/consul-dataplane/pull/1181)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.38.3 [[GH-1185](https://github.com/hashicorp/consul-dataplane/pull/1185)]
+
 ## 2.0.0 (May 23, 2026)
 
 SECURITY:
