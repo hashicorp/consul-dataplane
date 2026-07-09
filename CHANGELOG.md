@@ -1,3 +1,17 @@
+## 1.9.10 (July 9, 2026)
+SECURITY:
+
+* Update the Consul Build Go base image to `alpine3.24` [[GH-1181](https://github.com/hashicorp/consul-dataplane/pull/1181)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.38.3 [[GH-1185](https://github.com/hashicorp/consul-dataplane/pull/1185)]
+
+BUG FIXES:
+
+* - envoy: add `skip_exit` to `drain_listeners` admin API call to prevent premature pod termination when upgrading to Envoy 1.37+ [[GH-1064](https://github.com/hashicorp/consul-dataplane/pull/1064)]
+* - envoy: prevent graceful shutdown errors from closing errorExitCh, which caused Envoy to be killed immediately bypassing the configured grace period [[GH-1072](https://github.com/hashicorp/consul-dataplane/pull/1072)]
+
 ## 1.9.8 (May 23, 2026)
 SECURITY:
 
