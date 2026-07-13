@@ -22,6 +22,10 @@ var httpClient = &http.Client{
 	Timeout: 1 * time.Second,
 }
 
+// DNSRcodeSuccess mirrors github.com/miekg/dns.RcodeSuccess so callers in the
+// test package can assert on it without importing the dns package directly.
+const DNSRcodeSuccess = dns.RcodeSuccess
+
 func TCP(n int) nat.Port {
 	port, err := nat.NewPort("tcp", strconv.Itoa(n))
 	if err != nil {
@@ -98,6 +102,53 @@ func DNSLookup(t *testing.T, suite *Suite, protocol string, serverIP string, ser
 		results[idx] = rr.(*dns.A).A.String()
 	}
 	return results
+}
+
+// DNSLookupA performs an A-record lookup like DNSLookup but returns the raw
+// answer addresses along with the response rcode, so callers can assert on both
+// the resolved addresses and the response code. This is used by the
+// virtual-domain (VIP) e2e assertions.
+func DNSLookupA(t *testing.T, suite *Suite, protocol, serverIP string, serverPort int, host string) (addrs []string, rcode int) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(suite.Context(t), 2*time.Second)
+	defer cancel()
+
+	req := new(dns.Msg)
+	req.SetQuestion(host, dns.TypeA)
+
+	c := new(dns.Client)
+	c.Net = protocol
+	rsp, _, err := c.ExchangeContext(
+		ctx,
+		req,
+		net.JoinHostPort(serverIP, strconv.Itoa(serverPort)),
+	)
+	require.NoError(t, err)
+
+	for _, rr := range rsp.Answer {
+		if a, ok := rr.(*dns.A); ok {
+			addrs = append(addrs, a.A.String())
+		}
+	}
+	return addrs, rsp.Rcode
+}
+
+// IsConsulVIP reports whether ip falls in the 240.0.0.0/4 reserved range that
+// Consul allocates service virtual IPs (VIPs) from. Virtual-domain
+// (*.virtual.consul) queries resolved via Envoy's inline DNS table must return
+// an address from this block.
+func IsConsulVIP(ip string) bool {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return false
+	}
+	parsed = parsed.To4()
+	if parsed == nil {
+		return false
+	}
+	// 240.0.0.0/4 => first octet in [240, 255].
+	return parsed[0] >= 240
 }
 
 func GetMetrics(t *testing.T, ip string, port int) string {

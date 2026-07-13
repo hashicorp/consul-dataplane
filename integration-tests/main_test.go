@@ -274,6 +274,32 @@ func TestIntegration(t *testing.T) {
 		require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
 	}
 
+	// Virtual-domain (VIP) resolution: the frontend sidecar has "backend" as an
+	// upstream, so a *.virtual.consul query for it must be answered by Envoy's
+	// inline DNS listener with a Consul VIP from the 240.0.0.0/4 range
+	for _, port := range dnsPorts {
+		addrs, rcode := DNSLookupA(t,
+			suite,
+			port.Proto(),
+			frontendPod.HostIP,
+			frontendPod.MappedPorts[port],
+			"backend.virtual.consul.",
+		)
+
+		require.Equalf(t, DNSRcodeSuccess, rcode,
+			"expected backend.virtual.consul to resolve successfully over %s, got rcode=%d",
+			port.Proto(), rcode)
+		require.NotEmptyf(t, addrs,
+			"expected backend.virtual.consul to resolve to a VIP over %s, got no answers",
+			port.Proto())
+
+		for _, addr := range addrs {
+			require.Truef(t, IsConsulVIP(addr),
+				"expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4), got %q over %s",
+				addr, port.Proto())
+		}
+	}
+
 	metrics := GetMetrics(t,
 		backendPod.HostIP,
 		backendPod.MappedPorts[metricsPort],
