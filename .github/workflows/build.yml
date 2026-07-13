@@ -75,14 +75,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - {goos: "linux", goarch: "arm"}
-          - {goos: "linux", goarch: "arm64"}
-          - {goos: "linux", goarch: "386"}
-          - {goos: "linux", goarch: "amd64"}
-          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
-          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
-          - {goos: "darwin", goarch: "amd64"}
-          - {goos: "darwin", goarch: "arm64"}
+          - {goos: "linux", goarch: "arm", gotags: "hashicorpmetrics"}
+          - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics"}
+          - {goos: "linux", goarch: "386", gotags: "hashicorpmetrics"}
+          - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics"}
+          - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
+          - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
+          - {goos: "darwin", goarch: "amd64", gotags: "hashicorpmetrics"}
+          - {goos: "darwin", goarch: "arm64", gotags: "hashicorpmetrics"}
 
       fail-fast: true
 
@@ -180,7 +180,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | sed -n '1p' | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
@@ -205,7 +205,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | sed -n '1p' | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
@@ -281,7 +281,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | sed -n '1p' | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}."
               exit 1
@@ -306,7 +306,7 @@ jobs:
         uses: hashicorp/actions-docker-build@v2
         with:
           smoke_test: |
-            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version | head -n1 | cut -d' ' -f3 | sed 's/^v//')"
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" --version 2>/dev/null | sed -n '1p' | cut -d' ' -f3 | sed 's/^v//')"
             if [ "${TEST_VERSION}" != "${version}" ]; then
               echo "Test FAILED: Got ${TEST_VERSION}, want ${version}}."
               exit 1

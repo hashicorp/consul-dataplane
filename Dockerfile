@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.37.4
+ARG ENVOY_VERSION=1.38.3
 ARG ENVOY_FIPS_SUFFIX=fips1402
 FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
 
@@ -62,7 +62,7 @@ RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
 
 # Pull in dumb-init from alpine, as our distroless release image doesn't have a
 # package manager and there's no RPM package for UBI.
-FROM alpine:3.23 AS dumb-init
+FROM alpine:3.24 AS dumb-init
 RUN apk add --no-cache dumb-init
 
 # release-default release image
