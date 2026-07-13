@@ -79,8 +79,8 @@ jobs:
           - {goos: "linux", goarch: "arm64"}
           - {goos: "linux", goarch: "386"}
           - {goos: "linux", goarch: "amd64"}
-          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402", pkg_suffix: "-fips" }
-          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402", pkg_suffix: "-fips" }
+          - {goos: "linux", goarch: "amd64", gotags: "fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
+          - {goos: "linux", goarch: "arm64", gotags: "fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
           - {goos: "darwin", goarch: "amd64"}
           - {goos: "darwin", goarch: "arm64"}
 
@@ -101,10 +101,6 @@ jobs:
           reproducible: assert
           instructions: |
             cp LICENSE $TARGET_DIR/LICENSE.txt
-            if [[ "${{ matrix.fips }}" == "+fips1402" ]]
-            then
-              sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
-            fi
             ${{ matrix.env }} go build -tags=${{ matrix.gotags }} -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
       - name: Copy license file
@@ -162,9 +158,9 @@ jobs:
         # supported by Envoy.
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: "+fips1402" }
+          - { arch: "amd64", fips: "+fips1403" }
           - { arch: "arm64" }
-          - { arch: "arm64", fips: "+fips1402" }
+          - { arch: "arm64", fips: "+fips1403" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -240,7 +236,7 @@ jobs:
       matrix:
         include:
           - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
-          - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1402" }
+          - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1403" }
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
@@ -266,7 +262,7 @@ jobs:
       matrix:
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: "+fips1402" }
+          - { arch: "amd64", fips: "+fips1403" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
