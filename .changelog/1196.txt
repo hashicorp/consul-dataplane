@@ -1,0 +1,3 @@
+```release-note:improvement
+fips: migrate FIPS builds from FIPS 140-2 (BoringCrypto) to FIPS 140-3 using the in-tree Go Cryptographic Module (`GOFIPS140=v1.0.0`, CMVP certificate #5247). Version output now reports `+fips1403`.
+```
