@@ -24,7 +24,11 @@ var httpClient = &http.Client{
 
 // DNSRcodeSuccess mirrors github.com/miekg/dns.RcodeSuccess so callers in the
 // test package can assert on it without importing the dns package directly.
-const DNSRcodeSuccess = dns.RcodeSuccess
+const (
+	DNSRcodeSuccess       = dns.RcodeSuccess
+	DNSRcodeServerFailure = dns.RcodeServerFailure
+	DNSRcodeNameError     = dns.RcodeNameError
+)
 
 func TCP(n int) nat.Port {
 	port, err := nat.NewPort("tcp", strconv.Itoa(n))

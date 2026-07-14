@@ -644,6 +644,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 
 	case domainClassExternal:
 		// Non-consul domain.
+		d.logger.Debug("external dns query, routing to egress listener", "domain", originalName)
 		if d.virtualDNSEgressAddr == "" || !d.canTryEgressListener() {
 			return d.queryConsul(raw, proto)
 		}
@@ -655,6 +656,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 			d.logger.Debug("egress listener unavailable, falling back to consul", "error", err)
 			return d.queryConsul(raw, proto)
 		}
+		d.logger.Debug("external dns resolved via egress listener", "domain", originalName)
 		return resp, nil
 
 	case domainClassVirtual:
@@ -683,6 +685,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 		envoyResp, envoyErr := forwardUDP(d.virtualDNSInlineAddr, rewrittenQuery, envoyDNSForwardTimeout)
 		if envoyErr == nil && !isNXDOMAIN(envoyResp) {
 			// Hit — rewrite the response name back to the original and return.
+			d.logger.Debug("virtual dns resolved via inline listener", "domain", originalName, "expanded_name", expandedName)
 			out, err := rewriteResponseName(envoyResp, expandedName, originalName)
 			if err != nil {
 				return envoyResp, nil

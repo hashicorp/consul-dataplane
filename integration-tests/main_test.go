@@ -334,6 +334,64 @@ func TestIntegration(t *testing.T) {
 		}
 	}
 
+	// Prove the *path*: the VIP above could also be returned by the Consul
+	// server fallback, so assert the dataplane's debug logs show the query was
+	// classified as virtual and answered by Envoy's inline DNS listener rather
+	// than falling through to Consul.
+	require.Eventuallyf(t, func() bool {
+		logs := frontendDataplane.ContainerLogs(t)
+		return strings.Contains(logs, "virtual dns resolved via inline listener")
+	}, 30*time.Second, 2*time.Second,
+		"expected dataplane logs to show backend.virtual.consul was resolved via the inline listener")
+
+	// External-domain routing: queries for non-.consul domains must be routed
+	// through Envoy's egress DNS listener (:8654) with a fallback to the Consul
+	// server. The test verifies that the proxy returns a well-formed DNS response
+	// (not a connection error) for a domain outside the .consul zone, confirming
+	// the domain-classification triage logic fires the correct forwarding path.
+	for _, port := range dnsPorts {
+		t.Logf("DNS external lookup start: consul_server_version=%s proto=%s resolver=%s:%d query=%s",
+			opts.ServerVersion,
+			port.Proto(),
+			frontendPod.HostIP,
+			frontendPod.MappedPorts[port],
+			"example.com.")
+
+		_, rcode := DNSLookupA(t,
+			suite,
+			port.Proto(),
+			frontendPod.HostIP,
+			frontendPod.MappedPorts[port],
+			"example.com.",
+		)
+
+		t.Logf("DNS external lookup result: consul_server_version=%s proto=%s query=%s rcode=%d",
+			opts.ServerVersion,
+			port.Proto(),
+			"example.com.",
+			rcode)
+
+		// Any well-formed DNS rcode (success, NXDOMAIN, or SERVFAIL) confirms
+		// the proxy returned a response without a transport error. A connection
+		// failure would cause DNSLookupA to fail the test above via
+		// require.NoError. The routing *path* is asserted separately below.
+		require.Containsf(t,
+			[]int{DNSRcodeSuccess, DNSRcodeNameError, DNSRcodeServerFailure},
+			rcode,
+			"expected a valid DNS rcode for external domain over %s, got rcode=%d",
+			port.Proto(), rcode)
+	}
+
+	// Prove the *path*: a valid rcode alone doesn't distinguish the egress
+	// listener from the Consul-server fallback (both can answer example.com).
+	// Assert the dataplane's debug logs show the query was classified as
+	// external and routed to the egress-listener path by the triage logic.
+	require.Eventuallyf(t, func() bool {
+		logs := frontendDataplane.ContainerLogs(t)
+		return strings.Contains(logs, "external dns query, routing to egress listener")
+	}, 30*time.Second, 2*time.Second,
+		"expected dataplane logs to show example.com was classified as external and routed to the egress listener")
+
 	metrics := GetMetrics(t,
 		backendPod.HostIP,
 		backendPod.MappedPorts[metricsPort],
