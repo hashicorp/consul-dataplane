@@ -264,6 +264,13 @@ func TestIntegration(t *testing.T) {
 	frontendPod.ExposeInternalPorts(t, dnsPorts)
 
 	for _, port := range dnsPorts {
+		t.Logf("DNS service lookup start: consul_server_version=%s proto=%s resolver=%s:%d query=%s",
+			opts.ServerVersion,
+			port.Proto(),
+			frontendPod.HostIP,
+			frontendPod.MappedPorts[port],
+			"backend-sidecar.service.consul.")
+
 		addrs := DNSLookup(t,
 			suite,
 			port.Proto(),
@@ -271,6 +278,12 @@ func TestIntegration(t *testing.T) {
 			frontendPod.MappedPorts[port],
 			"backend-sidecar.service.consul.",
 		)
+
+		t.Logf("DNS service lookup result: consul_server_version=%s proto=%s query=%s addrs=%v",
+			opts.ServerVersion,
+			port.Proto(),
+			"backend-sidecar.service.consul.",
+			addrs)
 		require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
 	}
 
@@ -278,6 +291,13 @@ func TestIntegration(t *testing.T) {
 	// upstream, so a *.virtual.consul query for it must be answered by Envoy's
 	// inline DNS listener with a Consul VIP from the 240.0.0.0/4 range
 	for _, port := range dnsPorts {
+		t.Logf("DNS virtual lookup start: consul_server_version=%s proto=%s resolver=%s:%d query=%s",
+			opts.ServerVersion,
+			port.Proto(),
+			frontendPod.HostIP,
+			frontendPod.MappedPorts[port],
+			"backend.virtual.consul.")
+
 		addrs, rcode := DNSLookupA(t,
 			suite,
 			port.Proto(),
@@ -285,6 +305,13 @@ func TestIntegration(t *testing.T) {
 			frontendPod.MappedPorts[port],
 			"backend.virtual.consul.",
 		)
+
+		t.Logf("DNS virtual lookup result: consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+			opts.ServerVersion,
+			port.Proto(),
+			"backend.virtual.consul.",
+			rcode,
+			addrs)
 
 		require.Equalf(t, DNSRcodeSuccess, rcode,
 			"expected backend.virtual.consul to resolve successfully over %s, got rcode=%d",
@@ -294,6 +321,13 @@ func TestIntegration(t *testing.T) {
 			port.Proto())
 
 		for _, addr := range addrs {
+			t.Logf("DNS virtual lookup answer: consul_server_version=%s proto=%s query=%s addr=%s is_consul_vip=%t",
+				opts.ServerVersion,
+				port.Proto(),
+				"backend.virtual.consul.",
+				addr,
+				IsConsulVIP(addr))
+
 			require.Truef(t, IsConsulVIP(addr),
 				"expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4), got %q over %s",
 				addr, port.Proto())
