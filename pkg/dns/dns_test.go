@@ -347,57 +347,6 @@ func (s *DNSTestSuite) Test_ClassifyDomain() {
 	}
 }
 
-// func (s *DNSTestSuite) Test_ExpandVirtualFQDN() {
-// 	testCases := []struct {
-// 		name      string
-// 		input     string
-// 		expected  string
-// 		defaultNS string
-// 		defaultAP string
-// 		defaultDC string
-// 	}{
-// 		{
-// 			name:      "short form",
-// 			input:     "service.virtual.consul",
-// 			expected:  "service.virtual.default.ns.default.ap.dc1.dc.consul",
-// 			defaultNS: "default",
-// 			defaultAP: "default",
-// 			defaultDC: "dc1",
-// 		},
-// 		{
-// 			name:      "override namespace and datacenter",
-// 			input:     "service.virtual.other.ns.dc2.dc.consul",
-// 			expected:  "service.virtual.other.ns.default.ap.dc2.dc.consul",
-// 			defaultNS: "default",
-// 			defaultAP: "default",
-// 			defaultDC: "dc1",
-// 		},
-// 		{
-// 			name:      "override all qualifiers",
-// 			input:     "service.virtual.team.ns.part.ap.dc2.dc.consul",
-// 			expected:  "service.virtual.team.ns.part.ap.dc2.dc.consul",
-// 			defaultNS: "default",
-// 			defaultAP: "default",
-// 			defaultDC: "dc1",
-// 		},
-// 		{
-// 			name:      "service alias short form",
-// 			input:     "service-db.service.virtual.consul",
-// 			expected:  "service-db.virtual.default.ns.default.ap.dc1.dc.consul",
-// 			defaultNS: "default",
-// 			defaultAP: "default",
-// 			defaultDC: "dc1",
-// 		},
-// 	}
-
-// 	for _, tc := range testCases {
-// 		s.Run(tc.name, func() {
-// 			out := expandVirtualFQDN(tc.input, tc.defaultNS, tc.defaultAP, tc.defaultDC)
-// 			s.Require().Equal(tc.expected, out)
-// 		})
-// 	}
-// }
-
 func (s *DNSTestSuite) Test_TriageAndResolve_ConsulDomain() {
 	mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 	server := DNSServer{
@@ -445,6 +394,7 @@ func (s *DNSTestSuite) Test_TriageAndResolve_ExternalDomain_EgressForwardingAndF
 		server := DNSServer{
 			client:               mockedDNSConsulClient,
 			logger:               hclog.Default(),
+			datacenter:           "dc1",
 			virtualDNSEgressAddr: udpConn.LocalAddr().String(),
 		}
 
@@ -465,6 +415,7 @@ func (s *DNSTestSuite) Test_TriageAndResolve_ExternalDomain_EgressForwardingAndF
 			partition:            "test-partition",
 			namespace:            "test-namespace",
 			token:                "test-token",
+			datacenter:           "dc1",
 			virtualDNSEgressAddr: "127.0.0.1:1",
 		}
 
