@@ -354,8 +354,8 @@ const (
 	domainClassExternal                    // everything else
 )
 
-// classifyDomain returns the class of the fully-qualified domain name.
-// name must be in canonical (lower-case, trailing-dot-stripped) form.
+// classifyDomain returns the class of the provided DNS query name.
+// The name is normalized to lower-case and any trailing '.' is removed.
 func classifyDomain(name string) domainClass {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 	if strings.HasSuffix(name, ".consul") || name == "consul" {
@@ -645,7 +645,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 	case domainClassExternal:
 		// Non-consul domain.
 		d.logger.Debug("external dns query, routing to egress listener", "domain", originalName)
-		if d.virtualDNSEgressAddr == "" || !d.canTryEgressListener() {
+		if d.datacenter == "" || d.virtualDNSEgressAddr == "" || !d.canTryEgressListener() {
 			return d.queryConsul(raw, proto)
 		}
 
@@ -660,7 +660,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 		return resp, nil
 
 	case domainClassVirtual:
-		if d.virtualDNSInlineAddr == "" {
+		if d.datacenter == "" || d.virtualDNSInlineAddr == "" {
 			return d.queryConsul(raw, proto)
 		}
 
