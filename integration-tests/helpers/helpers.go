@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ const (
 	DNSRcodeSuccess       = dns.RcodeSuccess
 	DNSRcodeServerFailure = dns.RcodeServerFailure
 	DNSRcodeNameError     = dns.RcodeNameError
+	DNSRcodeRefused       = dns.RcodeRefused
 )
 
 func TCP(n int) nat.Port {
@@ -182,4 +184,27 @@ func GetEnvoyClusters(t *testing.T, ip string, port int) {
 
 	_, err := httpClient.Get(url)
 	require.NoError(t, err)
+}
+
+// EnvoyHasListener reports whether Envoy has a listener whose name contains
+// nameSubstr, as reported by the admin /listeners endpoint. The DNS inline and
+// egress listeners are provisioned onto Envoy by the Consul server over xDS, so
+// their presence here confirms the server pushed them to this proxy.
+func EnvoyHasListener(t *testing.T, ip string, port int, nameSubstr string) bool {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/listeners", net.JoinHostPort(ip, strconv.Itoa(port)))
+
+	rsp, err := httpClient.Get(url)
+	require.NoError(t, err)
+	defer rsp.Body.Close()
+
+	body, err := io.ReadAll(rsp.Body)
+	require.NoError(t, err)
+
+	if rsp.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected response status: %d - body: %s", rsp.StatusCode, body)
+	}
+
+	return strings.Contains(string(body), nameSubstr)
 }

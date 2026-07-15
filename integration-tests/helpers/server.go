@@ -34,6 +34,8 @@ var (
 
 		bootstrap_expect = 1
 
+		recursors = ["8.8.8.8", "8.8.4.4"]
+
 		acl {
 			enabled = true
 			default_policy = "deny"
