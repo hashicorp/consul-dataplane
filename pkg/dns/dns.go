@@ -190,7 +190,7 @@ func (d *DNSServer) proxyUDP(ctx context.Context) {
 				logger.Info("connection closed")
 				return
 			} else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				logger.Debug("timeout waiting for read", "error", err)
+				logger.Debug("no DNS query received within read window, retrying", "timeout", "10s")
 			} else {
 				logger.Warn("error reading from conn", "error", err)
 			}
