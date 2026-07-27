@@ -29,6 +29,47 @@ type MockedNetConn struct {
 	mock.Mock
 }
 
+type mockedPacketConn struct {
+	mock.Mock
+}
+
+func (m *mockedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
+	args := m.Called(p)
+	addr, _ := args.Get(1).(net.Addr)
+	return args.Int(0), addr, args.Error(2)
+}
+
+func (m *mockedPacketConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	args := m.Called(p, addr)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *mockedPacketConn) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockedPacketConn) LocalAddr() net.Addr {
+	args := m.Called()
+	addr, _ := args.Get(0).(net.Addr)
+	return addr
+}
+
+func (m *mockedPacketConn) SetDeadline(t time.Time) error {
+	args := m.Called(t)
+	return args.Error(0)
+}
+
+func (m *mockedPacketConn) SetReadDeadline(t time.Time) error {
+	args := m.Called(t)
+	return args.Error(0)
+}
+
+func (m *mockedPacketConn) SetWriteDeadline(t time.Time) error {
+	args := m.Called(t)
+	return args.Error(0)
+}
+
 type DNSTestSuite struct {
 	suite.Suite
 }
@@ -223,6 +264,39 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 		})
 	}
 
+}
+
+func (s *DNSTestSuite) Test_UDPProxy_ReadErrorContinues() {
+	testCases := map[string]error{
+		"net error":     &net.OpError{Err: errors.New("read failed")},
+		"non-net error": errors.New("read failed"),
+	}
+
+	for name, readErr := range testCases {
+		s.Run(name, func() {
+			mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+			connUDP := &mockedPacketConn{}
+			runCtx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			server := DNSServer{
+				client:  mockedDNSConsulClient,
+				connUDP: connUDP,
+				logger:  hclog.Default(),
+			}
+
+			connUDP.On("SetReadDeadline", mock.Anything).Return(nil).Once()
+			connUDP.On("ReadFrom", mock.Anything).Run(func(args mock.Arguments) {
+				cancel()
+			}).Return(0, (*net.UDPAddr)(nil), readErr).Once()
+			connUDP.On("Close").Return(nil).Once()
+
+			server.proxyUDP(runCtx)
+
+			connUDP.AssertExpectations(s.T())
+			mockedDNSConsulClient.AssertNotCalled(s.T(), "Query", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func (s *DNSTestSuite) Test_ProxydnsTCP() {

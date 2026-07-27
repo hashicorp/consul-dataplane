@@ -189,7 +189,7 @@ func (d *DNSServer) proxyUDP(ctx context.Context) {
 			if errors.Is(err, net.ErrClosed) {
 				logger.Info("connection closed")
 				return
-			} else if nerr, ok := err.(net.Error); !ok && !nerr.Timeout() {
+			} else if nerr, ok := err.(net.Error); !ok || !nerr.Timeout() {
 				logger.Warn("error reading from conn", "error", err)
 			}
 			continue
