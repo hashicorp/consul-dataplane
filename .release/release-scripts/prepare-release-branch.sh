@@ -5,6 +5,20 @@
 # Cuts a consul-dataplane point release branch, prepares it, and opens a
 # release-preparation PR.
 #
+# You provide just two things:
+#   DP_RELEASE_SERIES  MAJOR.MINOR to release from (e.g. 1.5)
+#   DP_RELEASE_TYPE    patch | minor  (case-insensitive)
+# Everything else - the exact version, the last release tag, the source branch,
+# the release date - is derived from the repo's git tags.
+#
+#   patch : release the next patch on the given series. The newest vMAJOR.MINOR.*
+#           tag is found and its patch is incremented (series 1.5, last tag v1.5.0
+#           -> 1.5.1). Source branch: release/MAJOR.MINOR.x.
+#   minor : release the next minor in the given major. The highest minor released
+#           in MAJOR is found and incremented, with patch 0 (major 1, latest 1.5.x
+#           -> 1.6.0). The series' minor part is informational; the next minor is
+#           computed from the tags. Source branch: release/MAJOR.<next-minor>.x.
+#
 # Workflow:
 #   1. Create   <DP_RELEASE_BRANCH>          (e.g. release/1.5.0) from a long-lived
 #              source branch                 (e.g. release/1.5.x)
@@ -14,10 +28,6 @@
 #   4. Open a PR: prepare-release-<version> -> <DP_RELEASE_BRANCH> and print its URL
 #
 # Usage:
-#   export DP_RELEASE_VERSION=1.5.0        # version being released
-#   export DP_PRODUCT_VERSION=1.5.0        # version shown in the CHANGELOG header
-#   export DP_RELEASE_BRANCH=release/1.5.0 # point release branch (PR base)
-#   export DP_LAST_RELEASE_GIT_TAG=v1.4.2  # previous release tag (changelog range)
 #   ./release-scripts/prepare-release-branch.sh [options]
 #
 # Options:
@@ -25,17 +35,15 @@
 #   -y, --yes       Non-interactive: skip the prompts and confirmation, use env values.
 #   -h, --help      Show this help and exit.
 #
-# Without -y, the script prompts for every setting below, showing the current env
-# value (or a derived default) that you can accept (press Enter) or override:
-#   DP_RELEASE_VERSION, DP_PRODUCT_VERSION, DP_RELEASE_BRANCH, DP_SOURCE_BRANCH,
-#   DP_LAST_RELEASE_GIT_TAG, DP_RELEASE_DATE, REMOTE
+# The two inputs are prompted interactively with a [default]; press Enter to
+# accept. Each is seeded from its matching environment variable when set, else the
+# DEFAULT_* value below. Optional overrides (env only, auto-derived when unset):
+# DP_PRODUCT_VERSION, DP_RELEASE_DATE.
+# The remote defaults to "origin" (override REMOTE=<name>).
 #
-# Derived defaults (used when the corresponding env var is unset):
-#   DP_PRODUCT_VERSION = DP_RELEASE_VERSION
-#   DP_RELEASE_BRANCH  = release/<DP_RELEASE_VERSION>
-#   DP_SOURCE_BRANCH   = release/<major>.<minor>.x
-#   DP_RELEASE_DATE    = today (e.g. "July 1, 2026")
-#   REMOTE             = origin
+# PR creation is retried on transient GitHub errors; tune with (optional):
+#   PR_CREATE_MAX_ATTEMPTS = number of attempts (default 5)
+#   PR_CREATE_RETRY_DELAY  = seconds to wait between attempts (default 10)
 
 set -euo pipefail
 
@@ -84,26 +92,44 @@ fail_or_warn() {
   fi
 }
 
-# prompt_var VAR_NAME DEFAULT_VALUE [required]
-# Shows the value that will be used and lets the user accept or override it.
-prompt_var() {
-  local var_name="$1"
-  local default_value="$2"
-  local required="${3:-}"
-  local input
-  while :; do
-    read -r -p "  ${var_name} [${default_value}]: " input || true
-    input="${input:-${default_value}}"
-    if [[ -z "${input}" && "${required}" == "required" ]]; then
-      echo "  ${var_name} is required; please enter a value." >&2
-      continue
-    fi
-    break
-  done
-  printf -v "${var_name}" '%s' "${input}"
+# remote_repo_slug REMOTE_NAME  Prints the "owner/repo" slug for a git remote,
+# derived from its URL. Handles https/ssh forms and strips any embedded
+# credentials (e.g. https://user:token@github.com/owner/repo.git) so a token in
+# the remote URL is never passed on to "gh --repo".
+remote_repo_slug() {
+  local url
+  url="$(git remote get-url "$1" 2>/dev/null)" || return 1
+  url="${url%.git}"   # strip trailing ".git"
+  url="${url#*://}"   # strip leading "scheme://" if present
+  url="${url#*@}"     # strip any "user[:token]@" (or "git@")
+  url="${url#*[:/]}"  # strip the host, up to the first ":" or "/"
+  printf '%s\n' "${url}"
 }
 
 REMOTE="${REMOTE:-origin}"
+
+# PR creation is retried because GitHub can briefly reject the createPullRequest
+# call right after the base/head branches are pushed (e.g. "Base sha can't be
+# blank") until the new refs register. Both knobs are overridable via the env.
+PR_CREATE_MAX_ATTEMPTS="${PR_CREATE_MAX_ATTEMPTS:-5}"
+PR_CREATE_RETRY_DELAY="${PR_CREATE_RETRY_DELAY:-10}"
+
+# -----------------------------------------------------------------------------
+# Defaults offered at each prompt. Edit these to change the defaults.
+# -----------------------------------------------------------------------------
+DEFAULT_DP_RELEASE_SERIES="1.5"
+DEFAULT_DP_RELEASE_TYPE="patch"
+
+# prompt_var VAR_NAME DEFAULT_VALUE
+# Prompts for a value, showing the default; an empty reply keeps the default.
+prompt_var() {
+  local var_name="$1"
+  local default_value="$2"
+  local input
+  read -r -p "  ${var_name} [${default_value}]: " input || true
+  printf -v "${var_name}" '%s' "${input:-${default_value}}"
+  export "${var_name}"
+}
 
 # -----------------------------------------------------------------------------
 # Prerequisite checks (git is always required; the rest only warn in dry-run)
@@ -122,48 +148,6 @@ if ! gh auth status >/dev/null 2>&1; then
   fail_or_warn "GitHub CLI is not authenticated. Run 'gh auth login' and try again."
 fi
 
-# -----------------------------------------------------------------------------
-# Collect / confirm settings (prompt for each, seeded from env or a default)
-# -----------------------------------------------------------------------------
-if [[ "${INTERACTIVE}" == "true" ]]; then
-  echo "Confirm release settings (press Enter to keep the shown value, or type a new one):"
-  echo
-fi
-
-# DP_RELEASE_VERSION comes first because the other defaults derive from it.
-DP_RELEASE_VERSION="${DP_RELEASE_VERSION:-}"
-if [[ "${INTERACTIVE}" == "true" ]]; then
-  prompt_var DP_RELEASE_VERSION "${DP_RELEASE_VERSION}" required
-fi
-: "${DP_RELEASE_VERSION:?DP_RELEASE_VERSION is required (set it or run interactively)}"
-
-# Derive defaults from the (possibly just-entered) version.
-_major="${DP_RELEASE_VERSION%%.*}"
-_rest="${DP_RELEASE_VERSION#*.}"
-_minor="${_rest%%.*}"
-DP_PRODUCT_VERSION="${DP_PRODUCT_VERSION:-${DP_RELEASE_VERSION}}"
-DP_RELEASE_BRANCH="${DP_RELEASE_BRANCH:-release/${DP_RELEASE_VERSION}}"
-DP_SOURCE_BRANCH="${DP_SOURCE_BRANCH:-release/${_major}.${_minor}.x}"
-DP_RELEASE_DATE="${DP_RELEASE_DATE:-$(date "+%B %-d, %Y")}"
-DP_LAST_RELEASE_GIT_TAG="${DP_LAST_RELEASE_GIT_TAG:-}"
-
-if [[ "${INTERACTIVE}" == "true" ]]; then
-  prompt_var DP_PRODUCT_VERSION      "${DP_PRODUCT_VERSION}"      required
-  prompt_var DP_RELEASE_BRANCH       "${DP_RELEASE_BRANCH}"       required
-  prompt_var DP_SOURCE_BRANCH        "${DP_SOURCE_BRANCH}"        required
-  prompt_var DP_LAST_RELEASE_GIT_TAG "${DP_LAST_RELEASE_GIT_TAG}" required
-  prompt_var DP_RELEASE_DATE         "${DP_RELEASE_DATE}"         required
-  prompt_var REMOTE                  "${REMOTE}"                  required
-  echo
-fi
-: "${DP_LAST_RELEASE_GIT_TAG:?DP_LAST_RELEASE_GIT_TAG is required (set it or run interactively)}"
-
-# Export so both `make prepare-release` and `make changelog` can read them.
-export DP_RELEASE_VERSION DP_PRODUCT_VERSION DP_RELEASE_BRANCH DP_SOURCE_BRANCH \
-  DP_LAST_RELEASE_GIT_TAG DP_RELEASE_DATE REMOTE
-
-PREPARE_BRANCH="prepare-release-${DP_RELEASE_VERSION}"
-
 # Operate from the repository root so `make` runs against the right tree.
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
@@ -174,14 +158,118 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Show the plan (and confirm before any push / PR, which are not reversible)
+# Collect the two inputs (seeded from the environment or the DEFAULT_* values
+# above; prompts are shown only in interactive mode)
+# -----------------------------------------------------------------------------
+DP_RELEASE_SERIES="${DP_RELEASE_SERIES:-${DEFAULT_DP_RELEASE_SERIES}}"
+DP_RELEASE_TYPE="${DP_RELEASE_TYPE:-${DEFAULT_DP_RELEASE_TYPE}}"
+
+if [[ "${INTERACTIVE}" == "true" ]]; then
+  echo "Enter release details (press Enter to accept each [default]):"
+  echo
+  prompt_var DP_RELEASE_SERIES "${DP_RELEASE_SERIES}"
+  prompt_var DP_RELEASE_TYPE   "${DP_RELEASE_TYPE}"
+  echo
+fi
+
+# Optional overrides: derived below when left unset. Kept out of the prompts so
+# the common case only needs the two inputs above.
+DP_RELEASE_DATE="${DP_RELEASE_DATE:-$(date "+%B %-d, %Y")}"
+
+# Validate the inputs (bad input is fatal even in dry-run). The release type is
+# accepted in any case (e.g. PATCH, Minor) and normalized to lowercase here.
+if [[ ! "${DP_RELEASE_SERIES}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+  echo "Error: DP_RELEASE_SERIES must be MAJOR.MINOR (e.g. 1.5), got '${DP_RELEASE_SERIES}'." >&2
+  exit 1
+fi
+DP_RELEASE_TYPE="$(printf '%s' "${DP_RELEASE_TYPE}" | tr '[:upper:]' '[:lower:]')"
+case "${DP_RELEASE_TYPE}" in
+  patch | minor) ;;
+  *)
+    echo "Error: DP_RELEASE_TYPE must be 'patch' or 'minor', got '${DP_RELEASE_TYPE}'." >&2
+    exit 1
+    ;;
+esac
+
+release_major="${DP_RELEASE_SERIES%%.*}"
+release_minor="${DP_RELEASE_SERIES#*.}"
+
+# -----------------------------------------------------------------------------
+# Fetch refs/tags up front so the version derivation and branch checks below see
+# the latest state. This runs even in dry-run because it is read-only: only local
+# tags and remote-tracking refs are updated - no branches, working tree, or the
+# remote are touched - so the previewed version is accurate. A failure is fatal
+# for a real run but only a warning in dry-run, so a dry-run still works offline
+# (falling back to whatever tags exist locally).
+# -----------------------------------------------------------------------------
+echo "==> Fetching latest refs and tags from ${REMOTE}..."
+if ! git fetch --tags "${REMOTE}"; then
+  fail_or_warn "could not fetch from ${REMOTE}; version derivation and branch checks may use stale local data."
+fi
+
+# -----------------------------------------------------------------------------
+# Derive the release version and the previous release tag from the git tags.
+#   patch -> newest vMAJOR.MINOR.<patch> tag, patch + 1
+#   minor -> newest minor released in MAJOR, minor + 1, patch 0
+# Pre-release tags (e.g. -rc1) are ignored by the numeric-only match.
+# -----------------------------------------------------------------------------
+if [[ "${DP_RELEASE_TYPE}" == "patch" ]]; then
+  last_tag="$(git tag --list "v${release_major}.${release_minor}.*" \
+    | grep -E "^v${release_major}\.${release_minor}\.[0-9]+$" \
+    | sort -V | tail -n1 || true)"
+  if [[ -z "${last_tag}" ]]; then
+    fail_or_warn "no existing release tag found for series ${release_major}.${release_minor}; cannot compute the next patch."
+  fi
+  last_patch="${last_tag##*.}"
+  DP_RELEASE_VERSION="${release_major}.${release_minor}.$(( ${last_patch:-0} + 1 ))"
+  DP_LAST_RELEASE_GIT_TAG="${last_tag:-<none>}"
+else
+  last_minor="$(git tag --list "v${release_major}.*" \
+    | grep -E "^v${release_major}\.[0-9]+\.[0-9]+$" \
+    | sed -E "s/^v${release_major}\.([0-9]+)\..*/\1/" \
+    | sort -n | tail -n1 || true)"
+  if [[ -z "${last_minor}" ]]; then
+    fail_or_warn "no existing release tag found for major ${release_major}; cannot compute the next minor."
+  fi
+  DP_RELEASE_VERSION="${release_major}.$(( ${last_minor:-0} + 1 )).0"
+  DP_LAST_RELEASE_GIT_TAG="$(git tag --list "v${release_major}.${last_minor:-0}.*" \
+    | grep -E "^v${release_major}\.${last_minor:-0}\.[0-9]+$" \
+    | sort -V | tail -n1 || true)"
+  if [[ -z "${DP_LAST_RELEASE_GIT_TAG}" ]]; then
+    fail_or_warn "could not determine the previous release tag for major ${release_major}."
+    DP_LAST_RELEASE_GIT_TAG="<none>"
+  fi
+fi
+
+# Long-lived source branch for the release line: release/<major>.<minor>.x.
+DP_SOURCE_BRANCH="release/${DP_RELEASE_VERSION%.*}.x"
+DP_PRODUCT_VERSION="${DP_PRODUCT_VERSION:-${DP_RELEASE_VERSION}}"
+DP_RELEASE_BRANCH="release/${DP_RELEASE_VERSION}"
+
+# Export so both `make prepare-release` and `make changelog` can read them.
+export DP_RELEASE_VERSION DP_PRODUCT_VERSION DP_RELEASE_BRANCH DP_SOURCE_BRANCH \
+  DP_LAST_RELEASE_GIT_TAG DP_RELEASE_DATE REMOTE
+
+PREPARE_BRANCH="prepare-release-${DP_RELEASE_VERSION}"
+
+# Resolve the GitHub repo the PR will target from the push remote's URL, so
+# "gh pr create --repo" never depends on a configured default (this checkout can
+# have multiple remotes, e.g. origin and upstream).
+PR_REPO="$(remote_repo_slug "${REMOTE}")" \
+  || fail_or_warn "could not determine the GitHub repo from remote '${REMOTE}' (is it set?)."
+
+# -----------------------------------------------------------------------------
+# Show the plan and confirm before any push / PR (these are not reversible)
 # -----------------------------------------------------------------------------
 cat <<EOF
 The following actions will be performed on remote '${REMOTE}':
 
-  Source branch (long-lived)           = ${DP_SOURCE_BRANCH}
+  Release series (input)               = ${DP_RELEASE_SERIES}
+  Release type (input)                 = ${DP_RELEASE_TYPE}
+  Source branch (derived)              = ${DP_SOURCE_BRANCH}
   Release branch (created/used)        = ${DP_RELEASE_BRANCH}
   Prepare branch (new)                 = ${PREPARE_BRANCH}
+  PR target repo (gh --repo)           = ${PR_REPO:-<unknown>}
 
   DP_RELEASE_VERSION                   = ${DP_RELEASE_VERSION}
   DP_PRODUCT_VERSION                   = ${DP_PRODUCT_VERSION}
@@ -199,7 +287,7 @@ EOF
 if [[ "${DRY_RUN}" == "true" ]]; then
   echo ">>> DRY RUN: nothing will be created, changed, pushed, or opened."
   echo ">>> The commands that would run are printed below, prefixed with [dry-run]."
-  echo ">>> Branch-existence checks use your local clone; run 'git fetch ${REMOTE}' first for accuracy."
+  echo ">>> Refs and tags were fetched (read-only) above, so the derived version and branch checks reflect ${REMOTE}."
   echo
 elif [[ "${INTERACTIVE}" == "true" ]]; then
   read -r -p "Proceed? [y/N] " response || true
@@ -214,9 +302,11 @@ fi
 
 # -----------------------------------------------------------------------------
 # 1. Create (or reuse) the point release branch from the long-lived source branch
+#    (refs/tags were already fetched above, before the version derivation)
 # -----------------------------------------------------------------------------
-echo "==> Fetching latest from ${REMOTE}..."
-run git fetch "${REMOTE}"
+if ! git rev-parse --verify --quiet "refs/remotes/${REMOTE}/${DP_SOURCE_BRANCH}" >/dev/null; then
+  fail_or_warn "source branch '${DP_SOURCE_BRANCH}' not found on ${REMOTE}."
+fi
 
 if git show-ref --verify --quiet "refs/heads/${PREPARE_BRANCH}"; then
   fail_or_warn "local branch '${PREPARE_BRANCH}' already exists. Delete it or pick another version."
@@ -229,9 +319,6 @@ if git rev-parse --verify --quiet "refs/remotes/${REMOTE}/${DP_RELEASE_BRANCH}" 
   echo "==> ${DP_RELEASE_BRANCH} already exists on ${REMOTE}; using it as-is."
   run git checkout -B "${DP_RELEASE_BRANCH}" "${REMOTE}/${DP_RELEASE_BRANCH}"
 else
-  if ! git rev-parse --verify --quiet "refs/remotes/${REMOTE}/${DP_SOURCE_BRANCH}" >/dev/null; then
-    fail_or_warn "source branch '${DP_SOURCE_BRANCH}' not found on ${REMOTE}. Set DP_SOURCE_BRANCH to the long-lived branch to cut from."
-  fi
   echo "==> Creating ${DP_RELEASE_BRANCH} from ${REMOTE}/${DP_SOURCE_BRANCH}..."
   run git checkout -b "${DP_RELEASE_BRANCH}" "${REMOTE}/${DP_SOURCE_BRANCH}"
   run git push -u "${REMOTE}" "${DP_RELEASE_BRANCH}"
@@ -255,7 +342,7 @@ if [[ "${DRY_RUN}" == "true" ]]; then
   printf "  [dry-run] prepend '## %s (%s)' + the changelog body to CHANGELOG.md\n" \
     "${DP_PRODUCT_VERSION}" "${DP_RELEASE_DATE}"
 else
-  # `make changelog` writes the changelog body (SECURITY/IMPROVEMENTS/... sections)
+  # \`make changelog\` writes the changelog body (SECURITY/IMPROVEMENTS/... sections)
   # to stdout; -s keeps make from echoing the recipe so we capture a clean body.
   changelog_body="$(make -s changelog DP_LAST_RELEASE_GIT_TAG="${DP_LAST_RELEASE_GIT_TAG}")"
   # Drop the leading blank line(s) emitted by the changelog template.
@@ -301,20 +388,49 @@ Base branch \`${DP_RELEASE_BRANCH}\` was cut from \`${DP_SOURCE_BRANCH}\`.
 EOF
 )"
 
-echo "==> Opening pull request: ${PREPARE_BRANCH} -> ${DP_RELEASE_BRANCH}..."
+echo "==> Opening pull request: ${PREPARE_BRANCH} -> ${DP_RELEASE_BRANCH} (repo ${PR_REPO})..."
 if [[ "${DRY_RUN}" == "true" ]]; then
-  printf '  [dry-run] $ gh pr create --base %q --head %q --title %q --body <PR body>\n' \
-    "${DP_RELEASE_BRANCH}" "${PREPARE_BRANCH}" "${PR_TITLE}"
+  printf '  [dry-run] $ gh pr create --repo %q --base %q --head %q --title %q --body <PR body>\n' \
+    "${PR_REPO}" "${DP_RELEASE_BRANCH}" "${PREPARE_BRANCH}" "${PR_TITLE}"
+  printf '  [dry-run] (retried up to %s time(s), %ss apart, on transient failures)\n' \
+    "${PR_CREATE_MAX_ATTEMPTS}" "${PR_CREATE_RETRY_DELAY}"
   echo
   echo "Dry run complete. No branches were created and nothing was pushed."
   exit 0
 fi
 
-PR_URL="$(gh pr create \
-  --base "${DP_RELEASE_BRANCH}" \
-  --head "${PREPARE_BRANCH}" \
-  --title "${PR_TITLE}" \
-  --body "${PR_BODY}")"
+# Create the PR, retrying on transient GitHub errors (e.g. a blank base SHA while
+# the just-pushed refs settle). If a PR for this branch already exists, reuse it.
+pr_err_file="$(mktemp "${TMPDIR:-/tmp}/prepare-release-pr.XXXXXX")"
+PR_URL=""
+attempt=1
+while :; do
+  if PR_URL="$(gh pr create \
+    --repo "${PR_REPO}" \
+    --base "${DP_RELEASE_BRANCH}" \
+    --head "${PREPARE_BRANCH}" \
+    --title "${PR_TITLE}" \
+    --body "${PR_BODY}" 2>"${pr_err_file}")"; then
+    break
+  fi
+  cat "${pr_err_file}" >&2
+  if grep -qi 'already exists' "${pr_err_file}"; then
+    PR_URL="$(gh pr view "${PREPARE_BRANCH}" --repo "${PR_REPO}" --json url -q .url 2>/dev/null || true)"
+    if [[ -n "${PR_URL}" ]]; then
+      echo "==> A pull request for ${PREPARE_BRANCH} already exists; using it." >&2
+      break
+    fi
+  fi
+  if (( attempt >= PR_CREATE_MAX_ATTEMPTS )); then
+    rm -f "${pr_err_file}"
+    echo "Error: 'gh pr create' failed after ${PR_CREATE_MAX_ATTEMPTS} attempt(s)." >&2
+    exit 1
+  fi
+  echo "==> PR creation attempt ${attempt}/${PR_CREATE_MAX_ATTEMPTS} failed; retrying in ${PR_CREATE_RETRY_DELAY}s..." >&2
+  sleep "${PR_CREATE_RETRY_DELAY}"
+  attempt=$((attempt + 1))
+done
+rm -f "${pr_err_file}"
 
 echo
 echo "Pull request created:"

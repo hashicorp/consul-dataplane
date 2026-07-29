@@ -4,6 +4,12 @@
 #
 # Triggers a consul-dataplane release promotion to staging or production via `bob`.
 #
+# You provide just two things:
+#   DP_RELEASE_VERSION  the MAJOR.MINOR.PATCH version to promote (e.g. 1.2.3)
+#   promotion target    staging | production  (positional; defaults to staging)
+# Everything else - the product version, the release branch, and the
+# release-branch commit SHA - is derived from the version.
+#
 # Usage:
 #   ./release-scripts/trigger-promotion.sh [staging|production] [options]
 #
@@ -16,17 +22,16 @@
 #                   values from the environment (or the derived defaults).
 #   -h, --help      Show this help and exit.
 #
-# Variable names are kept consistent with prepare-release-branch.sh. Without -y,
-# the script prompts for each setting below, showing the current env value (or a
-# derived default) that you can accept (press Enter) or override:
-#   DP_RELEASE_VERSION, DP_PRODUCT_VERSION, DP_RELEASE_BRANCH, REMOTE
+# The version is prompted interactively with a [default]; press Enter to accept.
+# It is seeded from DP_RELEASE_VERSION when set, else the DEFAULT_* value below.
+# REMOTE is an env-only override (default origin).
 #
-# Derived defaults (used when the corresponding env var is unset):
-#   DP_PRODUCT_VERSION = DP_RELEASE_VERSION
+# Derived from the version (not prompted):
+#   DP_PRODUCT_VERSION = <DP_RELEASE_VERSION>
 #   DP_RELEASE_BRANCH  = release/<DP_RELEASE_VERSION>
-#   REMOTE             = origin
-# The release-branch commit SHA (DP_RELEASE_SHA) is resolved automatically from
-# <REMOTE>/<DP_RELEASE_BRANCH>.
+#   DP_RELEASE_SHA     = latest commit of <REMOTE>/<DP_RELEASE_BRANCH>
+# Setting DP_PRODUCT_VERSION or DP_RELEASE_BRANCH in the environment
+# overrides the value derived from the version.
 
 set -euo pipefail
 
@@ -107,30 +112,39 @@ prompt_var() {
 REMOTE="${REMOTE:-origin}"
 
 # -----------------------------------------------------------------------------
-# Collect / confirm settings (names kept consistent with prepare-release-branch.sh)
+# Defaults offered at the prompt. Edit this to change the default.
 # -----------------------------------------------------------------------------
-if [[ "${INTERACTIVE}" == "true" ]]; then
-  echo "Confirm promotion settings (press Enter to keep the shown value, or type a new one):"
-  echo
-fi
+DEFAULT_DP_RELEASE_VERSION=""
 
-# DP_RELEASE_VERSION comes first because the other defaults derive from it.
-DP_RELEASE_VERSION="${DP_RELEASE_VERSION:-}"
+# -----------------------------------------------------------------------------
+# Collect the version to promote (seeded from the environment or the DEFAULT_*
+# value above; the prompt is shown only in interactive mode). The promotion
+# target is the positional argument resolved above.
+# -----------------------------------------------------------------------------
+DP_RELEASE_VERSION="${DP_RELEASE_VERSION:-${DEFAULT_DP_RELEASE_VERSION}}"
 if [[ "${INTERACTIVE}" == "true" ]]; then
+  echo "Enter the version to promote (press Enter to accept the [default]):"
+  echo
   prompt_var DP_RELEASE_VERSION "${DP_RELEASE_VERSION}" required
+  echo
 fi
 : "${DP_RELEASE_VERSION:?DP_RELEASE_VERSION is required (set it or run interactively)}"
+# Normalize: strip any leading "v" so we compose them consistently.
+DP_RELEASE_VERSION="${DP_RELEASE_VERSION#v}"
 
-# Derive defaults from the (possibly just-entered) version.
+# Validate the version (bad input is fatal even in dry-run). A prerelease suffix
+# (e.g. 1.22.9-rc1) is allowed for release-candidate promotions.
+if [[ ! "${DP_RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+  echo "Error: DP_RELEASE_VERSION must be MAJOR.MINOR.PATCH (e.g. 1.2.3), got '${DP_RELEASE_VERSION}'." >&2
+  exit 1
+fi
+
+# Derive everything else from the version.
+# Both accept an env override for unusual cases.
 DP_PRODUCT_VERSION="${DP_PRODUCT_VERSION:-${DP_RELEASE_VERSION}}"
 DP_RELEASE_BRANCH="${DP_RELEASE_BRANCH:-release/${DP_RELEASE_VERSION}}"
-
-if [[ "${INTERACTIVE}" == "true" ]]; then
-  prompt_var DP_PRODUCT_VERSION "${DP_PRODUCT_VERSION}" required
-  prompt_var DP_RELEASE_BRANCH  "${DP_RELEASE_BRANCH}"  required
-  prompt_var REMOTE             "${REMOTE}"             required
-  echo
-fi
+# Ensure the product version strips a leading "v".
+DP_PRODUCT_VERSION="${DP_PRODUCT_VERSION#v}"
 
 # Export so child processes (e.g. bob) inherit the resolved values.
 export DP_RELEASE_VERSION DP_PRODUCT_VERSION DP_RELEASE_BRANCH REMOTE
