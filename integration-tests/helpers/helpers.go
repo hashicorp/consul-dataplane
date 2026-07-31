@@ -114,7 +114,16 @@ func DNSLookup(t *testing.T, suite *Suite, protocol string, serverIP string, ser
 func DNSLookupA(t *testing.T, suite *Suite, protocol, serverIP string, serverPort int, host string) (addrs []string, rcode int) {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(suite.Context(t), 2*time.Second)
+	addrs, rcode, err := DNSLookupAErr(suite, protocol, serverIP, serverPort, host)
+	require.NoError(t, err)
+	return addrs, rcode
+}
+
+// DNSLookupAErr is like DNSLookupA but returns the exchange error instead of
+// asserting on it, allowing callers to handle transient network failures (e.g.
+// retrying inside require.Eventually after a control-plane outage).
+func DNSLookupAErr(suite *Suite, protocol, serverIP string, serverPort int, host string) (addrs []string, rcode int, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	req := new(dns.Msg)
@@ -127,14 +136,16 @@ func DNSLookupA(t *testing.T, suite *Suite, protocol, serverIP string, serverPor
 		req,
 		net.JoinHostPort(serverIP, strconv.Itoa(serverPort)),
 	)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	for _, rr := range rsp.Answer {
 		if a, ok := rr.(*dns.A); ok {
 			addrs = append(addrs, a.A.String())
 		}
 	}
-	return addrs, rsp.Rcode
+	return addrs, rsp.Rcode, nil
 }
 
 // IsConsulVIP reports whether ip falls in the 240.0.0.0/4 reserved range that

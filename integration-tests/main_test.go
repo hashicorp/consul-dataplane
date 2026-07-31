@@ -336,48 +336,6 @@ func TestIntegration(t *testing.T) {
 		}
 	})
 
-	// BCDR: kill the Consul server to simulate a control-plane outage and
-	// confirm that an already-configured *.virtual.consul domain continues to
-	// resolve via Envoy's inline DNS table without any connection to the control
-	// plane.
-	t.Run("virtual .virtual.consul resolves after consul server outage", func(t *testing.T) {
-		serverContainerID := server.Container.GetContainerID()
-		dockerCli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
-		if err != nil {
-			t.Fatalf("failed to create docker client: %v", err)
-		}
-		if err := dockerCli.ContainerKill(context.Background(), serverContainerID, "SIGKILL"); err != nil {
-			t.Fatalf("failed to kill consul server container %s: %v", serverContainerID, err)
-		}
-		t.Logf("consul server container %s killed (SIGKILL) to simulate control-plane outage", serverContainerID)
-
-		for _, port := range dnsPorts {
-			addrs, rcode := DNSLookupA(t,
-				suite,
-				port.Proto(),
-				frontendPod.HostIP,
-				frontendPod.MappedPorts[port],
-				"backend.virtual.consul.",
-			)
-
-			t.Logf("DNS virtual lookup (post-outage): consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
-				opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
-
-			require.Equalf(t, DNSRcodeSuccess, rcode,
-				"expected backend.virtual.consul to resolve successfully over %s after control-plane outage, got rcode=%d",
-				port.Proto(), rcode)
-			require.NotEmptyf(t, addrs,
-				"expected backend.virtual.consul to resolve to a VIP over %s after control-plane outage, got no answers",
-				port.Proto())
-
-			for _, addr := range addrs {
-				require.Truef(t, IsConsulVIP(addr),
-					"expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4) over %s after control-plane outage, got %q",
-					port.Proto(), addr)
-			}
-		}
-	})
-
 	// A non-.consul domain must resolve via the configured recursors (8.8.8.8 /
 	// 8.8.4.4, set on the Consul server in helpers/server.go). Whether the query
 	// is served by Envoy's egress DNS listener or by the Consul-server recursor
@@ -467,6 +425,63 @@ func TestIntegration(t *testing.T) {
 		backendPod.HostIP,
 		backendPod.MappedPorts[upstreamLocalBindPort],
 	)
+
+	// BCDR: kill the Consul server to simulate a full control-plane outage and
+	// confirm that an already-configured *.virtual.consul domain continues to
+	// resolve via Envoy's inline DNS table with no connection to the control
+	// plane.
+	t.Run("virtual .virtual.consul resolves after consul server outage", func(t *testing.T) {
+		serverContainerID := server.Container.GetContainerID()
+		dockerCli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
+		if err != nil {
+			t.Fatalf("failed to create docker client: %v", err)
+		}
+		if err := dockerCli.ContainerKill(context.Background(), serverContainerID, "SIGKILL"); err != nil {
+			t.Fatalf("failed to kill consul server container %s: %v", serverContainerID, err)
+		}
+		t.Logf("consul server container %s killed (SIGKILL) to simulate control-plane outage", serverContainerID)
+
+		// Query with retries: after a hard server kill the Envoy DNS proxy is
+		// still alive and serving the inline table, but the very first UDP
+		// exchange may time out while the proxy's upstream health-check to
+		// Consul drains. Retry for up to 15 s before failing.
+		for _, port := range dnsPorts {
+			port := port // capture loop var for closure
+			require.Eventuallyf(t, func() bool {
+				// Use DNSLookupAErr so that a transient network timeout
+				// (while Envoy's upstream health-check to Consul drains)
+				// returns false here instead of hard-failing the test.
+				addrs, rcode, err := DNSLookupAErr(
+					suite,
+					port.Proto(),
+					frontendPod.HostIP,
+					frontendPod.MappedPorts[port],
+					"backend.virtual.consul.",
+				)
+				if err != nil {
+					t.Logf("DNS virtual lookup (post-outage) transient error over %s: %v (retrying)",
+						port.Proto(), err)
+					return false
+				}
+
+				t.Logf("DNS virtual lookup (post-outage): consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+					opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
+
+				if rcode != DNSRcodeSuccess || len(addrs) == 0 {
+					return false
+				}
+				for _, addr := range addrs {
+					if !IsConsulVIP(addr) {
+						t.Errorf("expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4) over %s after control-plane outage, got %q",
+							port.Proto(), addr)
+					}
+				}
+				return true
+			}, 15*time.Second, 1*time.Second,
+				"backend.virtual.consul did not resolve to a VIP over %s within 15 s after control-plane outage",
+				port.Proto())
+		}
+	})
 
 	// Send SIGTERM to dataplane to start graceful shutdown
 	containerID := frontendDataplane.Container.GetContainerID()
