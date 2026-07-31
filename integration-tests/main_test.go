@@ -336,6 +336,48 @@ func TestIntegration(t *testing.T) {
 		}
 	})
 
+	// BCDR: kill the Consul server to simulate a control-plane outage and
+	// confirm that an already-configured *.virtual.consul domain continues to
+	// resolve via Envoy's inline DNS table without any connection to the control
+	// plane.
+	t.Run("virtual .virtual.consul resolves after consul server outage", func(t *testing.T) {
+		serverContainerID := server.Container.GetContainerID()
+		dockerCli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
+		if err != nil {
+			t.Fatalf("failed to create docker client: %v", err)
+		}
+		if err := dockerCli.ContainerKill(context.Background(), serverContainerID, "SIGKILL"); err != nil {
+			t.Fatalf("failed to kill consul server container %s: %v", serverContainerID, err)
+		}
+		t.Logf("consul server container %s killed (SIGKILL) to simulate control-plane outage", serverContainerID)
+
+		for _, port := range dnsPorts {
+			addrs, rcode := DNSLookupA(t,
+				suite,
+				port.Proto(),
+				frontendPod.HostIP,
+				frontendPod.MappedPorts[port],
+				"backend.virtual.consul.",
+			)
+
+			t.Logf("DNS virtual lookup (post-outage): consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+				opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
+
+			require.Equalf(t, DNSRcodeSuccess, rcode,
+				"expected backend.virtual.consul to resolve successfully over %s after control-plane outage, got rcode=%d",
+				port.Proto(), rcode)
+			require.NotEmptyf(t, addrs,
+				"expected backend.virtual.consul to resolve to a VIP over %s after control-plane outage, got no answers",
+				port.Proto())
+
+			for _, addr := range addrs {
+				require.Truef(t, IsConsulVIP(addr),
+					"expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4) over %s after control-plane outage, got %q",
+					port.Proto(), addr)
+			}
+		}
+	})
+
 	// A non-.consul domain must resolve via the configured recursors (8.8.8.8 /
 	// 8.8.4.4, set on the Consul server in helpers/server.go). Whether the query
 	// is served by Envoy's egress DNS listener or by the Consul-server recursor
