@@ -676,3 +676,234 @@ func firstAnswerNameFromRaw(t *testing.T, raw []byte) string {
 	require.NotEmpty(t, msg.Answers)
 	return msg.Answers[0].Header.Name.String()
 }
+
+// TestParseVirtualTokens verifies that all 8 alias forms produced by virtual
+// FQDN queries are parsed correctly. The RFC mandates that the dataplane handles
+// every combination of omitted ns/partition/dc qualifiers.
+func TestParseVirtualTokens(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantSvc   string
+		wantNS    string
+		wantAP    string
+		wantDC    string
+		wantOK    bool
+	}{
+		// (1) bare — no qualifiers at all
+		{
+			name:    "bare no tokens",
+			input:   "svc.virtual.consul",
+			wantSvc: "svc",
+			wantOK:  true,
+		},
+		// (2) .service. alias — stripped to base service name
+		{
+			name:    "service alias no tokens",
+			input:   "svc.service.virtual.consul",
+			wantSvc: "svc",
+			wantOK:  true,
+		},
+		// (3) namespace only
+		{
+			name:    "namespace only",
+			input:   "svc.virtual.myns.ns.consul",
+			wantSvc: "svc",
+			wantNS:  "myns",
+			wantOK:  true,
+		},
+		// (4) partition only
+		{
+			name:    "partition only",
+			input:   "svc.virtual.myap.ap.consul",
+			wantSvc: "svc",
+			wantAP:  "myap",
+			wantOK:  true,
+		},
+		// (5) datacenter only
+		{
+			name:    "datacenter only",
+			input:   "svc.virtual.dc2.dc.consul",
+			wantSvc: "svc",
+			wantDC:  "dc2",
+			wantOK:  true,
+		},
+		// (6) namespace + partition, no dc
+		{
+			name:    "namespace and partition no dc",
+			input:   "svc.virtual.myns.ns.myap.ap.consul",
+			wantSvc: "svc",
+			wantNS:  "myns",
+			wantAP:  "myap",
+			wantOK:  true,
+		},
+		// (7) namespace + dc, no partition
+		{
+			name:    "namespace and dc no partition",
+			input:   "svc.virtual.myns.ns.dc2.dc.consul",
+			wantSvc: "svc",
+			wantNS:  "myns",
+			wantDC:  "dc2",
+			wantOK:  true,
+		},
+		// (8) partition + dc, no namespace
+		{
+			name:    "partition and dc no namespace",
+			input:   "svc.virtual.myap.ap.dc2.dc.consul",
+			wantSvc: "svc",
+			wantAP:  "myap",
+			wantDC:  "dc2",
+			wantOK:  true,
+		},
+		// trailing-dot variant is tolerated
+		{
+			name:    "bare with trailing dot",
+			input:   "svc.virtual.consul.",
+			wantSvc: "svc",
+			wantOK:  true,
+		},
+		// not a virtual domain
+		{
+			name:   "non-virtual consul domain",
+			input:  "svc.service.default.consul",
+			wantOK: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotSvc, gotNS, gotAP, gotDC, gotOK := parseVirtualTokens(tc.input)
+			if gotOK != tc.wantOK {
+				t.Fatalf("parseVirtualTokens(%q) ok = %v, want %v", tc.input, gotOK, tc.wantOK)
+			}
+			if !gotOK {
+				return
+			}
+			if gotSvc != tc.wantSvc {
+				t.Errorf("svc: got %q, want %q", gotSvc, tc.wantSvc)
+			}
+			if gotNS != tc.wantNS {
+				t.Errorf("ns: got %q, want %q", gotNS, tc.wantNS)
+			}
+			if gotAP != tc.wantAP {
+				t.Errorf("partition: got %q, want %q", gotAP, tc.wantAP)
+			}
+			if gotDC != tc.wantDC {
+				t.Errorf("dc: got %q, want %q", gotDC, tc.wantDC)
+			}
+		})
+	}
+}
+
+// TestExpandVirtualName verifies that expandVirtualName produces the canonical
+// <svc>.virtual.<ns>.ns.<ap>.ap.<dc>.dc.consul FQDN for every alias form.
+// The upstream index is used where it can provide a unique match; the server
+// defaults fill any remaining gaps, exactly as specified by the RFC.
+func TestExpandVirtualName(t *testing.T) {
+	const td = "e5b1a4d3.consul"
+
+	// Index contains one service with a fully-qualified identity and a second
+	// service that appears in two datacenters so that disambiguation tests work.
+	idx := NewUpstreamIndex()
+	idx.Update([]string{
+		"api.myns.myap.dc1.internal-v1." + td,          // unique: api in myns/myap/dc1
+		"shared.default.default.dc1.internal-v1." + td,  // shared in dc1
+		"shared.default.default.dc2.internal-v1." + td,  // shared in dc2 — ambiguous without dc
+	}, nil)
+
+	// server defaults used when neither the query nor the index fills a token.
+	srv := &DNSServer{
+		namespace:     "default",
+		partition:     "default",
+		datacenter:    "dc1",
+		upstreamIndex: idx,
+	}
+
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// (1) bare — index fills ns/ap/dc from unique lookup
+		{
+			name:  "bare resolved from index",
+			input: "api.virtual.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// (2) .service. alias — same expansion as bare
+		{
+			name:  "service alias resolved from index",
+			input: "api.service.virtual.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// (3) namespace only — index lookup constrained by ns
+		{
+			name:  "namespace only resolved from index",
+			input: "api.virtual.myns.ns.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// (4) partition only
+		{
+			name:  "partition only resolved from index",
+			input: "api.virtual.myap.ap.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// (5) datacenter only
+		{
+			name:  "datacenter only resolved from index",
+			input: "api.virtual.dc1.dc.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// (6) namespace + partition — index fills dc
+		{
+			name:  "namespace and partition resolved from index",
+			input: "api.virtual.myns.ns.myap.ap.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// (7) namespace + dc — index fills partition
+		{
+			name:  "namespace and dc resolved from index",
+			input: "api.virtual.myns.ns.dc1.dc.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// (8) partition + dc — index fills namespace
+		{
+			name:  "partition and dc resolved from index",
+			input: "api.virtual.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// index lookup is ambiguous (two DCs); server defaults fill the gaps
+		{
+			name:  "ambiguous lookup falls back to server defaults",
+			input: "shared.virtual.consul",
+			want:  "shared.virtual.default.ns.default.ap.dc1.dc.consul",
+		},
+		// dc qualifier disambiguates what would otherwise be ambiguous
+		{
+			name:  "dc qualifier disambiguates shared service",
+			input: "shared.virtual.dc2.dc.consul",
+			want:  "shared.virtual.default.ns.default.ap.dc2.dc.consul",
+		},
+		// unknown service — no index hit; server defaults fill all tokens
+		{
+			name:  "unknown service falls back to server defaults",
+			input: "unknown.virtual.consul",
+			want:  "unknown.virtual.default.ns.default.ap.dc1.dc.consul",
+		},
+		// fully-qualified input passes through unchanged (already canonical)
+		{
+			name:  "fully qualified passthrough",
+			input: "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := srv.expandVirtualName(tc.input)
+			if got != tc.want {
+				t.Errorf("expandVirtualName(%q)\n got  %q\n want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}

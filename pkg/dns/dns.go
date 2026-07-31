@@ -253,7 +253,11 @@ func (d *DNSServer) proxyTCP(ctx context.Context) {
 		}
 		c, err := d.listenerTCP.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return // listener closed (normal shutdown or context cancel)
+			}
 			d.logger.Warn("failure to accept tcp connection", "error", err)
+			continue // do not dispatch with a nil conn
 		}
 		go d.proxyTCPAcceptedConn(ctx, c)
 	}
