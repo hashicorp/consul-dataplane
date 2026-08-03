@@ -426,11 +426,19 @@ func TestIntegration(t *testing.T) {
 		backendPod.MappedPorts[upstreamLocalBindPort],
 	)
 
-	// BCDR: kill the Consul server to simulate a full control-plane outage and
-	// confirm that an already-configured *.virtual.consul domain continues to
-	// resolve via Envoy's inline DNS table with no connection to the control
-	// plane.
+	// virtual .virtual.consul resolves after consul server outage
+	//
+	// Consul servers >= v2.2 push Envoy DNS listeners (the inline virtual-DNS
+	// table) over xDS, so Envoy can continue answering *.virtual.consul queries
+	// from its local table after the control plane is gone. On older servers the
+	// listener is never pushed, so resolution after an outage is not expected to
+	// work. The test is therefore only asserted on v2.2+; on earlier versions it
+	// is skipped to avoid a spurious failure.
 	t.Run("virtual .virtual.consul resolves after consul server outage", func(t *testing.T) {
+		// Determine whether the running Consul server is new enough to push the
+		// inline virtual-DNS listener over xDS. The feature landed in v2.2.
+		supportsInlineDNS := semver.Compare(semver.MajorMinor(opts.ServerVersion), "v2.2") >= 0
+
 		serverContainerID := server.Container.GetContainerID()
 		dockerCli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
 		if err != nil {
@@ -441,35 +449,44 @@ func TestIntegration(t *testing.T) {
 		}
 		t.Logf("consul server container %s killed (SIGKILL) to simulate control-plane outage", serverContainerID)
 
+		if !supportsInlineDNS {
+			t.Skipf("skipping outage-resilience check: consul server %s < v2.2 does not push inline virtual-DNS listeners over xDS",
+				opts.ServerVersion)
+		}
+
 		// Query with retries: after a hard server kill the Envoy DNS proxy is
 		// still alive and serving the inline table, but the very first UDP
 		// exchange may time out while the proxy's upstream health-check to
 		// Consul drains. Retry for up to 15 s before failing.
-		for _, port := range dnsPorts {
-			addrs, rcode := DNSLookupA(t,
-				suite,
-				port.Proto(),
-				frontendPod.HostIP,
-				frontendPod.MappedPorts[port],
-				"backend.virtual.consul.",
-			)
+		require.Eventually(t, func() bool {
+			for _, port := range dnsPorts {
+				addrs, rcode, err := DNSLookupAErr(suite,
+					port.Proto(),
+					frontendPod.HostIP,
+					frontendPod.MappedPorts[port],
+					"backend.virtual.consul.",
+				)
+				if err != nil {
+					t.Logf("DNS virtual lookup transient error (retrying): consul_server_version=%s proto=%s err=%v",
+						opts.ServerVersion, port.Proto(), err)
+					return false
+				}
 
-			t.Logf("DNS virtual lookup: consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
-				opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
+				t.Logf("DNS virtual lookup: consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+					opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
 
-			require.Equalf(t, DNSRcodeSuccess, rcode,
-				"expected backend.virtual.consul to resolve successfully over %s, got rcode=%d",
-				port.Proto(), rcode)
-			require.NotEmptyf(t, addrs,
-				"expected backend.virtual.consul to resolve to a VIP over %s, got no answers",
-				port.Proto())
-
-			for _, addr := range addrs {
-				require.Truef(t, IsConsulVIP(addr),
-					"expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4), got %q over %s",
-					addr, port.Proto())
+				if rcode != DNSRcodeSuccess || len(addrs) == 0 {
+					return false
+				}
+				for _, addr := range addrs {
+					if !IsConsulVIP(addr) {
+						return false
+					}
+				}
 			}
-		}
+			return true
+		}, 15*time.Second, 1*time.Second,
+			"expected backend.virtual.consul to resolve to a Consul VIP via Envoy inline DNS table after control-plane outage")
 	})
 
 	// Send SIGTERM to dataplane to start graceful shutdown
