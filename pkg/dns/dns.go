@@ -28,8 +28,10 @@ var ErrServerDisabled error = errors.New("server is disabled")
 var ErrServerRunning error = errors.New("server is already running")
 
 const (
-	envoyDNSForwardTimeout = 300 * time.Millisecond
-	listenerUnhealthyTTL   = 5 * time.Second
+	envoyDNSForwardTimeout     = 300 * time.Millisecond
+	listenerUnhealthyTTL       = 5 * time.Second
+	inlineListenerUnhealthyTTL = 1 * time.Second
+	consulQueryTimeout         = 5 * time.Second
 )
 
 // DNSServerParams is the configuration for creating a new DNS server
@@ -588,7 +590,7 @@ func forwardUDP(addr string, query []byte, timeout time.Duration) ([]byte, error
 // returns the raw response bytes.
 func (d *DNSServer) queryConsul(raw []byte, proto pbdns.Protocol) ([]byte, error) {
 	req := &pbdns.QueryRequest{Msg: raw, Protocol: proto}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), consulQueryTimeout)
 	defer cancel()
 	ctx = metadata.AppendToOutgoingContext(ctx,
 		"x-consul-partition", d.partition,
@@ -617,7 +619,7 @@ func (d *DNSServer) canTryEgressListener() bool {
 func (d *DNSServer) markInlineListenerUnavailable() {
 	d.listenerHealthLock.Lock()
 	defer d.listenerHealthLock.Unlock()
-	d.inlineListenerUnavailableTill = time.Now().Add(listenerUnhealthyTTL)
+	d.inlineListenerUnavailableTill = time.Now().Add(inlineListenerUnhealthyTTL)
 }
 
 func (d *DNSServer) markEgressListenerUnavailable() {
