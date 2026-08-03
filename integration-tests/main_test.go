@@ -446,40 +446,29 @@ func TestIntegration(t *testing.T) {
 		// exchange may time out while the proxy's upstream health-check to
 		// Consul drains. Retry for up to 15 s before failing.
 		for _, port := range dnsPorts {
-			port := port // capture loop var for closure
-			require.Eventuallyf(t, func() bool {
-				// Use DNSLookupAErr so that a transient network timeout
-				// (while Envoy's upstream health-check to Consul drains)
-				// returns false here instead of hard-failing the test.
-				addrs, rcode, err := DNSLookupAErr(
-					suite,
-					port.Proto(),
-					frontendPod.HostIP,
-					frontendPod.MappedPorts[port],
-					"backend.virtual.consul.",
-				)
-				if err != nil {
-					t.Logf("DNS virtual lookup (post-outage) transient error over %s: %v (retrying)",
-						port.Proto(), err)
-					return false
-				}
+			addrs, rcode := DNSLookupA(t,
+				suite,
+				port.Proto(),
+				frontendPod.HostIP,
+				frontendPod.MappedPorts[port],
+				"backend.virtual.consul.",
+			)
 
-				t.Logf("DNS virtual lookup (post-outage): consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
-					opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
+			t.Logf("DNS virtual lookup: consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+				opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
 
-				if rcode != DNSRcodeSuccess || len(addrs) == 0 {
-					return false
-				}
-				for _, addr := range addrs {
-					if !IsConsulVIP(addr) {
-						t.Errorf("expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4) over %s after control-plane outage, got %q",
-							port.Proto(), addr)
-					}
-				}
-				return true
-			}, 15*time.Second, 1*time.Second,
-				"backend.virtual.consul did not resolve to a VIP over %s within 15 s after control-plane outage",
+			require.Equalf(t, DNSRcodeSuccess, rcode,
+				"expected backend.virtual.consul to resolve successfully over %s, got rcode=%d",
+				port.Proto(), rcode)
+			require.NotEmptyf(t, addrs,
+				"expected backend.virtual.consul to resolve to a VIP over %s, got no answers",
 				port.Proto())
+
+			for _, addr := range addrs {
+				require.Truef(t, IsConsulVIP(addr),
+					"expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4), got %q over %s",
+					addr, port.Proto())
+			}
 		}
 	})
 
