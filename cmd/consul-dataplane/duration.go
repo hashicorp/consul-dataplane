@@ -12,7 +12,6 @@ import (
 // Duration wraps the time.duration field to support
 // unmarshalling JSON values to the time.duration fields
 // in destination structs
-// Dummy comment
 type Duration struct {
 	Duration time.Duration
 }
