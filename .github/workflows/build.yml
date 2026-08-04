@@ -79,6 +79,7 @@ jobs:
           - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "386", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics"}
+          - {goos: "linux", goarch: "s390x", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402", pkg_suffix: "-fips" }
           - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402", pkg_suffix: "-fips" }
           - {goos: "darwin", goarch: "amd64", gotags: "hashicorpmetrics"}
@@ -165,6 +166,7 @@ jobs:
           - { arch: "amd64", fips: "+fips1402" }
           - { arch: "arm64" }
           - { arch: "arm64", fips: "+fips1402" }
+          - { arch: "s390x" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
