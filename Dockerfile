@@ -11,8 +11,8 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.37.2-latest
-FROM hashicorppreview/envoy-dev:${ENVOY_VERSION} AS envoy-binary
+ARG ENVOY_VERSION=1.37.2
+FROM hashicorppreview/envoy-dev:1.37.2-latest AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-binary
