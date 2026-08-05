@@ -224,6 +224,7 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+            ENVOY_FIPS_SUFFIX=fips1403
 
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
@@ -250,6 +251,7 @@ jobs:
           redhat_tag: quay.io/redhat-isv-containers/${{matrix.registry-id}}:${{env.version}}-ubi
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+            ENVOY_FIPS_SUFFIX=${{ matrix.target-name == 'release-fips-ubi' && 'fips1403' || 'fips1402' }}
 
   build-docker-ubi-dockerhub:
     name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
@@ -325,6 +327,7 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+            ENVOY_FIPS_SUFFIX=fips1403
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
