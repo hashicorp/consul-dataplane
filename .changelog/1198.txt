@@ -1,0 +1,3 @@
+```release-note:bug
+dns: Remove noisy debug log emitted on benign read timeouts in the UDP proxy loop.
+```
