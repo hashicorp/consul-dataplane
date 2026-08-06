@@ -4,6 +4,7 @@
 package dns
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/binary"
@@ -24,9 +25,59 @@ import (
 	"github.com/hashicorp/consul-dataplane/pkg/dns/mocks"
 )
 
+// timeoutReadErr implements net.Error with Timeout() == true, simulating the
+// benign idle read-deadline error that the UDP proxy loop should swallow
+// silently (no "timeout waiting for read" log, no read-error warning).
+type timeoutReadErr string
+
+func (e timeoutReadErr) Error() string { return string(e) }
+func (timeoutReadErr) Timeout() bool   { return true }
+func (timeoutReadErr) Temporary() bool { return true }
+
 type MockedNetConn struct {
 	net.Conn
 	mock.Mock
+}
+
+type mockedPacketConn struct {
+	mock.Mock
+}
+
+func (m *mockedPacketConn) ReadFrom(p []byte) (int, net.Addr, error) {
+	args := m.Called(p)
+	addr, _ := args.Get(1).(net.Addr)
+	return args.Int(0), addr, args.Error(2)
+}
+
+func (m *mockedPacketConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	args := m.Called(p, addr)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *mockedPacketConn) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockedPacketConn) LocalAddr() net.Addr {
+	args := m.Called()
+	addr, _ := args.Get(0).(net.Addr)
+	return addr
+}
+
+func (m *mockedPacketConn) SetDeadline(t time.Time) error {
+	args := m.Called(t)
+	return args.Error(0)
+}
+
+func (m *mockedPacketConn) SetReadDeadline(t time.Time) error {
+	args := m.Called(t)
+	return args.Error(0)
+}
+
+func (m *mockedPacketConn) SetWriteDeadline(t time.Time) error {
+	args := m.Called(t)
+	return args.Error(0)
 }
 
 type DNSTestSuite struct {
@@ -223,6 +274,69 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 		})
 	}
 
+}
+
+func (s *DNSTestSuite) Test_UDPProxy_ReadErrorLogging() {
+	testCases := map[string]struct {
+		readErr error
+		// wantLogged, if true, asserts the read-error warning IS logged
+		// (non-timeout errors). If false, asserts that neither the warning
+		// nor the timeout-specific message are ever logged (timeout errors
+		// must stay silent).
+		wantLogged bool
+	}{
+		"net error": {
+			readErr:    &net.OpError{Err: errors.New("read failed")},
+			wantLogged: true,
+		},
+		"non-net error": {
+			readErr:    errors.New("read failed"),
+			wantLogged: true,
+		},
+		"timeout error": {
+			readErr:    timeoutReadErr("read udp 127.0.0.1:1053: i/o timeout"),
+			wantLogged: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		s.Run(name, func() {
+			var logBuf bytes.Buffer
+
+			mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+			connUDP := &mockedPacketConn{}
+			runCtx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			server := DNSServer{
+				client:  mockedDNSConsulClient,
+				connUDP: connUDP,
+				logger: hclog.New(&hclog.LoggerOptions{
+					Level:  hclog.Debug,
+					Output: &logBuf,
+				}),
+			}
+
+			connUDP.On("SetReadDeadline", mock.Anything).Return(nil).Once()
+			connUDP.On("ReadFrom", mock.Anything).Run(func(args mock.Arguments) {
+				cancel()
+			}).Return(0, (*net.UDPAddr)(nil), tc.readErr).Once()
+			connUDP.On("Close").Return(nil).Once()
+
+			server.proxyUDP(runCtx)
+
+			connUDP.AssertExpectations(s.T())
+			mockedDNSConsulClient.AssertNotCalled(s.T(), "Query", mock.Anything, mock.Anything)
+
+			logged := logBuf.String()
+			if tc.wantLogged {
+				s.Require().Contains(logged, "error reading from conn", "expected non-timeout read error to be logged")
+			} else {
+				s.Require().NotContains(logged, "timeout waiting for read", "timeout errors must not be logged with this message")
+				s.Require().NotContains(logged, "error reading from conn", "timeout errors must not trigger the read-error warning")
+			}
+		})
+	}
 }
 
 func (s *DNSTestSuite) Test_ProxydnsTCP() {
