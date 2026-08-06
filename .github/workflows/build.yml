@@ -256,6 +256,12 @@ jobs:
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - uses: hashicorp/actions-docker-build@v2
         with:
           version: ${{env.version}}
@@ -283,6 +289,12 @@ jobs:
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       # This naming convention will be used ONLY for per-commit dev images
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set docker dev tag
         run: |
           echo "full_dev_tag=${{ env.version }}"
