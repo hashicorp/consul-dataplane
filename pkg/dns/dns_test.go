@@ -276,7 +276,7 @@ func (s *DNSTestSuite) Test_UDPProxy() {
 
 }
 
-func (s *DNSTestSuite) Test_UDPProxy_ReadErrorContinues() {
+func (s *DNSTestSuite) Test_UDPProxy_ReadErrorLogging() {
 	testCases := map[string]struct {
 		readErr error
 		// wantLogged, if true, asserts the read-error warning IS logged
