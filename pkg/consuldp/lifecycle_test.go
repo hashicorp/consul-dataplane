@@ -5,14 +5,18 @@ package consuldp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -283,21 +287,21 @@ func TestLifecycleServer_Shutdown(t *testing.T) {
 			// expected shutdown grace period plus a small margin of error.
 			if c.shutdownDrainListenersEnabled {
 				require.Eventually(t, func() bool {
-					return m.proxy.(*mockProxy).drainCalled == 1
+					return m.proxy.(*mockProxy).drainCalled.Load() == 1
 				}, shutdownTimeout, time.Second, "Proxy.Drain() not called as expected")
 			} else {
 				require.Never(t, func() bool {
-					return m.proxy.(*mockProxy).drainCalled == 1
+					return m.proxy.(*mockProxy).drainCalled.Load() == 1
 				}, shutdownTimeout, time.Second, "Proxy.Drain() called unexpectedly")
 			}
 
 			require.Eventually(t, func() bool {
-				return m.proxy.(*mockProxy).quitCalled == 1
+				return m.proxy.(*mockProxy).quitCalled.Load() == 1
 			}, shutdownTimeout, time.Second, "Proxy.Quit() not called as expected")
 
 			// Expect that proxy is not forcefully killed as part of graceful shutdown.
 			require.Never(t, func() bool {
-				return m.proxy.(*mockProxy).killCalled == 1
+				return m.proxy.(*mockProxy).killCalled.Load() == 1
 			}, shutdownTimeout, time.Second, "Proxy.Kill() called unexpectedly")
 
 			require.NoError(t, err)
@@ -311,39 +315,132 @@ func TestLifecycleServer_Shutdown(t *testing.T) {
 }
 
 type mockProxy struct {
-	runCalled           int
-	drainCalled         int
-	quitCalled          int
-	killCalled          int
-	isReady             bool
+	runCalled           atomic.Int32
+	drainCalled         atomic.Int32
+	quitCalled          atomic.Int32
+	killCalled          atomic.Int32
+	isReady             atomic.Bool
 	startupDelaySeconds int
+	dumpConfigErr       error
+	drainErr            error
+	quitErr             error
 }
 
 func (p *mockProxy) Run(ctx context.Context) error {
-	p.runCalled++
+	p.runCalled.Add(1)
 	time.Sleep(time.Duration(p.startupDelaySeconds) * time.Second)
-	p.isReady = true
+	p.isReady.Store(true)
 
 	return nil
 }
 
 func (p *mockProxy) Drain() error {
-	p.drainCalled++
-	return nil
+	p.drainCalled.Add(1)
+	return p.drainErr
 }
 
 func (p *mockProxy) Quit() error {
-	p.quitCalled++
-	return nil
+	p.quitCalled.Add(1)
+	return p.quitErr
 }
 func (p *mockProxy) Kill() error {
-	p.killCalled++
+	p.killCalled.Add(1)
 	return nil
 }
 
 func (p *mockProxy) DumpConfig() error {
-	return nil
+	return p.dumpConfigErr
 }
 func (p *mockProxy) Ready() (bool, error) {
-	return p.isReady, nil
+	return p.isReady.Load(), nil
+}
+
+func TestGracefulShutdown_DumpConfigError_DoesNotKillProxy(t *testing.T) {
+	m := &lifecycleConfig{
+		shutdownDrainListenersEnabled: true,
+		shutdownGracePeriodSeconds:    3,
+		dumpEnvoyConfigOnExitEnabled:  true,
+		proxy: &mockProxy{
+			dumpConfigErr: errors.New("connection refused"),
+		},
+		errorExitCh: make(chan struct{}, 1),
+		mu:          sync.Mutex{},
+		logger:      hclog.NewNullLogger(),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		m.gracefulShutdown()
+		close(done)
+	}()
+
+	select {
+	case <-m.errorExitCh:
+		require.Fail(t, "BUG: errorExitCh closed due to DumpConfig error — "+
+			"this causes Run() to call Quit()+Kill() immediately, killing Envoy at 0ms")
+	case <-time.After(1 * time.Second):
+		t.Log("OK: errorExitCh not closed, graceful shutdown continues")
+	}
+
+	<-done
+}
+
+func TestGracefulShutdown_DrainError_DoesNotKillProxy(t *testing.T) {
+	m := &lifecycleConfig{
+		shutdownDrainListenersEnabled: true,
+		shutdownGracePeriodSeconds:    2,
+		dumpEnvoyConfigOnExitEnabled:  false,
+		proxy: &mockProxy{
+			drainErr: errors.New("connection refused"),
+		},
+		errorExitCh: make(chan struct{}, 1),
+		mu:          sync.Mutex{},
+		logger:      hclog.NewNullLogger(),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		m.gracefulShutdown()
+		close(done)
+	}()
+
+	select {
+	case <-m.errorExitCh:
+		require.Fail(t, "BUG: errorExitCh closed due to Drain error — "+
+			"this kills Envoy immediately instead of waiting for grace period")
+	case <-time.After(1 * time.Second):
+		t.Log("OK: errorExitCh not closed, graceful shutdown continues")
+	}
+
+	<-done
+}
+
+func TestGracefulShutdown_QuitError_DoesNotKillProxy(t *testing.T) {
+	m := &lifecycleConfig{
+		shutdownDrainListenersEnabled: false,
+		shutdownGracePeriodSeconds:    1,
+		dumpEnvoyConfigOnExitEnabled:  false,
+		proxy: &mockProxy{
+			quitErr: errors.New("connection refused"),
+		},
+		errorExitCh: make(chan struct{}, 1),
+		mu:          sync.Mutex{},
+		logger:      hclog.NewNullLogger(),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		m.gracefulShutdown()
+		close(done)
+	}()
+
+	select {
+	case <-m.errorExitCh:
+		require.Fail(t, "BUG: errorExitCh closed due to Quit error — "+
+			"this triggers a second Quit()+Kill() from Run() select loop")
+	case <-done:
+		t.Log("OK: gracefulShutdown completed without closing errorExitCh")
+	case <-time.After(5 * time.Second):
+		require.Fail(t, "Timeout")
+	}
 }

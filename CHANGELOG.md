@@ -1,3 +1,171 @@
+## 2.0.0 (May 23, 2026)
+SECURITY:
+
+* Upgrade dependencies to address CVE findings: migrate integration-tests from archived `go-jose.v2` to `go-jose/v4` (fixes CVE-2024-28180, GHSA-c5q2-7r4c-mv6g, GO-2024-2631), upgrade `golang.org/x/net` to v0.55.0, and patch `golang.org/x/crypto` to v0.52.0 in the bundled `go-discover` binary. [[GH-1107](https://github.com/hashicorp/consul-dataplane/pull/1107)]
+* security: Update to UBI base image to 9.8 for fixing [[CVE_2026-2100](https://access.redhat.com/security/cve/cve-2026-2100)] [[GH-1102](https://github.com/hashicorp/consul-dataplane/pull/1102)]
+* Upgrade to use `x/net` 0.53.0. This resolves [GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918) [[GH-1084](https://github.com/hashicorp/consul-dataplane/pull/1084)]
+* security: upgrade go version to 1.26 [[GH-1049](https://github.com/hashicorp/consul-dataplane/pull/1049)]
+* Add microdnf upgrade in dockerfile to include future security fixes [[GH-917](https://github.com/hashicorp/consul-dataplane/pull/917)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.37.2 [[GH-1052](https://github.com/hashicorp/consul-dataplane/pull/1052)]
+
+BUG FIXES:
+
+* envoy: add `skip_exit` to `drain_listeners` admin API call to prevent premature pod termination when upgrading to Envoy 1.37+ [[GH-1061](https://github.com/hashicorp/consul-dataplane/pull/1061)]
+* envoy: prevent graceful shutdown errors from closing errorExitCh, which caused Envoy to be killed immediately bypassing the configured grace period [[GH-1072](https://github.com/hashicorp/consul-dataplane/pull/1072)]
+
+## 1.9.8 (May 23, 2026)
+SECURITY:
+
+* Upgrade dependencies to address CVE findings: migrate integration-tests from archived `go-jose.v2` to `go-jose/v4` (fixes CVE-2024-28180, GHSA-c5q2-7r4c-mv6g, GO-2024-2631), upgrade `golang.org/x/net` to v0.55.0, and patch `golang.org/x/crypto` to v0.52.0 in the bundled `go-discover` binary. [[GH-1107](https://github.com/hashicorp/consul-dataplane/pull/1107)]
+* Upgrade to use `x/net` 0.55.0.
+This resolves [GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918) [[GH-1084](https://github.com/hashicorp/consul-dataplane/pull/1084)]
+* Upgraded `envoy` to 1.35.10 [[GH-1133](https://github.com/hashicorp/consul-dataplane/pull/1133)]
+* go: upgrade go version to 1.26.2 [[GH-1125](https://github.com/hashicorp/consul-dataplane/pull/1125)]
+* security: Update to UBI base image to 9.8 for fixing [[CVE_2026-2100](https://access.redhat.com/security/cve/cve-2026-2100)] [[GH-1102](https://github.com/hashicorp/consul-dataplane/pull/1102)]
+
+
+## 1.8.13 (May 23, 2026)
+SECURITY:
+
+* Upgrade dependencies to address CVE findings: migrate integration-tests from archived `go-jose.v2` to `go-jose/v4` (fixes CVE-2024-28180, GHSA-c5q2-7r4c-mv6g, GO-2024-2631), upgrade `golang.org/x/net` to v0.55.0, and patch `golang.org/x/crypto` to v0.52.0 in the bundled `go-discover` binary. [[GH-1107](https://github.com/hashicorp/consul-dataplane/pull/1107)]
+* Upgrade to use `x/net` 0.55.0.
+This resolves [GO-2026-4918](https://pkg.go.dev/vuln/GO-2026-4918) [[GH-1084](https://github.com/hashicorp/consul-dataplane/pull/1084)]
+* Upgraded `envoy` to 1.35.10 [[GH-1134](https://github.com/hashicorp/consul-dataplane/pull/1134)]
+* go: upgrade go version to 1.26.2 [[GH-1124](https://github.com/hashicorp/consul-dataplane/pull/1124)]
+* security: Update to UBI base image to 9.8 for fixing [[CVE_2026-2100](https://access.redhat.com/security/cve/cve-2026-2100)] [[GH-1102](https://github.com/hashicorp/consul-dataplane/pull/1102)]
+
+
+## 1.9.7 (April 22, 2026)
+
+SECURITY:
+
+* security: upgrade go version to 1.25.9 
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.35.10
+
+
+## 1.8.12 (April 25, 2026)
+
+SECURITY:
+
+* Upgrade go version to 1.25.9
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.34.13 
+
+## 1.9.6 (March 25, 2026)
+SECURITY:
+
+* security: upgrade go version to 1.25.8 
+* security: update google.golang.org/grpc to fix CVE-2026-33186 [[GH-1028](https://github.com/hashicorp/consul-dataplane/pull/1028)]
+
+## 1.8.11 (March 25, 2026)
+SECURITY:
+
+* security: upgrade go version to 1.25.8 
+* security: upgrade envoy version to v1.34.13 
+* security: update google.golang.org/grpc to fix CVE-2026-33186 [[GH-1028](https://github.com/hashicorp/consul-dataplane/pull/1028)]
+
+## 1.7.13 (March 25, 2026)
+SECURITY:
+
+* security: upgrade go version to 1.25.8 
+* security: upgrade envoy version to v1.34.13 
+* security: update google.golang.org/grpc to fix CVE-2026-33186 [[GH-1028](https://github.com/hashicorp/consul-dataplane/pull/1028)]
+
+
+## 1.9.5 (February 26, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.7 [[GH-985](https://github.com/hashicorp/consul-dataplane/pull/985)]
+* go: upgrade go discover version to c9daf450621856f81604e3495af612b95db907d5 [[GH-997](https://github.com/hashicorp/consul-dataplane/pull/997)]
+
+## 1.8.10 (February 26, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.7 [[GH-985](https://github.com/hashicorp/consul-dataplane/pull/985)]
+* go: upgrade go discover version to c9daf450621856f81604e3495af612b95db907d5 [[GH-997](https://github.com/hashicorp/consul-dataplane/pull/997)]
+
+## 1.7.12 (February 26, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.7 [[GH-985](https://github.com/hashicorp/consul-dataplane/pull/985)]
+* go: upgrade go discover version to new c9daf450621856f81604e3495af612b95db907d5 [[GH-997](https://github.com/hashicorp/consul-dataplane/pull/997)]
+
+## 1.9.4
+
+**WITHDRAWN** - This release has been retracted from public distribution due to critical issues. Please use 1.9.5 or remain on 1.9.3.
+
+## 1.8.9
+
+**WITHDRAWN** - This release has been retracted from public distribution due to critical issues. Please use 1.8.10 or remain on 1.8.8.
+
+
+## 1.7.11
+
+**WITHDRAWN** - This release has been retracted from public distribution due to critical issues. Please use 1.7.12 or remain on 1.7.10.
+
+## 1.9.3 (January 23, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.5 [[GH-955](https://github.com/hashicorp/consul-dataplane/pull/955)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.35.8 [[GH-973](https://github.com/hashicorp/consul-dataplane/pull/973)]
+
+## 1.8.8 (January 23, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.5 [[GH-955](https://github.com/hashicorp/consul-dataplane/pull/955)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.34.12 [[GH-974](https://github.com/hashicorp/consul-dataplane/pull/974)]
+
+## 1.7.10 (January 23, 2026)
+SECURITY:
+
+* Upgrade go version to 1.25.5 [[GH-955](https://github.com/hashicorp/consul-dataplane/pull/955)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.34.12 [[GH-975](https://github.com/hashicorp/consul-dataplane/pull/975)]
+
+## 1.9.0 (October 27, 2025)
+
+SECURITY:
+
+* Upgrade to use Go 1.25.3 [[GH-891](https://github.com/hashicorp/consul-dataplane/pull/891)]
+* build: upgrade go-discover version to 1.1.0 [[GH-803](https://github.com/hashicorp/consul-dataplane/pull/803)]
+* ipv6: Addition of IPv6 flags, which are related to consul-dataplane and envoy. [[GH-844](https://github.com/hashicorp/consul-dataplane/pull/844)]
+
+IMPROVEMENTS:
+
+* The Docker image now includes both privileged and non-privileged binaries for both consul-dataplane and envoy. You can use `privileged-consul-dataplane` as the container command to run with the necessary capabilities for binding to privileged ports, or use the default binaries for standard use cases. [[GH-652](https://github.com/hashicorp/consul-dataplane/pull/652)]
+* Update Envoy version to 1.35.3 [[GH-857](https://github.com/hashicorp/consul-dataplane/pull/857)]
+
+## 1.8.3 (October 28, 2025)
+
+IMPROVEMENTS:
+
+* The Docker image now includes both privileged and non-privileged binaries for both consul-dataplane and envoy. You can use `privileged-consul-dataplane` as the container command to run with the necessary capabilities for binding to privileged ports, or use the default binaries for standard use cases. [[GH-652](https://github.com/hashicorp/consul-dataplane/pull/652)]
+* security: Upgrade golang to 1.25.2. [[GH-883](https://github.com/hashicorp/consul-dataplane/pull/883)]
+
+## 1.7.6 (October 28, 2025)
+
+IMPROVEMENTS:
+
+* The Docker image now includes both privileged and non-privileged binaries for both consul-dataplane and envoy. You can use `privileged-consul-dataplane` as the container command to run with the necessary capabilities for binding to privileged ports, or use the default binaries for standard use cases. [[GH-652](https://github.com/hashicorp/consul-dataplane/pull/652)]
+* go: Upgrade golang to 1.25.3. [[GH-900](https://github.com/hashicorp/consul-dataplane/pull/900)]
+* security: Upgrade golang to 1.25.2. [[GH-883](https://github.com/hashicorp/consul-dataplane/pull/883)]
+
 ## 1.9.0-rc2 (October 15, 2025)
 
 SECURITY:

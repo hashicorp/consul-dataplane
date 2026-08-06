@@ -6,6 +6,7 @@ GOPATH       ?= $(shell go env GOPATH)
 GOBIN        ?= $(GOPATH)/bin
 
 GO_MODULES := $(shell find . -name go.mod -exec dirname {} \; | sort)
+GOTAGS     ?= hashicorpmetrics
 
 # Get local ARCH; on Intel Mac, 'uname -m' returns x86_64 which we turn into amd64.
 # Not using 'go env GOOS/GOARCH' here so 'make docker' will work without local Go install.
@@ -44,7 +45,7 @@ dist: ## make dist directory and ignore everything
 
 .PHONY: bin
 bin: dist ## Build the binary
-	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o $(BIN) ./cmd/$(BIN_NAME)
+	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 go build -tags=$(GOTAGS) -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o $(BIN) ./cmd/$(BIN_NAME)
 
 .PHONY: dev
 dev: bin ## Build binary and copy to the destination
@@ -76,7 +77,7 @@ dev-docker: docker ## build docker image and tag the image to local
 
 .PHONY: unit-tests
 unit-tests: ## unit tests
-	go test ./...
+	go test -tags=$(GOTAGS) ./...
 
 .PHONY: expand-integration-tests-output-dir
 expand-integration-tests-output-dir: ## create directory to support integration tests

@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2022, 2026
 # SPDX-License-Identifier: MPL-2.0
 
 # These scan results are run as part of CRT workflows.
@@ -27,22 +27,17 @@ container {
   triage {
     suppress {
       vulnerabilities = [
-        "CVE-2025-6965",
-        "CVE-2025-6395",
-        "CVE-2024-12797",
-        "CVE-2025-5702",
-        "CVE-2025-8058",
-        "CVE-2024-4067",
-        "CVE-2025-31115",
-        "CVE-2025-3576",
-        "CVE-2025-6021",
-        "CVE-2025-25724",
-        "CVE-2024-57970",
-        "CVE-2025-32414",
-        "CVE-2024-52533",
-        "CVE-2025-5914",
-        "CVE-2025-3277",
-        "CVE-2024-40896"
+ 
+      ]
+      paths = [
+        // The OSV scanner will trip on several packages that are included in the
+        // the UBI images. This is due to RHEL using the same base version in the
+        // package name for the life of the distro regardless of whether or not
+        // that version has been patched for security. Rather than enumate ever
+        // single CVE that the OSV scanner will find (several tens) we'll ignore
+        // the base UBI packages.
+        "usr/lib/sysimage/rpm/*",
+        "var/lib/rpm/*",
       ]
     }
   }
@@ -68,12 +63,7 @@ repository {
 
   triage {
     suppress {
-      # Only remaining vulnerabilities in integration tests (archived go-jose v2)
-      vulnerabilities = [
-        "CVE-2024-28180",
-        "GHSA-c5q2-7r4c-mv6g",
-        "GO-2024-2631"
-      ]
+      vulnerabilities = []
       paths = [
         # SHA1 usage in bootstrap config is for non-security purposes
         "internal/bootstrap/bootstrap_config.go"

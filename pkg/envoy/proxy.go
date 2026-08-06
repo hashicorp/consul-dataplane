@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2022, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package envoy
@@ -179,7 +179,7 @@ func (p *Proxy) Run(ctx context.Context) error {
 // Note: the caller is responsible for ensuring Drain is not called concurrently
 // with Run, as this is thread-unsafe.
 func (p *Proxy) Drain() error {
-	envoyDrainListenersUrl := fmt.Sprintf("http://%s:%v/drain_listeners?inboundonly&graceful", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+	envoyDrainListenersUrl := fmt.Sprintf("http://%s/drain_listeners?inboundonly&graceful&skip_exit", net.JoinHostPort(p.cfg.AdminAddr, strconv.Itoa(p.cfg.AdminBindPort)))
 	switch p.getState() {
 	case stateExited:
 		// Nothing to do!
@@ -287,7 +287,10 @@ func (p *Proxy) DumpConfig() error {
 }
 
 func (p *Proxy) dumpConfig() error {
-	envoyConfigDumpUrl := fmt.Sprintf("http://%s:%v/config_dump?include_eds", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+	envoyConfigDumpUrl := fmt.Sprintf(
+		"http://%s/config_dump?include_eds",
+		net.JoinHostPort(p.cfg.AdminAddr, strconv.Itoa(p.cfg.AdminBindPort)),
+	)
 
 	rsp, err := p.client.Get(envoyConfigDumpUrl)
 	if err != nil {
@@ -398,7 +401,10 @@ func (p *Proxy) Ready() (bool, error) {
 		return false, nil
 	case stateRunning, stateInitial:
 		// Query ready endpoint to check if proxy is Ready
-		envoyReadyURL := fmt.Sprintf("http://%s:%v/ready", p.cfg.AdminAddr, p.cfg.AdminBindPort)
+		envoyReadyURL := fmt.Sprintf(
+			"http://%s/ready",
+			net.JoinHostPort(p.cfg.AdminAddr, strconv.Itoa(p.cfg.AdminBindPort)),
+		)
 		rsp, err := p.client.Get(envoyReadyURL)
 		if err != nil {
 			p.cfg.Logger.Error("envoy: admin endpoint not available", "error", err)

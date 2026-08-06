@@ -11,10 +11,37 @@ jobs:
   conditional-skip:
     uses: ./.github/workflows/reusable-conditional-skip.yml
 
+  # Detect PRs whose changes are limited to the .release/ directory (CRT release
+  # orchestration). These files don't affect tests or coverage, so we skip all
+  # check jobs for them. Scoped to pull_request events only — on push to main/
+  # release/** this output is ignored and checks always run.
+  check-release-only:
+    runs-on: ubuntu-latest
+    name: Check whether only .release files changed
+    outputs:
+      release-only: ${{ steps.changed-files.outputs.only_changed }}
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          fetch-depth: 0
+      - name: Check for changes outside .release
+        id: changed-files
+        uses: tj-actions/changed-files@2f7c5bfce28377bc069a65ba478de0a74aa0ca32 # v46.0.1
+        with:
+          files: |
+            .release/**
+
   get-go-version:
-    # Cascades down to test jobs
-    needs: [conditional-skip]
-    if: needs.conditional-skip.outputs.skip-ci != 'true'
+    # Cascades down to test jobs.
+    # Skipped when: (a) only skippable files changed (skip-ci), or
+    #               (b) this is a PR touching only .release/** files (release-only).
+    # On push to main/release/** the release-only condition is never true so
+    # checks always run on protected branches.
+    needs: [conditional-skip, check-release-only]
+    if: >-
+      needs.conditional-skip.outputs.skip-ci != 'true' &&
+      !(github.event_name == 'pull_request' &&
+        needs.check-release-only.outputs.release-only == 'true')
     uses: ./.github/workflows/reusable-get-go-version.yml
 
   unit-tests:
@@ -27,7 +54,97 @@ jobs:
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
-      - run: go test ./... -p 1 # disable parallelism to avoid port conflicts from default metrics and lifecycle server configuration
+      - run: go test ./... -p 1 -tags hashicorpmetrics -coverprofile=coverage.txt -covermode=set # disable parallelism to avoid port conflicts from default metrics and lifecycle server configuration
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: always()
+        with:
+          name: unit-tests-coverage
+          path: coverage.txt
+          if-no-files-found: ignore
+
+  coverage-report:
+    needs:
+      - get-go-version
+      - unit-tests
+    uses: ./.github/workflows/reusable-coverage-report.yml
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    with:
+      go-version: ${{ needs.get-go-version.outputs.go-version }}
+      pr-number: ${{ github.event_name == 'pull_request' && toJson(github.event.pull_request.number) || '' }}
+
+  coverage-gate:
+    name: coverage-gate
+    needs: [coverage-report]
+    # Patch coverage measures the lines a PR adds/modifies, so it only applies
+    # to pull requests. Pushes to main run coverage-report for the badge but
+    # have no "patch" to evaluate. Only gate when the report succeeded.
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.coverage-report.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      # Minimum required coverage of the lines a PR adds/modifies (patch
+      # coverage). New/changed code must be at least this well tested.
+      PATCH_THRESHOLD: "90"
+    steps:
+      - name: Enforce patch coverage threshold
+        env:
+          PATCH: ${{ needs.coverage-report.outputs.patch }}
+          COVERED: ${{ needs.coverage-report.outputs.patch_covered }}
+          COVERABLE: ${{ needs.coverage-report.outputs.patch_coverable }}
+        run: |
+          set -euo pipefail
+
+          echo "Patch coverage:     ${PATCH:-<empty>}"
+          echo "Required threshold: ${PATCH_THRESHOLD}%"
+          echo "Changed lines:      ${COVERED:-0}/${COVERABLE:-0} covered"
+
+          # No coverable Go lines changed (docs/test-only) -> nothing to gate.
+          # Fail closed: an empty PATCH means the reusable workflow could not
+          # compute patch coverage (no coverage profile produced, so the patch
+          # step was skipped). Don't let the gate pass unevaluated.
+          if [ -z "${PATCH}" ]; then
+            echo "::error::Patch coverage was not computed (no coverage profile produced). Failing closed."
+            {
+              echo "### ❌ Coverage gate failed"
+              echo ""
+              echo "Patch coverage could not be computed because no coverage profile was produced (unit tests may not have run or emitted coverage)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if [ "${PATCH}" = "N/A" ]; then
+            echo "::notice::No coverable Go lines changed in this PR; patch-coverage gate skipped."
+            {
+              echo "### ✅ Coverage gate passed"
+              echo ""
+              echo "No coverable Go lines changed in this PR, so there is nothing to gate."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          PCT="${PATCH%\%}"
+
+          if awk "BEGIN { exit !(${PCT} >= ${PATCH_THRESHOLD}) }"; then
+            echo "::notice::Patch coverage ${PATCH} meets the ${PATCH_THRESHOLD}% threshold."
+            {
+              echo "### ✅ Coverage gate passed"
+              echo ""
+              echo "Patch coverage **${PATCH}** (${COVERED}/${COVERABLE} changed lines) ≥ required **${PATCH_THRESHOLD}%**."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Patch coverage ${PATCH} is below the required ${PATCH_THRESHOLD}% threshold."
+            {
+              echo "### ❌ Coverage gate failed"
+              echo ""
+              echo "Patch coverage **${PATCH}** (${COVERED}/${COVERABLE} changed lines) is below the required **${PATCH_THRESHOLD}%** threshold."
+              echo ""
+              echo "The lines this PR adds or modifies are not sufficiently covered by tests."
+              echo "Add tests for the new/changed code, or adjust \`PATCH_THRESHOLD\` in \`.github/workflows/consul-dataplane-checks.yaml\` (with reviewer sign-off)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
   integration-tests:
     name: integration-tests
@@ -57,4 +174,39 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8.0.0
         with:
-          version: "v2.4.0"
+          version: "v2.11.4"
+          args: --build-tags hashicorpmetrics
+
+  pass-required-checks-on-skip:
+    needs: [ conditional-skip, check-release-only ]
+    # Fire only on pull_request events when CI is skipped (skip-ci) or when the
+    # PR only touched .release/** files. The pull_request guard ensures this
+    # never fires on push-to-main, where checks must always run.
+    # always() ensures this job is not skipped even if check-release-only fails.
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      (needs.conditional-skip.outputs.skip-ci == 'true' ||
+      needs.check-release-only.outputs.release-only == 'true')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # Required checks that must be marked success when CI is skipped
+          - check-name: unit-tests
+          - check-name: integration-tests
+          - check-name: lint
+          - check-name: integration-tests-success
+    steps:
+    - name: Update final status
+      uses: docker://ghcr.io/curtbushko/commit-status-action:e1d661c757934ab35c74210b4b70c44099ec747a
+      env:
+        INPUT_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+        INPUT_REPOSITORY: ${{ github.repository }}
+        INPUT_CONTEXT: ${{ matrix.check-name }}
+        INPUT_STATE: success
+        INPUT_DESCRIPTION: "Skipped due to .release-only changes"
+        INPUT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        INPUT_DETAILS_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        INPUT_OWNER: "hashicorp"
+

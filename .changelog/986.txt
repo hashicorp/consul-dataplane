@@ -1,0 +1,3 @@
+```release-note:fix
+integration-tests: upgrade docker client version to minimum supported API version 1.44 
+```

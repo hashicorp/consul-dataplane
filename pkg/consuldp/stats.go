@@ -1,9 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2022, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package consuldp
 
-import "github.com/armon/go-metrics/prometheus"
+import "github.com/hashicorp/go-metrics/prometheus"
 
 var gauges = []prometheus.GaugeDefinition{
 	{

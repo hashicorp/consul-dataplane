@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2022, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package dns
@@ -189,9 +189,7 @@ func (d *DNSServer) proxyUDP(ctx context.Context) {
 			if errors.Is(err, net.ErrClosed) {
 				logger.Info("connection closed")
 				return
-			} else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-				logger.Debug("timeout waiting for read", "error", err)
-			} else {
+			} else if nerr, ok := err.(net.Error); !ok || !nerr.Timeout() {
 				logger.Warn("error reading from conn", "error", err)
 			}
 			continue

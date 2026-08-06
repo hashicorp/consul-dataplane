@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2022, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package consuldp
@@ -176,7 +176,6 @@ func (m *lifecycleConfig) gracefulShutdown() {
 		err := m.proxy.DumpConfig()
 		if err != nil {
 			m.logger.Warn("error while attempting to dump Envoy config to disk", "error", err)
-			close(m.errorExitCh)
 		}
 	}
 
@@ -196,7 +195,6 @@ func (m *lifecycleConfig) gracefulShutdown() {
 			err := m.proxy.Drain()
 			if err != nil {
 				m.logger.Warn("error while draining Envoy listeners", "error", err)
-				close(m.errorExitCh)
 			}
 		}
 
@@ -208,7 +206,6 @@ func (m *lifecycleConfig) gracefulShutdown() {
 		err := m.proxy.Quit()
 		if err != nil {
 			m.logger.Warn("error while shutting down Envoy", "error", err)
-			close(m.errorExitCh)
 		}
 	}()
 
