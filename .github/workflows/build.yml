@@ -18,6 +18,13 @@ on:
       - release/**
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      allow-unprotected-branches:
+        description: "Allow running conditional-skip on unprotected branches"
+        type: boolean
+        required: false
+        default: false
 
 env:
   PKG_NAME: "consul-dataplane"
@@ -25,6 +32,8 @@ env:
 jobs:
   conditional-skip:
     uses: ./.github/workflows/reusable-conditional-skip.yml
+    with:
+      allow-unprotected-branches: ${{ inputs.allow-unprotected-branches || false }}
 
   get-go-version:
     # Cascades down to test jobs
