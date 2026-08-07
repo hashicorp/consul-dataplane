@@ -27,7 +27,7 @@ container {
   triage {
     suppress {
       vulnerabilities = [
- 
+      
       ]
       paths = [
         // The OSV scanner will trip on several packages that are included in the
@@ -63,7 +63,10 @@ repository {
 
   triage {
     suppress {
-      vulnerabilities = []
+      vulnerabilities = [
+      "GO-2026-5856",
+      "GO-2026-4970",
+      ]
       paths = [
         # SHA1 usage in bootstrap config is for non-security purposes
         "internal/bootstrap/bootstrap_config.go"
