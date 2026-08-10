@@ -1,3 +1,17 @@
+## 1.8.16 (August 10, 2026)
+
+SECURITY:
+
+* Upgrade dependencies to address CVE findings:Upgraded `golang.org/x/text` to 0.40.0 , `google.golang.org/grpc` to 1.82.1 and `go.opentelemetry.io/otel` to 1.44.0 fixes CVEs GO-2026-5970 ,GO-2026-6061 ,GO-2026-5158 respectively [[GH-1228](https://github.com/hashicorp/consul-dataplane/pull/1228),[GH-1210](https://github.com/hashicorp/consul-dataplane/pull/1210),[GH-1235](https://github.com/hashicorp/consul-dataplane/pull/1235)]
+
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.26.5. [[GH-1206](https://github.com/hashicorp/consul-dataplane/pull/1206)]
+
+BUG FIXES:
+
+* dns: Remove noisy debug log emitted on benign read timeouts in the UDP proxy loop. [[GH-1198](https://github.com/hashicorp/consul-dataplane/pull/1198)]
+
 ## 1.8.13 (May 23, 2026)
 SECURITY:
 
