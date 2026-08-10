@@ -30,7 +30,7 @@ container {
     suppress {
       vulnerabilities = [
       "GO-2026-5856",
-      "GO-2026-5932"
+      "GO-2026-5932",
       ]
       paths = [
         // The OSV scanner will trip on several packages that are included in the
