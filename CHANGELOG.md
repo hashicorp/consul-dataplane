@@ -1,3 +1,12 @@
+## 1.8.16 (August 10, 2026)
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.26.5. [[GH-1206](https://github.com/hashicorp/consul-dataplane/pull/1206)]
+
+BUG FIXES:
+
+* dns: Remove noisy debug log emitted on benign read timeouts in the UDP proxy loop. [[GH-1198](https://github.com/hashicorp/consul-dataplane/pull/1198)]
+
 ## 1.8.13 (May 23, 2026)
 SECURITY:
 
