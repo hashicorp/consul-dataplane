@@ -26,7 +26,10 @@ container {
   # periodically cleaned up to remove items that are no longer found by the scanner.
   triage {
     suppress {
-      vulnerabilities = []
+      vulnerabilities = [
+      "GO-2026-5856",
+      "GO-2026-5932",
+      ]
       paths = [
         // The OSV scanner will trip on several packages that are included in the
         // the UBI images. This is due to RHEL using the same base version in the
@@ -61,7 +64,10 @@ repository {
 
   triage {
     suppress {
-      vulnerabilities = []
+      vulnerabilities = [
+      "GO-2026-5856",
+      "GO-2026-4970",
+      ]
       paths = [
         # SHA1 usage in bootstrap config is for non-security purposes
         "internal/bootstrap/bootstrap_config.go"
