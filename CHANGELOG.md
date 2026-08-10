@@ -2,7 +2,7 @@
 
 SECURITY:
 
-* Upgrade dependencies to address CVE findings:Upgraded `golang.org/x/text@v0.37.0` to `golang.org/x/text@v0.40.0`, `google.golang.org/grpc@v1.81.1` to `google.golang.org/grpc@v1.82.1` and `go.opentelemetry.io/otel@v1.43.0` to `go.opentelemetry.io/otel@v1.44.0` fixes CVEs GO-2026-5970 ,GO-2026-6061 ,GO-2026-5158 respectively [[GH-1228](https://github.com/hashicorp/consul-dataplane/pull/1228),[GH-1210](https://github.com/hashicorp/consul-dataplane/pull/1210),[GH-1235](https://github.com/hashicorp/consul-dataplane/pull/1235)]
+* Upgrade dependencies to address CVE findings:Upgraded `golang.org/x/text` to 0.40.0 , `google.golang.org/grpc` to 1.82.1 and `go.opentelemetry.io/otel` to 1.44.0 fixes CVEs GO-2026-5970 ,GO-2026-6061 ,GO-2026-5158 respectively [[GH-1228](https://github.com/hashicorp/consul-dataplane/pull/1228),[GH-1210](https://github.com/hashicorp/consul-dataplane/pull/1210),[GH-1235](https://github.com/hashicorp/consul-dataplane/pull/1235)]
 
 
 IMPROVEMENTS:
