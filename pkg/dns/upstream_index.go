@@ -107,17 +107,38 @@ const (
 	sniMarkerInternalV1 = "internal-v1"
 )
 
+// sniClusterPrefixes lists the non-SNI prefixes that the Consul control plane
+// prepends to a bare service SNI when naming special Envoy clusters:
+//
+//   - "passthrough~" — transparent-proxy passthrough clusters
+//     (agent/xds/clusters.go: name = "passthrough~" + sni)
+//   - "exported~"    — mesh-gateway exported clusters
+//     (agent/xds/clusters.go: meshGatewayExportedClusterNamePrefix)
+//
+// These strings appear as the CDS resource name (and therefore as the value
+// received by Update), but they are not part of the SNI itself. Stripping
+// them before parsing keeps the index-key and SNI-label counts consistent.
+var sniClusterPrefixes = []string{"passthrough~", "exported~"}
+
 // ParseServiceSNI parses a Consul upstream service SNI into its identity
 // components. It understands the internal (mesh) SNI schemes emitted by the
 // Consul control plane:
 //
-//	default partition, no subset:   <svc>.<ns>.<dc>.internal.<trustdomain>
-//	default partition, with subset: <subset>.<svc>.<ns>.<dc>.internal.<trustdomain>
-//	other partition, no subset:     <svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
-//	other partition, with subset:   <subset>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
+//	default partition, no subset:            <svc>.<ns>.<dc>.internal.<trustdomain>
+//	default partition, with subset:          <subset>.<svc>.<ns>.<dc>.internal.<trustdomain>
+//	default partition, multi-port:           <port>.<svc>.<ns>.<dc>.internal.<trustdomain>
+//	default partition, multi-port+subset:    <port>.<subset>.<svc>.<ns>.<dc>.internal.<trustdomain>
+//	non-default partition, no subset:        <svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
+//	non-default partition, with subset:      <subset>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
+//	non-default partition, multi-port:       <port>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
+//	non-default partition, multi-port+subset:<port>.<subset>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
 //
-// The subset label, when present, is ignored: virtual-FQDN expansion keys off
-// the base service name, and every subset of a service shares its identity.
+// Any of the above may arrive prefixed with a cluster-name token such as
+// "passthrough~" or "exported~"; those prefixes are stripped before parsing.
+//
+// Both the subset label and the port-name label, when present, are ignored:
+// virtual-FQDN expansion keys off the base service identity only, and every
+// subset/port of a service shares that identity.
 //
 // This parsing is intentionally coupled to Consul's SNI label scheme (see
 // agent/connect/sni.go in the Consul server). SNIs that are external, peered,
@@ -127,47 +148,51 @@ func ParseServiceSNI(sni string) (UpstreamComponents, bool) {
 	if sni == "" {
 		return UpstreamComponents{}, false
 	}
-	labels := strings.Split(sni, ".")
 
-	// Locate the scheme marker. internal-v1 is checked before internal because
-	// it is the more specific token.
+	// Strip any cluster-name prefix that precedes the bare SNI.
+	// These prefixes are separated from the SNI by "~", not ".", so they never
+	// appear as a dot-split label. A single pass is enough; prefixes do not nest.
+	for _, pfx := range sniClusterPrefixes {
+		if strings.HasPrefix(sni, pfx) {
+			sni = sni[len(pfx):]
+			break
+		}
+	}
+
+	labels := strings.Split(sni, ".")
+	// Scan for the scheme marker. Once found, the identity labels immediately
+	// precede it in fixed relative positions — read backwards from i so that
+	// any number of leading port/subset labels are automatically skipped
+	// without enumerating absolute indices.
+	//
+	// internal-v1:  labels[i-4]=svc  labels[i-3]=ns  labels[i-2]=ap  labels[i-1]=dc
+	// internal:     labels[i-3]=svc  labels[i-2]=ns                   labels[i-1]=dc
+	//
+	// i must be large enough that all four (or three) positions are in-bounds.
 	for i, label := range labels {
 		switch label {
 		case sniMarkerInternalV1:
-			// prefix = labels[:i]
-			switch i {
-			case 4: // svc, ns, ap, dc
-				return UpstreamComponents{
-					Service:    labels[0],
-					Namespace:  labels[1],
-					Partition:  labels[2],
-					Datacenter: labels[3],
-				}, true
-			case 5: // subset, svc, ns, ap, dc
-				return UpstreamComponents{
-					Service:    labels[1],
-					Namespace:  labels[2],
-					Partition:  labels[3],
-					Datacenter: labels[4],
-				}, true
+			// Need at least 4 labels before the marker: svc, ns, ap, dc.
+			if i < 4 {
+				continue
 			}
+			return UpstreamComponents{
+				Service:    labels[i-4],
+				Namespace:  labels[i-3],
+				Partition:  labels[i-2],
+				Datacenter: labels[i-1],
+			}, true
 		case sniMarkerInternal:
-			switch i {
-			case 3: // svc, ns, dc (default partition)
-				return UpstreamComponents{
-					Service:    labels[0],
-					Namespace:  labels[1],
-					Partition:  "default",
-					Datacenter: labels[2],
-				}, true
-			case 4: // subset, svc, ns, dc (default partition)
-				return UpstreamComponents{
-					Service:    labels[1],
-					Namespace:  labels[2],
-					Partition:  "default",
-					Datacenter: labels[3],
-				}, true
+			// Need at least 3 labels before the marker: svc, ns, dc.
+			if i < 3 {
+				continue
 			}
+			return UpstreamComponents{
+				Service:    labels[i-3],
+				Namespace:  labels[i-2],
+				Partition:  "default",
+				Datacenter: labels[i-1],
+			}, true
 		}
 	}
 	return UpstreamComponents{}, false

@@ -13,6 +13,7 @@ func TestParseServiceSNI(t *testing.T) {
 		want UpstreamComponents
 		ok   bool
 	}{
+		// ── baseline: single-port, default partition ──────────────────────────
 		{
 			name: "default partition no subset",
 			sni:  "service-response.default.dc1.internal." + td,
@@ -25,6 +26,8 @@ func TestParseServiceSNI(t *testing.T) {
 			want: UpstreamComponents{Service: "service-response", Namespace: "default", Partition: "default", Datacenter: "dc1"},
 			ok:   true,
 		},
+
+		// ── baseline: single-port, non-default partition ──────────────────────
 		{
 			name: "non-default partition no subset",
 			sni:  "service-response.default.partition-vms.dc1.internal-v1." + td,
@@ -37,6 +40,81 @@ func TestParseServiceSNI(t *testing.T) {
 			want: UpstreamComponents{Service: "service-response", Namespace: "ns1", Partition: "partition-vms", Datacenter: "dc2"},
 			ok:   true,
 		},
+
+		// ── multi-port: default partition ────────────────────────────────────
+		// ClusterNameWithPort("api-port", sni) prepends the port name as an
+		// extra leading label. The port name must be stripped just like a
+		// subset so the service identity is extracted correctly.
+		{
+			name: "default partition multi-port no subset",
+			sni:  "api-port.api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+		// When both a port name and a subset are present the cluster name has
+		// two extra leading labels: <port>.<subset>.<svc>…
+		{
+			name: "default partition multi-port with subset",
+			sni:  "api-port.v2.api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+
+		// ── multi-port: non-default partition ────────────────────────────────
+		{
+			name: "non-default partition multi-port no subset",
+			sni:  "grpc-port.svc.ns1.partition-vms.dc1.internal-v1." + td,
+			want: UpstreamComponents{Service: "svc", Namespace: "ns1", Partition: "partition-vms", Datacenter: "dc1"},
+			ok:   true,
+		},
+		{
+			name: "non-default partition multi-port with subset",
+			sni:  "grpc-port.v2.svc.ns1.partition-vms.dc1.internal-v1." + td,
+			want: UpstreamComponents{Service: "svc", Namespace: "ns1", Partition: "partition-vms", Datacenter: "dc1"},
+			ok:   true,
+		},
+
+		// ── passthrough~ prefix (transparent-proxy clusters) ─────────────────
+		// The control plane names passthrough clusters as "passthrough~<sni>"
+		// (agent/xds/clusters.go line 427). The "~" separator keeps the prefix
+		// out of the dot-split label array, so stripping it before splitting
+		// leaves a valid SNI to parse.
+		{
+			name: "passthrough prefix default partition no subset",
+			sni:  "passthrough~api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+		{
+			name: "passthrough prefix default partition with subset",
+			sni:  "passthrough~v2.api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+		{
+			name: "passthrough prefix non-default partition no subset",
+			sni:  "passthrough~svc.ns1.partition-vms.dc1.internal-v1." + td,
+			want: UpstreamComponents{Service: "svc", Namespace: "ns1", Partition: "partition-vms", Datacenter: "dc1"},
+			ok:   true,
+		},
+		// passthrough + multi-port: both transformations apply together.
+		{
+			name: "passthrough prefix default partition multi-port",
+			sni:  "passthrough~api-port.api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+
+		// ── exported~ prefix (mesh-gateway exported clusters) ────────────────
+		// meshGatewayExportedClusterNamePrefix = "exported~"
+		{
+			name: "exported prefix default partition no subset",
+			sni:  "exported~api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+
+		// ── misc ──────────────────────────────────────────────────────────────
 		{
 			name: "trailing dot tolerated",
 			sni:  "api.default.dc1.internal." + td + ".",
