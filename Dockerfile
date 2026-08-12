@@ -11,11 +11,11 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.38.3
-FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
+ARG ENVOY_VERSION=1.37.2
+FROM hashicorppreview/envoy-dev:${ENVOY_VERSION}-latest AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
-FROM debian:bookworm-slim AS setcap-envoy-binary
+FROM ubuntu:22.04 AS setcap-envoy-binary
 
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
