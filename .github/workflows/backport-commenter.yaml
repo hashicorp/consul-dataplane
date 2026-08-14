@@ -9,7 +9,7 @@ run-name: Validate backports and notify PRs owners
 on:
   push:
     branches:
-      - shashank/add-backport-commenter
+      - shashank/backport-commenter
   schedule:
    - cron: "0 9 * * *"
   workflow_dispatch:
