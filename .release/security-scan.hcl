@@ -24,10 +24,13 @@ container {
 
   # Triage items that are _safe_ to ignore here. Note that this list should be
   # periodically cleaned up to remove items that are no longer found by the scanner.
+  # suppressed crypto related CVE in containers and
+  # Even though GO-2026-5856 and GO-2026-4970 CVE are fixed in go 1.26.5, the prepare workflow scan binaries are failing.
   triage {
     suppress {
       vulnerabilities = [
- 
+      "GO-2026-5856",
+      "GO-2026-5932",
       ]
       paths = [
         // The OSV scanner will trip on several packages that are included in the
@@ -63,7 +66,10 @@ repository {
 
   triage {
     suppress {
-      vulnerabilities = []
+      vulnerabilities = [
+      "GO-2026-5856",
+      "GO-2026-4970",
+      ]
       paths = [
         # SHA1 usage in bootstrap config is for non-security purposes
         "internal/bootstrap/bootstrap_config.go"

@@ -11,12 +11,12 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.38.3
+ARG ENVOY_VERSION=1.37.2
 ARG ENVOY_FIPS_SUFFIX=fips1402
-FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
+FROM hashicorppreview/envoy-dev:${ENVOY_VERSION}-latest AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
-FROM debian:bookworm-slim AS setcap-envoy-binary
+FROM ubuntu:22.04 AS setcap-envoy-binary
 
 ARG BIN_NAME=consul-dataplane
 ARG TARGETARCH
@@ -55,8 +55,10 @@ RUN apk add --no-cache git
 RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
     cd /src/go-discover && \
     git checkout ca13b81fe744b323d3730020a898a288ce502069 && \
-    go get golang.org/x/net@v0.55.0 && \
-    go get golang.org/x/crypto@v0.52.0 && \
+    go get golang.org/x/net@v0.57.0 && \
+    go get golang.org/x/crypto@v0.54.0 && \
+    go get google.golang.org/grpc@v1.83.0 && \
+    go get go.opentelemetry.io/otel@v1.44.0 && \
     go mod tidy && \
     CGO_ENABLED=0 go build -o /go/bin/discover ./cmd/discover
 

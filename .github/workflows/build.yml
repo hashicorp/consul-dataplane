@@ -18,6 +18,13 @@ on:
       - release/**
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      allow-unprotected-branches:
+        description: "Allow running conditional-skip on unprotected branches"
+        type: boolean
+        required: false
+        default: false
 
 env:
   PKG_NAME: "consul-dataplane"
@@ -25,6 +32,8 @@ env:
 jobs:
   conditional-skip:
     uses: ./.github/workflows/reusable-conditional-skip.yml
+    with:
+      allow-unprotected-branches: ${{ inputs.allow-unprotected-branches || false }}
 
   get-go-version:
     # Cascades down to test jobs
@@ -79,6 +88,7 @@ jobs:
           - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "386", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics"}
+          - {goos: "linux", goarch: "s390x", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
           - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
           - {goos: "darwin", goarch: "amd64", gotags: "hashicorpmetrics"}
@@ -161,18 +171,25 @@ jobs:
           - { arch: "amd64", fips: "+fips1403" }
           - { arch: "arm64" }
           - { arch: "arm64", fips: "+fips1403" }
+          - { arch: "s390x" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       # This naming convention will be used ONLY for per-commit dev images
       - name: Set docker dev tag
         run: |
           echo "full_dev_tag=${{ env.version }}"
           echo "full_dev_tag=${{ env.version }}" >> $GITHUB_ENV
-          echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" 
+          echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')"
           echo "minor_dev_tag=$(echo ${{ env.version }}| sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+(-[0-9a-zA-Z\+\.]+)?$/\1\2/')" >> $GITHUB_ENV
 
       - name: Docker Build (Action)
@@ -243,6 +260,12 @@ jobs:
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - uses: hashicorp/actions-docker-build@v2
         with:
           version: ${{env.version}}
@@ -271,6 +294,12 @@ jobs:
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       # This naming convention will be used ONLY for per-commit dev images
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Set docker dev tag
         run: |
           echo "full_dev_tag=${{ env.version }}"
