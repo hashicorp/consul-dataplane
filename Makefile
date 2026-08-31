@@ -23,6 +23,12 @@ BOOTSTRAP_PACKAGE_DIR=internal/bootstrap
 INTEGRATION_TESTS_SERVER_IMAGE    ?= hashicorppreview/consul:1.15-dev
 INTEGRATION_TESTS_DATAPLANE_IMAGE ?= $(PRODUCT_NAME)/release-default:$(VERSION)
 
+# FIPS 140-3 build settings.
+GOFIPS140_VERSION ?= v1.0.0
+ENVOY_FIPS_SUFFIX ?= fips1403
+FIPS_TAG          = $(PRODUCT_NAME)/release-fips-default:$(VERSION)
+INTEGRATION_TESTS_DATAPLANE_FIPS_IMAGE ?= $(FIPS_TAG)
+
 GIT_COMMIT?=$(shell git rev-parse --short HEAD)
 GIT_DIRTY?=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 GOLDFLAGS=-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=$(GIT_COMMIT)$(GIT_DIRTY)
@@ -51,6 +57,10 @@ bin: dist ## Build the binary
 dev: bin ## Build binary and copy to the destination
 	cp $(BIN) $(GOBIN)/$(BIN_NAME)
 
+.PHONY: bin-fips
+bin-fips: dist ## Build the FIPS 140-3 binary
+	GOARCH=$(ARCH) GOOS=$(OS) CGO_ENABLED=0 GOFIPS140=$(GOFIPS140_VERSION) go build -tags=fips -trimpath -buildvcs=false -ldflags="$(GOLDFLAGS)" -o $(BIN) ./cmd/$(BIN_NAME)
+
 # DANGER: this target is experimental and could be modified/removed at any time.
 .PHONY: skaffold
 skaffold: dev ## Build consul-dataplane dev Docker image for use with skaffold or local development.
@@ -67,6 +77,11 @@ docker: bin ## build the release-target docker image
 
 docker-run: docker ## run the image of $(TAG)
 	docker run --rm $(TAG)
+
+.PHONY: docker-fips
+docker-fips: bin-fips ## build the release-fips-default docker image
+	docker build --target release-fips-default --platform $(PLATFORM) --tag $(FIPS_TAG) --build-arg=ENVOY_FIPS_SUFFIX=$(ENVOY_FIPS_SUFFIX) $(BA_FLAGS) .
+	@echo 'FIPS image built: $(FIPS_TAG)'
 
 .PHONY: dev-docker
 dev-docker: docker ## build docker image and tag the image to local
@@ -95,6 +110,17 @@ endif
 .PHONY: integration-tests
 integration-tests: docker/release-default expand-integration-tests-output-dir ## integration tests
 	cd integration-tests && go test -v ./ -output-dir="$(EXPANDED_INTEGRATION_TESTS_OUTPUT_DIR)" -dataplane-image="$(INTEGRATION_TESTS_DATAPLANE_IMAGE)" -server-image="$(INTEGRATION_TESTS_SERVER_IMAGE)"
+
+.PHONY: fips-smoke-test
+fips-smoke-test: docker-fips ## quick FIPS e2e check: assert the image reports +fips1403
+	@echo "Checking FIPS image reports +fips1403"
+	@docker run --rm $(FIPS_TAG) --version | grep -q '+fips1403' \
+		&& echo "PASS: FIPS image reports +fips1403" \
+		|| { echo "FAIL: FIPS image did not report +fips1403"; exit 1; }
+
+.PHONY: fips-integration-tests
+fips-integration-tests: docker-fips expand-integration-tests-output-dir ## run the mesh integration suite against the FIPS dataplane image
+	cd integration-tests && go test -v ./ -output-dir="$(EXPANDED_INTEGRATION_TESTS_OUTPUT_DIR)" -dataplane-image="$(INTEGRATION_TESTS_DATAPLANE_FIPS_IMAGE)" -server-image="$(INTEGRATION_TESTS_SERVER_IMAGE)"
 
 ##@ Release
 

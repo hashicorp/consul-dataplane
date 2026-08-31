@@ -38,10 +38,20 @@ func GetHumanVersion() string {
 		}
 	}
 
-	if IsFIPS() {
-		version = fmt.Sprintf("%s+fips1402", version)
-	}
+	version = withFIPSSuffix(version, IsFIPS())
 
 	// Strip off any single quotes added by the git information.
 	return strings.ReplaceAll(version, "'", "")
+}
+
+// withFIPSSuffix appends the FIPS 140-3 build marker to version when fips is
+// true. Split out from GetHumanVersion so this branch can be exercised by a
+// plain unit test, without requiring a fips-tagged build (see IsFIPS, which
+// is only ever true when compiled with -tags fips).
+func withFIPSSuffix(version string, fips bool) string {
+	if fips {
+		return fmt.Sprintf("%s+fips1403", version)
+	}
+
+	return version
 }
