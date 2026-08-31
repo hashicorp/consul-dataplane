@@ -171,7 +171,11 @@ jobs:
           - { arch: "amd64", fips: "+fips1403" }
           - { arch: "arm64" }
           - { arch: "arm64", fips: "+fips1403" }
-          - { arch: "s390x" }
+          # s390x is temporarily excluded: hashicorp/envoy-release only
+          # publishes linux/amd64 and linux/arm64 images (see
+          # hashicorp/envoy-release .github/workflows/build.yml), so the
+          # envoy-binary base image has no s390x manifest for 1.38.4+.
+          # Re-add once envoy-release publishes an s390x Envoy image.
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
