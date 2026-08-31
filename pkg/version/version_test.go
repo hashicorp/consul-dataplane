@@ -46,3 +46,8 @@ func TestGetHumanVersion_StripsSingleQuotes(t *testing.T) {
 	got := GetHumanVersion()
 	require.NotContains(t, got, "'")
 }
+
+func TestWithFIPSSuffix(t *testing.T) {
+	require.Equal(t, "1.2.3+fips1403", withFIPSSuffix("1.2.3", true))
+	require.Equal(t, "1.2.3", withFIPSSuffix("1.2.3", false))
+}
