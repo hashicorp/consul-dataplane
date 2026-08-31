@@ -25,9 +25,7 @@ INTEGRATION_TESTS_DATAPLANE_IMAGE ?= $(PRODUCT_NAME)/release-default:$(VERSION)
 
 # FIPS 140-3 build settings.
 GOFIPS140_VERSION ?= v1.0.0
-# Envoy FIPS image suffix. Defaults to the currently published stream; switch to
-# fips1403 once envoy-release publishes FIPS 140-3 tagged images.
-ENVOY_FIPS_SUFFIX ?= fips1402
+ENVOY_FIPS_SUFFIX ?= fips1403
 FIPS_TAG          = $(PRODUCT_NAME)/release-fips-default:$(VERSION)
 INTEGRATION_TESTS_DATAPLANE_FIPS_IMAGE ?= $(FIPS_TAG)
 
