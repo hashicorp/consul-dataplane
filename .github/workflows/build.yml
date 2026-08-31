@@ -89,8 +89,8 @@ jobs:
           - {goos: "linux", goarch: "386", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics"}
           - {goos: "linux", goarch: "s390x", gotags: "hashicorpmetrics"}
-          - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto", fips: "+fips1402", pkg_suffix: "-fips" }
-          - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=1 GOEXPERIMENT=boringcrypto CC=aarch64-linux-gnu-gcc", fips: "+fips1402", pkg_suffix: "-fips" }
+          - {goos: "linux", goarch: "amd64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
+          - {goos: "linux", goarch: "arm64", gotags: "hashicorpmetrics,fips", env: "CGO_ENABLED=0 GOFIPS140=v1.0.0", fips: "+fips1403", pkg_suffix: "-fips" }
           - {goos: "darwin", goarch: "amd64", gotags: "hashicorpmetrics"}
           - {goos: "darwin", goarch: "arm64", gotags: "hashicorpmetrics"}
 
@@ -111,10 +111,6 @@ jobs:
           reproducible: assert
           instructions: |
             cp LICENSE $TARGET_DIR/LICENSE.txt
-            if [[ "${{ matrix.fips }}" == "+fips1402" ]]
-            then
-              sudo apt-get update --allow-releaseinfo-change-suite --allow-releaseinfo-change-version && sudo apt-get install -y build-essential gcc-aarch64-linux-gnu
-            fi
             ${{ matrix.env }} go build -tags=${{ matrix.gotags }} -trimpath -buildvcs=false -ldflags="-X github.com/hashicorp/consul-dataplane/pkg/version.GitCommit=${GITHUB_SHA::8}" -o $BIN_PATH ./cmd/$BIN_NAME
 
       - name: Copy license file
@@ -172,10 +168,14 @@ jobs:
         # supported by Envoy.
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: "+fips1402" }
+          - { arch: "amd64", fips: "+fips1403" }
           - { arch: "arm64" }
-          - { arch: "arm64", fips: "+fips1402" }
-          - { arch: "s390x" }
+          - { arch: "arm64", fips: "+fips1403" }
+          # s390x is temporarily excluded: hashicorp/envoy-release only
+          # publishes linux/amd64 and linux/arm64 images (see
+          # hashicorp/envoy-release .github/workflows/build.yml), so the
+          # envoy-binary base image has no s390x manifest for 1.38.4+.
+          # Re-add once envoy-release publishes an s390x Envoy image.
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -245,6 +245,7 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+            ENVOY_FIPS_SUFFIX=fips1403
 
   build-docker-redhat:
     name: Docker ${{ matrix.fips }} UBI Image Build (for Red Hat Certified Container Registry)
@@ -257,7 +258,7 @@ jobs:
       matrix:
         include:
           - { target-name: "release-ubi", registry-id: "631f805e0d15f623c5996c2e" }
-          - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1402" }
+          - { target-name: "release-fips-ubi", registry-id: "649cced3e093d1cc7f3d9b61", fips: "+fips1403" }
     env:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}${{ matrix.fips }}
@@ -277,6 +278,7 @@ jobs:
           redhat_tag: quay.io/redhat-isv-containers/${{matrix.registry-id}}:${{env.version}}-ubi
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+            ENVOY_FIPS_SUFFIX=${{ matrix.target-name == 'release-fips-ubi' && 'fips1403' || 'fips1402' }}
 
   build-docker-ubi-dockerhub:
     name: Docker ${{ matrix.arch }} ${{ matrix.fips }} UBI build for DockerHub
@@ -289,7 +291,7 @@ jobs:
       matrix:
         include:
           - { arch: "amd64" }
-          - { arch: "amd64", fips: "+fips1402" }
+          - { arch: "amd64", fips: "+fips1403" }
     env:
       repo: ${{ github.event.repository.name }}
       version: ${{ needs.get-product-version.outputs.product-version }}${{ matrix.fips }}
@@ -358,6 +360,7 @@ jobs:
             docker.io/hashicorppreview/${{ env.repo }}-fips:${{ env.minor_dev_tag }}-ubi-${{ github.sha }}
           extra_build_args: |
             GOLANG_VERSION=${{ needs.get-go-version.outputs.go-version }}
+            ENVOY_FIPS_SUFFIX=fips1403
 
   integration-tests:
     name: Integration Tests (Consul ${{ matrix.server.version }} ${{ matrix.dataplane.docker_target }})
