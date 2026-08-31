@@ -5,7 +5,7 @@
 
 package version
 
-// IsFIPS returns true if consul-dataplane is operating in FIPS-140-2 mode.
+// IsFIPS returns whether consul-dataplane is operating in FIPS mode.
 func IsFIPS() bool {
 	return false
 }

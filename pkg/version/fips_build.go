@@ -5,26 +5,21 @@
 
 package version
 
-// This validates during compilation that we are being built with a FIPS enabled go toolchain
+// This reports runtime information for FIPS-enabled builds.
 import (
-	_ "crypto/tls/fipsonly"
-	"runtime"
-	"strings"
+	"crypto/fips140"
 )
 
-// IsFIPS returns true if consul-dataplane is operating in FIPS-140-2 mode.
+// IsFIPS returns whether consul-dataplane is operating in FIPS mode.
 func IsFIPS() bool {
 	return true
 }
 
 func GetFIPSInfo() string {
-	str := "Enabled"
-	// Try to get the crypto module name
-	gover := strings.Split(runtime.Version(), "X:")
-	if len(gover) >= 2 {
-		gover_last := gover[len(gover)-1]
-		// Able to find crypto module name; add that to status string.
-		str = "FIPS 140-2 Enabled, crypto module " + gover_last
+	moduleVersion := fips140.Version()
+	if moduleVersion == "" {
+		return "FIPS 140-3 Enabled"
 	}
-	return str
+
+	return "FIPS 140-3 Enabled, crypto module " + moduleVersion
 }
