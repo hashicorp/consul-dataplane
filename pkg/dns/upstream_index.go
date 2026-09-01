@@ -105,6 +105,13 @@ func (idx *UpstreamIndex) Lookup(service, namespace, partition, datacenter strin
 const (
 	sniMarkerInternal   = "internal"
 	sniMarkerInternalV1 = "internal-v1"
+
+	// customizationHashLen is the exact length of the hex string that
+	// naming.CustomizeClusterName (agent/xds/naming/naming.go) prepends when a
+	// discovery-chain has non-default customisation (e.g. protocol overrides).
+	// Consul always formats it as fmt.Sprintf("%x", v)[0:8] — eight lower-case
+	// hexadecimal characters — followed by "~".
+	customizationHashLen = 8
 )
 
 // sniClusterPrefixes lists the non-SNI prefixes that the Consul control plane
@@ -120,6 +127,43 @@ const (
 // them before parsing keeps the index-key and SNI-label counts consistent.
 var sniClusterPrefixes = []string{"passthrough~", "exported~"}
 
+// stripClusterNamePrefixes removes the zero, one, or two "~"-delimited
+// cluster-name tokens that the Consul control plane may prepend to a bare
+// service SNI.  In production the prefixes arrive in this order (outermost
+// first):
+//
+//  1. An 8-hex-char customisation hash added by naming.CustomizeClusterName,
+//     e.g. "f8f8f8f8~".  Present only when the discovery chain has non-default
+//     customisation (protocol override, connect timeout, etc.).
+//  2. A literal prefix such as "passthrough~" or "exported~".
+//
+// A single pass over each layer is enough; they do not nest further.
+func stripClusterNamePrefixes(sni string) string {
+	// Layer 1 – customisation hash: <8 lower-case hex chars> "~"
+	// The SNI was already lowercased by the caller, so valid chars are [0-9a-f].
+	if len(sni) > customizationHashLen+1 && sni[customizationHashLen] == '~' {
+		allHex := true
+		for i := 0; i < customizationHashLen; i++ {
+			c := sni[i]
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+				allHex = false
+				break
+			}
+		}
+		if allHex {
+			sni = sni[customizationHashLen+1:]
+		}
+	}
+	// Layer 2 – literal cluster-name prefix (passthrough~, exported~, …)
+	for _, pfx := range sniClusterPrefixes {
+		if strings.HasPrefix(sni, pfx) {
+			sni = sni[len(pfx):]
+			break
+		}
+	}
+	return sni
+}
+
 // ParseServiceSNI parses a Consul upstream service SNI into its identity
 // components. It understands the internal (mesh) SNI schemes emitted by the
 // Consul control plane:
@@ -133,8 +177,10 @@ var sniClusterPrefixes = []string{"passthrough~", "exported~"}
 //	non-default partition, multi-port:       <port>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
 //	non-default partition, multi-port+subset:<port>.<subset>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
 //
-// Any of the above may arrive prefixed with a cluster-name token such as
-// "passthrough~" or "exported~"; those prefixes are stripped before parsing.
+// Any of the above may arrive prefixed with a customisation hash
+// (naming.CustomizeClusterName), a literal cluster-name token such as
+// "passthrough~" or "exported~", or both in that order.  All such prefixes
+// are stripped before parsing.
 //
 // Both the subset label and the port-name label, when present, are ignored:
 // virtual-FQDN expansion keys off the base service identity only, and every
@@ -149,15 +195,7 @@ func ParseServiceSNI(sni string) (UpstreamComponents, bool) {
 		return UpstreamComponents{}, false
 	}
 
-	// Strip any cluster-name prefix that precedes the bare SNI.
-	// These prefixes are separated from the SNI by "~", not ".", so they never
-	// appear as a dot-split label. A single pass is enough; prefixes do not nest.
-	for _, pfx := range sniClusterPrefixes {
-		if strings.HasPrefix(sni, pfx) {
-			sni = sni[len(pfx):]
-			break
-		}
-	}
+	sni = stripClusterNamePrefixes(sni)
 
 	labels := strings.Split(sni, ".")
 	// Scan for the scheme marker. Once found, the identity labels immediately

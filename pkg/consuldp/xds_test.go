@@ -5,6 +5,7 @@ package consuldp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -15,9 +16,12 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
+	"github.com/hashicorp/consul-dataplane/pkg/dns"
 )
 
 const (
@@ -142,4 +146,49 @@ func TestSetupXDSServer(t *testing.T) {
 			}
 		})
 	}
+}
+
+// stubServerStream is a minimal grpc.ServerStream whose SendMsg behaviour is
+// controlled by the test.
+type stubServerStream struct {
+	grpc.ServerStream
+	sendErr error
+}
+
+func (s *stubServerStream) SendMsg(m interface{}) error { return s.sendErr }
+func (s *stubServerStream) Context() context.Context    { return context.Background() }
+func (s *stubServerStream) SetHeader(metadata.MD) error  { return nil }
+func (s *stubServerStream) SendHeader(metadata.MD) error { return nil }
+func (s *stubServerStream) SetTrailer(metadata.MD)       {}
+func (s *stubServerStream) RecvMsg(m interface{}) error  { return nil }
+
+func TestMetricServerStream_SendMsg(t *testing.T) {
+	const td = "e5b1a4d3.consul"
+
+	clusterFrame := func() interface{} {
+		return emptyWithBytes(encodeDeltaResponse(clusterTypeURL,
+			[]string{"api.default.dc1.internal." + td}, nil))
+	}
+
+	t.Run("index updated after successful send", func(t *testing.T) {
+		idx := dns.NewUpstreamIndex()
+		s := &metricServerStream{
+			ServerStream:  &stubServerStream{sendErr: nil},
+			upstreamIndex: idx,
+		}
+		require.NoError(t, s.SendMsg(clusterFrame()))
+		_, ok := idx.Lookup("api", "", "", "dc1")
+		require.True(t, ok, "index should contain the cluster after a successful send")
+	})
+
+	t.Run("index NOT updated after failed send", func(t *testing.T) {
+		idx := dns.NewUpstreamIndex()
+		s := &metricServerStream{
+			ServerStream:  &stubServerStream{sendErr: errors.New("connection reset")},
+			upstreamIndex: idx,
+		}
+		require.Error(t, s.SendMsg(clusterFrame()))
+		_, ok := idx.Lookup("api", "", "", "dc1")
+		require.False(t, ok, "index must not be updated when the send fails")
+	})
 }

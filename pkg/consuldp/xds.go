@@ -132,13 +132,14 @@ type metricServerStream struct {
 }
 
 func (s *metricServerStream) SendMsg(m interface{}) error {
-	// Tap CDS frames on their way to Envoy to keep the upstream identity index
-	// current. This reads a copy of the frame's bytes and never mutates m, so
-	// opaque passthrough is unaffected.
-	tapClusterFrame(s.upstreamIndex, m)
-
 	err := s.ServerStream.SendMsg(m)
 	if err == nil {
+		// Tap CDS frames only after the send succeeds so the upstream index
+		// never reflects a delta that Envoy did not actually receive. Updating
+		// before the send would let a failed write advance the index while
+		// Envoy retains its previous inline DNS table, potentially turning
+		// previously resolvable names into NXDOMAIN.
+		tapClusterFrame(s.upstreamIndex, m)
 		metrics.SetGauge([]string{"envoy_connected"}, 1)
 		return nil
 	}

@@ -334,10 +334,17 @@ func (s *DNSTestSuite) Test_ProxydnsTCP() {
 
 func (s *DNSTestSuite) Test_ClassifyDomain() {
 	testCases := map[string]domainClass{
+		// valid virtual forms
+		"service.virtual.consul":                              domainClassVirtual,
 		"service.virtual.default.ns.default.ap.dc1.dc.consul": domainClassVirtual,
-		"service.default.consul":                              domainClassConsul,
-		"consul":                                              domainClassConsul,
-		"google.com":                                          domainClassExternal,
+		// collision regression: "blue" is a tag, "virtual" is the service name,
+		// "service" is the Consul query-kind label — must not be domainClassVirtual.
+		"blue.virtual.service.consul": domainClassConsul,
+		// other plain consul domains
+		"service.default.consul": domainClassConsul,
+		"consul":                 domainClassConsul,
+		// external
+		"google.com": domainClassExternal,
 	}
 
 	for domain, expected := range testCases {
@@ -537,6 +544,55 @@ func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
 			s.Equal(canonicalName(expandedName), receivedName)
 			nx := buildDNSRCodeResponse(s.T(), expandedName, dnsmessage.RCodeNameError)
 			_, _ = udpConn.WriteToUDP(nx, addr)
+		}()
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			partition:            "partition-vms",
+			namespace:            "default",
+			token:                "test-token",
+			datacenter:           "dc1",
+			virtualDNSInlineAddr: udpConn.LocalAddr().String(),
+		}
+
+		mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+			Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+			Once()
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(consulResp, resp)
+		<-done
+	})
+
+	s.Run("non-success rcode from inline listener falls back to consul", func() {
+		// Envoy returning FORMERR (or any non-RCodeSuccess rcode) must not be
+		// treated as a successful hit; the request should fall through to Consul.
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+
+		originalName := "service.virtual.consul"
+		expandedName := "service.virtual.default.ns.partition-vms.ap.dc1.dc.consul"
+		query := buildDNSQuery(s.T(), originalName)
+		consulResp := buildDNSAnswerResponse(s.T(), originalName, originalName, dnsmessage.RCodeSuccess)
+
+		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+		s.Require().NoError(err)
+		defer udpConn.Close()
+
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			buf := make([]byte, 4096)
+			n, addr, readErr := udpConn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			receivedName := firstQuestionNameFromRaw(s.T(), buf[:n])
+			s.Equal(canonicalName(expandedName), receivedName)
+			// Envoy signals a malformed request — should NOT be returned to client.
+			formerr := buildDNSRCodeResponse(s.T(), expandedName, dnsmessage.RCodeFormatError)
+			_, _ = udpConn.WriteToUDP(formerr, addr)
 		}()
 
 		server := DNSServer{
@@ -768,6 +824,108 @@ func TestParseVirtualTokens(t *testing.T) {
 			input:  "svc.service.default.consul",
 			wantOK: false,
 		},
+
+		// ── named-port virtual DNS form (<port>.<svc>.virtual.consul) ────────
+		// Consul DNS parses "http.api.virtual.consul" as port "http", service
+		// "api" (agent/dns.go: queryParts = ["http", "api"]). The Envoy inline
+		// DNS table is keyed on the base service name only, so the port label
+		// must be stripped and the returned svc must be "api".
+		{
+			name:    "named-port bare no qualifiers",
+			input:   "http.api.virtual.consul",
+			wantSvc: "api",
+			wantOK:  true,
+		},
+		{
+			name:    "named-port with namespace only",
+			input:   "http.api.virtual.myns.ns.consul",
+			wantSvc: "api",
+			wantNS:  "myns",
+			wantOK:  true,
+		},
+		{
+			name:    "named-port with partition only",
+			input:   "http.api.virtual.myap.ap.consul",
+			wantSvc: "api",
+			wantAP:  "myap",
+			wantOK:  true,
+		},
+		{
+			name:    "named-port with datacenter only",
+			input:   "http.api.virtual.dc2.dc.consul",
+			wantSvc: "api",
+			wantDC:  "dc2",
+			wantOK:  true,
+		},
+		{
+			name:    "named-port with all qualifiers",
+			input:   "http.api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			wantSvc: "api",
+			wantNS:  "myns",
+			wantAP:  "myap",
+			wantDC:  "dc1",
+			wantOK:  true,
+		},
+		// .service alias combined with named-port prefix
+		{
+			name:    "named-port with service alias no qualifiers",
+			input:   "http.api.service.virtual.consul",
+			wantSvc: "api",
+			wantOK:  true,
+		},
+		{
+			name:    "named-port with service alias and namespace",
+			input:   "http.api.service.virtual.myns.ns.consul",
+			wantSvc: "api",
+			wantNS:  "myns",
+			wantOK:  true,
+		},
+		// trailing-dot variant with named port
+		{
+			name:    "named-port with trailing dot",
+			input:   "http.api.virtual.consul.",
+			wantSvc: "api",
+			wantOK:  true,
+		},
+		// Three labels before .virtual. is not a recognised form and must be
+		// rejected (would be <a>.<b>.<c>.virtual.* — no Consul query produces this).
+		{
+			name:   "three prefix labels before virtual rejected",
+			input:  "a.b.c.virtual.consul",
+			wantOK: false,
+		},
+
+		// ── collision regression (GitHub issue) ──────────────────────────────
+		// A Connect-native service literally named "virtual" registered with tag
+		// "blue" produces the standard Consul tagged-service query:
+		//   <tag>.<service>.service.consul  →  blue.virtual.service.consul
+		// Consul interprets "service" as the query-kind label, not a virtual
+		// qualifier, so this must be classified as domainClassConsul and routed
+		// to the Consul server unchanged. Previously the substring check
+		// strings.Contains(name, ".virtual.") caused a false match here.
+		{
+			name:   "service-kind label after virtual is not a virtual domain",
+			input:  "blue.virtual.service.consul",
+			wantOK: false,
+		},
+		// Same collision via the ".node." query-kind.
+		{
+			name:   "node-kind label after virtual is not a virtual domain",
+			input:  "virtual.node.dc1.consul",
+			wantOK: false,
+		},
+		// Odd number of remainder labels (not pairable) must be rejected.
+		{
+			name:   "odd remainder labels rejected",
+			input:  "svc.virtual.myns.consul",
+			wantOK: false,
+		},
+		// An unrecognised qualifier must not silently be swallowed.
+		{
+			name:   "unrecognised qualifier rejected",
+			input:  "svc.virtual.myns.tag.consul",
+			wantOK: false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -896,6 +1054,31 @@ func TestExpandVirtualName(t *testing.T) {
 			input: "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
 			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
 		},
+
+		// ── named-port form: port label is stripped, base name drives lookup ─
+		// "http.api.virtual.consul" must expand identically to "api.virtual.consul"
+		// because the Envoy inline DNS table is keyed on the base service name.
+		{
+			name:  "named-port bare expands same as base service",
+			input: "http.api.virtual.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		{
+			name:  "named-port with all qualifiers expands same as base service",
+			input: "http.api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		{
+			name:  "named-port with service alias expands same as base service",
+			input: "http.api.service.virtual.consul",
+			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+		},
+		// Named port on an ambiguous service still falls back to server defaults.
+		{
+			name:  "named-port ambiguous falls back to server defaults",
+			input: "http.shared.virtual.consul",
+			want:  "shared.virtual.default.ns.default.ap.dc1.dc.consul",
+		},
 	}
 
 	for _, tc := range cases {
@@ -906,4 +1089,45 @@ func TestExpandVirtualName(t *testing.T) {
 			}
 		})
 	}
+
+	// ── multiport end-to-end scenario ─────────────────────────────────────────
+	// Simulate the full pipeline:
+	//   1. A CDS delta arrives carrying two named-port cluster SNIs for the
+	//      same multiport service (one per port).  ParseServiceSNI strips the
+	//      port label and indexes both under the base service name "multi".
+	//   2. A named-port virtual DNS query "http.multi.virtual.consul" arrives.
+	//      expandVirtualName strips "http", calls Lookup("multi", …), and must
+	//      produce the canonical FQDN using the identity from the index.
+	t.Run("multiport end-to-end", func(t *testing.T) {
+		mpIdx := NewUpstreamIndex()
+		mpIdx.Update([]string{
+			"http.multi.myns.myap.dc1.internal-v1." + td,
+			"grpc.multi.myns.myap.dc1.internal-v1." + td,
+		}, nil)
+		mpSrv := &DNSServer{
+			namespace:     "default",
+			partition:     "default",
+			datacenter:    "default-dc",
+			upstreamIndex: mpIdx,
+		}
+		cases := []struct {
+			input string
+			want  string
+		}{
+			// port "http" stripped → base "multi" → index hit fills ns/ap/dc
+			{"http.multi.virtual.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
+			// port "grpc" stripped → same base identity
+			{"grpc.multi.virtual.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
+			// explicit qualifiers with named port
+			{"http.multi.virtual.myns.ns.myap.ap.dc1.dc.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
+			// base-service form still works alongside the named-port form
+			{"multi.virtual.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
+		}
+		for _, tc := range cases {
+			got := mpSrv.expandVirtualName(tc.input)
+			if got != tc.want {
+				t.Errorf("expandVirtualName(%q)\n got  %q\n want %q", tc.input, got, tc.want)
+			}
+		}
+	})
 }

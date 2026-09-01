@@ -362,11 +362,16 @@ const (
 
 // classifyDomain returns the class of the provided DNS query name.
 // The name is normalized to lower-case and any trailing '.' is removed.
+//
+// A name is domainClassVirtual only when it strictly matches one of the
+// Consul virtual-service query forms understood by parseVirtualTokens.
+// A plain *.consul name that merely contains the substring ".virtual." — such
+// as "blue.virtual.service.consul" (tag "blue", service "virtual") — is
+// classified as domainClassConsul and forwarded to the Consul server unchanged.
 func classifyDomain(name string) domainClass {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 	if strings.HasSuffix(name, ".consul") || name == "consul" {
-		// Check for virtual: must contain ".virtual." segment
-		if strings.Contains(name, ".virtual.") {
+		if _, _, _, _, ok := parseVirtualTokens(name); ok {
 			return domainClassVirtual
 		}
 		return domainClassConsul
@@ -377,7 +382,34 @@ func classifyDomain(name string) domainClass {
 // parseVirtualTokens splits a virtual domain name into its service name and any
 // explicitly supplied namespace/partition/datacenter tokens. Tokens that are
 // not present in the query are returned as empty strings (callers decide how to
-// fill them). ok is false when name is not a virtual domain.
+// fill them). ok is false when name is not a valid virtual domain.
+//
+// Accepted forms (all ending in ".consul"):
+//
+//	<svc>.virtual.consul
+//	<svc>.service.virtual.consul
+//	<port>.<svc>.virtual.consul
+//	<port>.<svc>.service.virtual.consul
+//	<svc>[.service].virtual.<val>.ns.consul
+//	<svc>[.service].virtual.<val>.ap.consul
+//	<svc>[.service].virtual.<val>.dc.consul
+//	<svc>[.service].virtual.<val>.ns.<val>.ap.consul
+//	<svc>[.service].virtual.<val>.ns.<val>.dc.consul
+//	<svc>[.service].virtual.<val>.ap.<val>.dc.consul
+//	<svc>[.service].virtual.<val>.ns.<val>.ap.<val>.dc.consul
+//	(and the <port>.<svc> prefix applies to every qualifier form above)
+//
+// The optional leading <port> label is the Consul named-port virtual DNS form
+// (e.g. "http.api.virtual.consul" → service "api", port "http"). The port is
+// stripped before the inline-table lookup because Envoy's inline DNS table is
+// keyed on the base service name only (virtualFQDNsForUpstream uses uid.Name,
+// not a port-qualified variant). The returned svc is always the base service
+// name.
+//
+// Any remainder label after ".virtual." that is not a recognised
+// <value>.<qualifier> pair causes ok=false so that names such as
+// "blue.virtual.service.consul" (where "service" is the Consul query-kind, not
+// a virtual qualifier) are not misclassified.
 func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 
@@ -386,28 +418,66 @@ func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 	if virtualIdx < 0 {
 		return "", "", "", "", false
 	}
-	svc = name[:virtualIdx]
-	svc = strings.TrimSuffix(svc, ".service")
-	// Remainder after "<svc>.virtual." — may be empty (just "consul") or have
-	// ns/ap/dc qualifiers.
+	prefix := name[:virtualIdx]
+	// Strip the optional ".service" query-kind alias (e.g. "api.service.virtual…"
+	// or "http.api.service.virtual…" → strip ".service" suffix).
+	prefix = strings.TrimSuffix(prefix, ".service")
+	if prefix == "" {
+		return "", "", "", "", false
+	}
+
+	// Consul supports an optional named-port prefix: "<port>.<svc>.virtual.consul".
+	// The port is a single label (service names and port names never contain dots),
+	// so a dot in the prefix means exactly "<port>.<svc>" — two labels.
+	// More than one dot would mean an unsupported multi-label prefix; reject it.
+	if dotIdx := strings.Index(prefix, "."); dotIdx >= 0 {
+		if strings.Contains(prefix[dotIdx+1:], ".") {
+			// More than one dot in the prefix — not a recognised form.
+			return "", "", "", "", false
+		}
+		// Strip the port label; keep only the base service name.
+		prefix = prefix[dotIdx+1:]
+	}
+	svc = prefix
+	if svc == "" {
+		return "", "", "", "", false
+	}
+	// Remainder after "<svc>.virtual." — must be exactly "consul" (bare form)
+	// or one of the recognised <value>.<qualifier> pair sequences followed by
+	// ".consul".
 	remainder := name[virtualIdx+len(".virtual."):]
-	// Strip trailing ".consul" if present.
-	remainder = strings.TrimSuffix(remainder, ".consul")
+
+	// The remainder must end with "consul" (the TLD).
+	if remainder == "consul" {
+		// Bare form: <svc>[.service].virtual.consul — no qualifiers.
+		return svc, "", "", "", true
+	}
+	const consulSuffix = ".consul"
+	if !strings.HasSuffix(remainder, consulSuffix) {
+		return "", "", "", "", false
+	}
+	remainder = remainder[:len(remainder)-len(consulSuffix)]
 
 	// Parse remainder tokens separated by ".":
-	// Possible patterns of (label, qualifier) pairs: ns, ap, dc in any order.
+	// Each recognised token is a <value>.<qualifier> pair where qualifier is
+	// one of "ns", "ap", or "dc". Any other label sequence is invalid.
 	parts := strings.Split(remainder, ".")
-	for i := 0; i+1 < len(parts); i++ {
-		switch parts[i+1] {
+	if len(parts)%2 != 0 {
+		// An odd number of labels cannot form complete <val>.<qualifier> pairs.
+		return "", "", "", "", false
+	}
+	for i := 0; i < len(parts); i += 2 {
+		val, qualifier := parts[i], parts[i+1]
+		switch qualifier {
 		case "ns":
-			ns = parts[i]
-			i++ // skip qualifier
+			ns = val
 		case "ap":
-			partition = parts[i]
-			i++
+			partition = val
 		case "dc":
-			dc = parts[i]
-			i++
+			dc = val
+		default:
+			// Unrecognised qualifier — not a virtual domain.
+			return "", "", "", "", false
 		}
 	}
 
@@ -556,13 +626,16 @@ func canonicalName(n string) string {
 	return n
 }
 
-// isNXDOMAIN returns true when the DNS response carries an NXDOMAIN rcode.
-func isNXDOMAIN(raw []byte) bool {
+// isEnvoyHit reports whether an Envoy inline-listener response should be
+// returned directly to the client. Only RCodeSuccess is treated as a hit;
+// every other rcode (NXDOMAIN, FORMERR, SERVFAIL, NOTIMP, REFUSED, …) causes
+// the caller to fall back to the Consul server.
+func isEnvoyHit(raw []byte) bool {
 	var msg dnsmessage.Message
 	if err := msg.Unpack(raw); err != nil {
 		return false
 	}
-	return msg.RCode == dnsmessage.RCodeNameError
+	return msg.RCode == dnsmessage.RCodeSuccess
 }
 
 // forwardUDP sends a raw DNS query to addr and returns the raw response.
@@ -689,7 +762,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 		}
 
 		envoyResp, envoyErr := forwardUDP(d.virtualDNSInlineAddr, rewrittenQuery, envoyDNSForwardTimeout)
-		if envoyErr == nil && !isNXDOMAIN(envoyResp) {
+		if envoyErr == nil && isEnvoyHit(envoyResp) {
 			// Hit — rewrite the response name back to the original and return.
 			d.logger.Debug("virtual dns resolved via inline listener", "domain", originalName, "expanded_name", expandedName)
 			out, err := rewriteResponseName(envoyResp, expandedName, originalName)

@@ -114,6 +114,63 @@ func TestParseServiceSNI(t *testing.T) {
 			ok:   true,
 		},
 
+		// ── customisation-hash prefix (naming.CustomizeClusterName) ──────────
+		// CustomizeClusterName prepends "<8-hex>~" when the discovery chain
+		// carries non-default customisation (protocol override, connect
+		// timeout, etc.).  Single-port clusters are the tricky case: without
+		// hash-stripping the parser would extract the hash as the service name.
+		{
+			name: "custom hash single-port default partition no subset",
+			sni:  "f8f8f8f8~pong.default.dc2.internal." + td,
+			want: UpstreamComponents{Service: "pong", Namespace: "default", Partition: "default", Datacenter: "dc2"},
+			ok:   true,
+		},
+		{
+			name: "custom hash single-port default partition with subset",
+			sni:  "f8f8f8f8~v2.pong.default.dc2.internal." + td,
+			want: UpstreamComponents{Service: "pong", Namespace: "default", Partition: "default", Datacenter: "dc2"},
+			ok:   true,
+		},
+		{
+			name: "custom hash single-port non-default partition no subset",
+			sni:  "98809527~pong.ns1.partition-vms.dc2.internal-v1." + td,
+			want: UpstreamComponents{Service: "pong", Namespace: "ns1", Partition: "partition-vms", Datacenter: "dc2"},
+			ok:   true,
+		},
+		// Multi-port: the hash wraps the already-decorated cluster name.
+		{
+			name: "custom hash multi-port default partition",
+			sni:  "f8f8f8f8~grpc-port.pong.default.dc2.internal." + td,
+			want: UpstreamComponents{Service: "pong", Namespace: "default", Partition: "default", Datacenter: "dc2"},
+			ok:   true,
+		},
+		// Combined: hash AND a literal prefix (e.g. passthrough inside a
+		// customised transparent-proxy chain).
+		{
+			name: "custom hash combined with passthrough prefix",
+			sni:  "f8f8f8f8~passthrough~api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+		{
+			name: "custom hash combined with exported prefix",
+			sni:  "f8f8f8f8~exported~api.default.dc1.internal." + td,
+			want: UpstreamComponents{Service: "api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+		// A non-hex token before "~" must NOT be stripped — the hash check
+		// requires all 8 chars to be [0-9a-f].
+		{
+			name: "non-hex tilde prefix is not stripped",
+			sni:  "zzzzzzzz~api.default.dc1.internal." + td,
+			// "zzzzzzzz" is 8 chars but not valid hex, so it is not stripped.
+			// The SNI is parsed as-is; "zzzzzzzz~api" becomes the first
+			// dot-split label (tilde is not a dot), so the service extracted
+			// by reading backwards from "internal" is "zzzzzzzz~api".
+			want: UpstreamComponents{Service: "zzzzzzzz~api", Namespace: "default", Partition: "default", Datacenter: "dc1"},
+			ok:   true,
+		},
+
 		// ── misc ──────────────────────────────────────────────────────────────
 		{
 			name: "trailing dot tolerated",
@@ -204,6 +261,50 @@ func TestUpstreamIndexLookup(t *testing.T) {
 		nilIdx.Update([]string{"api.default.dc1.internal." + td}, nil)
 		if _, ok := nilIdx.Lookup("api", "", "", ""); ok {
 			t.Fatal("expected nil index to return no match")
+		}
+	})
+
+	// ── multiport scenario ────────────────────────────────────────────────────
+	// A multiport service produces one CDS cluster per named port, each with
+	// the port prepended to the SNI: "<port>.<svc>.<ns>.<dc>.internal.<td>".
+	// ParseServiceSNI strips the port label (it is skipped by the backward scan
+	// from "internal"), so both clusters index under the same base service name.
+	// Lookup("api", …) must therefore match using only the base service name,
+	// which is what expandVirtualName passes after stripping the port from the
+	// DNS query "http.api.virtual.consul".
+	t.Run("multiport clusters index under base service name", func(t *testing.T) {
+		mpIdx := NewUpstreamIndex()
+		// Two named-port clusters for the same multiport service.
+		mpIdx.Update([]string{
+			"http.api.myns.myap.dc1.internal-v1." + td,
+			"grpc.api.myns.myap.dc1.internal-v1." + td,
+		}, nil)
+
+		// Both ports must resolve to the same unique identity.
+		got, ok := mpIdx.Lookup("api", "", "", "")
+		if !ok {
+			t.Fatal("expected multiport service to be found by base service name")
+		}
+		if got.Service != "api" || got.Namespace != "myns" || got.Partition != "myap" || got.Datacenter != "dc1" {
+			t.Fatalf("unexpected components: %+v", got)
+		}
+	})
+
+	t.Run("multiport clusters from different services are not conflated", func(t *testing.T) {
+		mpIdx := NewUpstreamIndex()
+		mpIdx.Update([]string{
+			"http.svc-a.ns1.myap.dc1.internal-v1." + td,
+			"http.svc-b.ns1.myap.dc1.internal-v1." + td,
+		}, nil)
+
+		// svc-a and svc-b are distinct services; each must resolve independently.
+		gotA, okA := mpIdx.Lookup("svc-a", "", "", "")
+		if !okA || gotA.Service != "svc-a" {
+			t.Fatalf("expected svc-a to resolve, got ok=%v components=%+v", okA, gotA)
+		}
+		gotB, okB := mpIdx.Lookup("svc-b", "", "", "")
+		if !okB || gotB.Service != "svc-b" {
+			t.Fatalf("expected svc-b to resolve, got ok=%v components=%+v", okB, gotB)
 		}
 	})
 }
