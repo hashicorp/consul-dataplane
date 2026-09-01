@@ -145,7 +145,7 @@ func stripClusterNamePrefixes(sni string) string {
 		allHex := true
 		for i := 0; i < customizationHashLen; i++ {
 			c := sni[i]
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 				allHex = false
 				break
 			}
