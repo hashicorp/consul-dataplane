@@ -1,3 +1,45 @@
+## 1.8.16 (August 10, 2026)
+
+SECURITY:
+
+* Upgrade dependencies to address CVE findings:Upgraded `golang.org/x/text` to 0.40.0 , `google.golang.org/grpc` to 1.82.1 and `go.opentelemetry.io/otel` to 1.44.0 fixes CVEs GO-2026-5970 ,GO-2026-6061 ,GO-2026-5158 respectively [[GH-1228](https://github.com/hashicorp/consul-dataplane/pull/1228),[GH-1210](https://github.com/hashicorp/consul-dataplane/pull/1210),[GH-1235](https://github.com/hashicorp/consul-dataplane/pull/1235)]
+
+IMPROVEMENTS:
+
+* Upgrade to use Go 1.26.5. [[GH-1206](https://github.com/hashicorp/consul-dataplane/pull/1206)]
+
+BUG FIXES:
+
+* dns: Remove noisy debug log emitted on benign read timeouts in the UDP proxy loop. [[GH-1198](https://github.com/hashicorp/consul-dataplane/pull/1198)]
+
+
+## 1.8.15 (July 9, 2026)
+SECURITY:
+
+* Update the Consul Build Go base image to `alpine3.24` [[GH-1181](https://github.com/hashicorp/consul-dataplane/pull/1181)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.38.3 [[GH-1185](https://github.com/hashicorp/consul-dataplane/pull/1185)]
+
+BUG FIXES:
+
+* - envoy: add `skip_exit` to `drain_listeners` admin API call to prevent premature pod termination when upgrading to Envoy 1.37+ [[GH-1064](https://github.com/hashicorp/consul-dataplane/pull/1064)]
+* - envoy: prevent graceful shutdown errors from closing errorExitCh, which caused Envoy to be killed immediately bypassing the configured grace period [[GH-1072](https://github.com/hashicorp/consul-dataplane/pull/1072)]
+
+
+## 1.8.14 (June 22, 2026)
+SECURITY:
+
+* dockerfile: add `microdnf update -y` and `microdnf clean all` to non-FIPS UBI stage to apply latest security patches at build time
+dockerfile: update dockerfile following best practices and reduction of layers by merging RUN layers. Added ENVOY_VERSION arg to maintain it centrally for fips and non-fips versions. [[GH-1142](https://github.com/hashicorp/consul-dataplane/pull/1142)]
+
+IMPROVEMENTS:
+
+* Add `-legacy-server-compat` flag (env: `DP_LEGACY_SERVER_COMPAT`) to enable a time-bounded compatibility mode that allows newer consul-dataplane versions to connect to older Consul servers that do not yet advertise full dataplane feature support. This unblocks in-place Consul upgrades where the control plane and data plane cannot be updated simultaneously. Features unsupported by the older server are automatically disabled with structured warnings. This flag is intended for upgrade transitions only and must be removed once all Consul servers are running a fully supported version. [[GH-1099](https://github.com/hashicorp/consul-dataplane/pull/1099)]
+* Update Envoy version to 1.35.12 [[GH-1161](https://github.com/hashicorp/consul-dataplane/pull/1161)]
+
+
 ## 1.8.13 (May 23, 2026)
 SECURITY:
 
