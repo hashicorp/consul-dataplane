@@ -60,6 +60,7 @@ jobs:
       # (for pre-merge testing). Pass the flag through so build.yml's
       # conditional-skip guard doesn't reject the run.
       allow-unprotected-branches: true
+    secrets: inherit
 
   # 2. Resolve the Go toolchain version the scanner uses for go_modules analysis.
   get-go-version:
