@@ -1,6 +1,6 @@
 module github.com/hashicorp/consul-dataplane/integration-tests
 
-go 1.26.5
+go 1.26.7
 
 require (
 	github.com/docker/docker v27.3.1+incompatible
