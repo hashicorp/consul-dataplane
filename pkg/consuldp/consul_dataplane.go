@@ -10,7 +10,9 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
@@ -29,7 +31,8 @@ type xdsServer struct {
 	listenerAddress string
 	listenerNetwork string
 	gRPCServer      *grpc.Server
-	exitedCh        chan struct{}
+	exitedCh   chan struct{}
+	closeOnce sync.Once
 }
 
 type httpClient interface {
@@ -336,14 +339,19 @@ func (cdp *ConsulDataplane) envoyProxyConfig(cfg []byte) envoy.ProxyConfig {
 		extraArgs = append(extraArgs, fmt.Sprintf("%s %v", envoyArg, cdpEnvoyValue))
 	}
 
+	// Wrap os.Stderr so that the fatal "Envoy version too old" message emitted
+	// by Envoy triggers an immediate consul-dataplane shutdown. This is the most
+	// reliable detection point because the message always appears in Envoy's
+	// stderr output regardless of how the gRPC transport surfaces the trailer.
 	return envoy.ProxyConfig{
-		AdminAddr:       cdp.cfg.Envoy.AdminBindAddress,
-		AdminBindPort:   cdp.cfg.Envoy.AdminBindPort,
-		Logger:          cdp.logger,
-		LogJSON:         cdp.cfg.Logging.LogJSON,
-		BootstrapConfig: cfg,
-		ExecutablePath:  cdp.cfg.Envoy.ExecutablePath,
-		ExtraArgs:       extraArgs,
+		AdminAddr:        cdp.cfg.Envoy.AdminBindAddress,
+		AdminBindPort:    cdp.cfg.Envoy.AdminBindPort,
+		Logger:           cdp.logger,
+		LogJSON:          cdp.cfg.Logging.LogJSON,
+		BootstrapConfig:  cfg,
+		ExecutablePath:   cdp.cfg.Envoy.ExecutablePath,
+		ExtraArgs:        extraArgs,
+		EnvoyErrorStream: cdp.newEnvoyLogScanner(os.Stderr),
 	}
 }
 

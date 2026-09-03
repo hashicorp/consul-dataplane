@@ -5,6 +5,7 @@ package consuldp
 
 import (
 	"context"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -21,6 +22,12 @@ const (
 	metadataKeyToken   = "x-consul-token"
 	envoyADSMethodName = "envoy.service.discovery.v3.AggregatedDiscoveryService/DeltaAggregatedResources"
 	maxRecvSize        = 50 * 1024 * 1024
+
+	// envoyVersionUnsupportedMsg is the substring that Consul server includes in the
+	// gRPC status message when it rejects an Envoy version that is too old.  This is
+	// a permanent, non-retriable condition so consul-dataplane must treat it as fatal
+	// and exit rather than keeping the (zombie) process alive indefinitely.
+	envoyVersionUnsupportedMsg = "is too old and is not supported by Consul"
 )
 
 // director is the helper called by the unknown service gRPC handler. This helper is responsible for injecting the ACL token
@@ -103,7 +110,7 @@ func (cdp *ConsulDataplane) startXDSServer(ctx context.Context) {
 
 	if err := cdp.xdsServer.gRPCServer.Serve(cdp.xdsServer.listener); err != nil {
 		cdp.logger.Error("failed to serve xDS requests", "error", err)
-		close(cdp.xdsServer.exitedCh)
+		cdp.xdsServer.closeExitedCh()
 	}
 }
 
@@ -116,10 +123,53 @@ func (cdp *ConsulDataplane) stopXDSServer() {
 
 func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServer.exitedCh }
 
+// streamInterceptor returns a gRPC stream server interceptor that tracks
+// the envoy_connected metric via metricServerStream.
 func (cdp *ConsulDataplane) streamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		return handler(srv, &metricServerStream{ss})
 	}
+}
+
+// newEnvoyLogScanner wraps an io.Writer (typically os.Stderr) and scans each
+// write for the Consul server's permanent "Envoy version too old" rejection
+// message. When detected it triggers a fatal shutdown via closeExitedCh so
+// that consul-dataplane exits with a non-zero code instead of looping forever.
+//
+// Envoy emits this line on its stderr stream exactly as shown in the log:
+//
+//	DeltaAggregatedResources gRPC config stream to consul-dataplane closed: 3,
+//	Envoy X.Y.Z is too old and is not supported by Consul
+//
+// We match on the substring rather than the full line so that version numbers
+// and surrounding text do not affect detection.
+func (cdp *ConsulDataplane) newEnvoyLogScanner(underlying io.Writer) io.Writer {
+	return &envoyLogScanner{
+		Writer: underlying,
+		cdp:    cdp,
+	}
+}
+
+type envoyLogScanner struct {
+	io.Writer
+	cdp     *ConsulDataplane
+}
+
+// Write forwards every byte to the underlying writer and checks for the fatal
+// version-rejection message. Safe to call from multiple goroutines because
+// closeExitedCh uses sync.Once internally.
+func (s *envoyLogScanner) Write(p []byte) (int, error) {
+	n, err := s.Writer.Write(p)
+	if strings.Contains(string(p), envoyVersionUnsupportedMsg) {
+		s.cdp.logger.Error(
+			"Envoy version is not supported by Consul server — this is a permanent error, " +
+				"consul-dataplane will now exit. Please upgrade Envoy to a supported version.",
+		)
+		if s.cdp.xdsServer != nil {
+			s.cdp.xdsServer.closeExitedCh()
+		}
+	}
+	return n, err
 }
 
 type metricServerStream struct {
@@ -144,4 +194,10 @@ func (s *metricServerStream) RecvMsg(m interface{}) error {
 	}
 	metrics.SetGauge([]string{"envoy_connected"}, 0)
 	return err
+}
+
+// closeExitedCh closes exitedCh exactly once, regardless of how many concurrent
+// streams may detect the same fatal condition.
+func (x *xdsServer) closeExitedCh() {
+	x.closeOnce.Do(func() { close(x.exitedCh) })
 }
