@@ -263,16 +263,104 @@ func TestIntegration(t *testing.T) {
 	dnsPorts := []nat.Port{dnsUDPPort, dnsTCPPort}
 	frontendPod.ExposeInternalPorts(t, dnsPorts)
 
-	for _, port := range dnsPorts {
-		addrs := DNSLookup(t,
-			suite,
-			port.Proto(),
-			frontendPod.HostIP,
-			frontendPod.MappedPorts[port],
-			"backend-sidecar.service.consul.",
-		)
-		require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
-	}
+	adminIP := frontendPod.HostIP
+	adminPort := frontendPod.MappedPorts[EnvoyAdminPort]
+
+	// Structural check: the inline (virtual) and egress DNS listeners are
+	// provisioned onto Envoy by the Consul server over xDS. This single check
+	// confirms whether the server pushed them to this proxy, independent of any
+	// DNS query. Their names are "virtual_dns:127.0.0.1:8653" and
+	// "egress_dns:127.0.0.1:8654" (see consul-enterprise/agent/xds/listeners_dns.go).
+	//
+	//   - The inline virtual DNS listener is present whenever the running Consul
+	//     server supports it.
+	//   - The egress listener is only pushed when recursors are configured.
+	//
+	// Presence is reported for visibility but not asserted, since it depends on
+	// the Consul server version and recursor configuration.
+	hasInlineListener := EnvoyHasListener(t, adminIP, adminPort, "virtual_dns")
+	hasEgressListener := EnvoyHasListener(t, adminIP, adminPort, "egress_dns")
+	t.Logf("Envoy consul DNS listeners: consul_server_version=%s inline_virtual_dns=%t egress_dns=%t",
+		opts.ServerVersion, hasInlineListener, hasEgressListener)
+
+	// The remaining subtests only verify that DNS resolution works for each kind
+	// of domain, over both UDP and TCP. They assert on observable behavior
+	// (resolved addresses / rcode) and do not care which internal path served the
+	// query.
+
+	// Standard .consul service discovery must resolve to the backend pod IP.
+	t.Run("service .consul lookup", func(t *testing.T) {
+		for _, port := range dnsPorts {
+			addrs := DNSLookup(t,
+				suite,
+				port.Proto(),
+				frontendPod.HostIP,
+				frontendPod.MappedPorts[port],
+				"backend-sidecar.service.consul.",
+			)
+
+			t.Logf("DNS service lookup: consul_server_version=%s proto=%s query=%s addrs=%v",
+				opts.ServerVersion, port.Proto(), "backend-sidecar.service.consul.", addrs)
+
+			require.ElementsMatch(t, []string{backendPod.ContainerIP}, addrs)
+		}
+	})
+
+	// A *.virtual.consul query for the "backend" upstream must resolve to a
+	// Consul VIP from the 240.0.0.0/4 range.
+	t.Run("virtual .virtual.consul lookup", func(t *testing.T) {
+		for _, port := range dnsPorts {
+			addrs, rcode := DNSLookupA(t,
+				suite,
+				port.Proto(),
+				frontendPod.HostIP,
+				frontendPod.MappedPorts[port],
+				"backend.virtual.consul.",
+			)
+
+			t.Logf("DNS virtual lookup: consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+				opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
+
+			require.Equalf(t, DNSRcodeSuccess, rcode,
+				"expected backend.virtual.consul to resolve successfully over %s, got rcode=%d",
+				port.Proto(), rcode)
+			require.NotEmptyf(t, addrs,
+				"expected backend.virtual.consul to resolve to a VIP over %s, got no answers",
+				port.Proto())
+
+			for _, addr := range addrs {
+				require.Truef(t, IsConsulVIP(addr),
+					"expected backend.virtual.consul to resolve to a Consul VIP (240.0.0.0/4), got %q over %s",
+					addr, port.Proto())
+			}
+		}
+	})
+
+	// A non-.consul domain must resolve via the configured recursors (8.8.8.8 /
+	// 8.8.4.4, set on the Consul server in helpers/server.go). Whether the query
+	// is served by Envoy's egress DNS listener or by the Consul-server recursor
+	// fallback, "google.com" must resolve successfully to at least one address.
+	t.Run("external domain lookup", func(t *testing.T) {
+		for _, port := range dnsPorts {
+			addrs, rcode := DNSLookupA(t,
+				suite,
+				port.Proto(),
+				frontendPod.HostIP,
+				frontendPod.MappedPorts[port],
+				"google.com.",
+			)
+
+			t.Logf("DNS external lookup: consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+				opts.ServerVersion, port.Proto(), "google.com.", rcode, addrs)
+
+			require.Equalf(t, DNSRcodeSuccess, rcode,
+				"expected google.com to resolve successfully via recursors over %s, got rcode=%d",
+				port.Proto(), rcode)
+			require.NotEmptyf(t, addrs,
+				"expected google.com to resolve to at least one address via recursors over %s, got no answers",
+				port.Proto())
+		}
+	})
 
 	metrics := GetMetrics(t,
 		backendPod.HostIP,
@@ -337,6 +425,69 @@ func TestIntegration(t *testing.T) {
 		backendPod.HostIP,
 		backendPod.MappedPorts[upstreamLocalBindPort],
 	)
+
+	// virtual .virtual.consul resolves after consul server outage
+	//
+	// Consul servers >= v2.2 push Envoy DNS listeners (the inline virtual-DNS
+	// table) over xDS, so Envoy can continue answering *.virtual.consul queries
+	// from its local table after the control plane is gone. On older servers the
+	// listener is never pushed, so resolution after an outage is not expected to
+	// work. The test is therefore only asserted on v2.2+; on earlier versions it
+	// is skipped to avoid a spurious failure.
+	t.Run("virtual .virtual.consul resolves after consul server outage", func(t *testing.T) {
+		// Determine whether the running Consul server is new enough to push the
+		// inline virtual-DNS listener over xDS. The feature landed in v2.2.
+		supportsInlineDNS := semver.Compare(semver.MajorMinor(opts.ServerVersion), "v2.2") >= 0
+
+		serverContainerID := server.Container.GetContainerID()
+		dockerCli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
+		if err != nil {
+			t.Fatalf("failed to create docker client: %v", err)
+		}
+		if err := dockerCli.ContainerKill(context.Background(), serverContainerID, "SIGKILL"); err != nil {
+			t.Fatalf("failed to kill consul server container %s: %v", serverContainerID, err)
+		}
+		t.Logf("consul server container %s killed (SIGKILL) to simulate control-plane outage", serverContainerID)
+
+		if !supportsInlineDNS {
+			t.Skipf("skipping outage-resilience check: consul server %s < v2.2 does not push inline virtual-DNS listeners over xDS",
+				opts.ServerVersion)
+		}
+
+		// Query with retries: after a hard server kill the Envoy DNS proxy is
+		// still alive and serving the inline table, but the very first UDP
+		// exchange may time out while the proxy's upstream health-check to
+		// Consul drains. Retry for up to 15 s before failing.
+		require.Eventually(t, func() bool {
+			for _, port := range dnsPorts {
+				addrs, rcode, err := DNSLookupAErr(suite,
+					port.Proto(),
+					frontendPod.HostIP,
+					frontendPod.MappedPorts[port],
+					"backend.virtual.consul.",
+				)
+				if err != nil {
+					t.Logf("DNS virtual lookup transient error (retrying): consul_server_version=%s proto=%s err=%v",
+						opts.ServerVersion, port.Proto(), err)
+					return false
+				}
+
+				t.Logf("DNS virtual lookup: consul_server_version=%s proto=%s query=%s rcode=%d addrs=%v",
+					opts.ServerVersion, port.Proto(), "backend.virtual.consul.", rcode, addrs)
+
+				if rcode != DNSRcodeSuccess || len(addrs) == 0 {
+					return false
+				}
+				for _, addr := range addrs {
+					if !IsConsulVIP(addr) {
+						return false
+					}
+				}
+			}
+			return true
+		}, 15*time.Second, 1*time.Second,
+			"expected backend.virtual.consul to resolve to a Consul VIP via Envoy inline DNS table after control-plane outage")
+	})
 
 	// Send SIGTERM to dataplane to start graceful shutdown
 	containerID := frontendDataplane.Container.GetContainerID()

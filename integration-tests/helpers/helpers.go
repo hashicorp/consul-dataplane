@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +22,12 @@ import (
 var httpClient = &http.Client{
 	Timeout: 1 * time.Second,
 }
+
+// DNSRcodeSuccess mirrors github.com/miekg/dns.RcodeSuccess so callers in the
+// test package can assert on it without importing the dns package directly.
+const (
+	DNSRcodeSuccess = dns.RcodeSuccess
+)
 
 func TCP(n int) nat.Port {
 	port, err := nat.NewPort("tcp", strconv.Itoa(n))
@@ -100,6 +107,64 @@ func DNSLookup(t *testing.T, suite *Suite, protocol string, serverIP string, ser
 	return results
 }
 
+// DNSLookupA performs an A-record lookup like DNSLookup but returns the raw
+// answer addresses along with the response rcode, so callers can assert on both
+// the resolved addresses and the response code. This is used by the
+// virtual-domain (VIP) e2e assertions.
+func DNSLookupA(t *testing.T, suite *Suite, protocol, serverIP string, serverPort int, host string) (addrs []string, rcode int) {
+	t.Helper()
+
+	addrs, rcode, err := DNSLookupAErr(suite, protocol, serverIP, serverPort, host)
+	require.NoError(t, err)
+	return addrs, rcode
+}
+
+// DNSLookupAErr is like DNSLookupA but returns the exchange error instead of
+// asserting on it, allowing callers to handle transient network failures (e.g.
+// retrying inside require.Eventually after a control-plane outage).
+func DNSLookupAErr(suite *Suite, protocol, serverIP string, serverPort int, host string) (addrs []string, rcode int, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req := new(dns.Msg)
+	req.SetQuestion(host, dns.TypeA)
+
+	c := new(dns.Client)
+	c.Net = protocol
+	rsp, _, err := c.ExchangeContext(
+		ctx,
+		req,
+		net.JoinHostPort(serverIP, strconv.Itoa(serverPort)),
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	for _, rr := range rsp.Answer {
+		if a, ok := rr.(*dns.A); ok {
+			addrs = append(addrs, a.A.String())
+		}
+	}
+	return addrs, rsp.Rcode, nil
+}
+
+// IsConsulVIP reports whether ip falls in the 240.0.0.0/4 reserved range that
+// Consul allocates service virtual IPs (VIPs) from. Virtual-domain
+// (*.virtual.consul) queries resolved via Envoy's inline DNS table must return
+// an address from this block.
+func IsConsulVIP(ip string) bool {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return false
+	}
+	parsed = parsed.To4()
+	if parsed == nil {
+		return false
+	}
+	// 240.0.0.0/4 => first octet in [240, 255].
+	return parsed[0] >= 240
+}
+
 func GetMetrics(t *testing.T, ip string, port int) string {
 	t.Helper()
 
@@ -127,4 +192,27 @@ func GetEnvoyClusters(t *testing.T, ip string, port int) {
 
 	_, err := httpClient.Get(url)
 	require.NoError(t, err)
+}
+
+// EnvoyHasListener reports whether Envoy has a listener whose name contains
+// nameSubstr, as reported by the admin /listeners endpoint. The DNS inline and
+// egress listeners are provisioned onto Envoy by the Consul server over xDS, so
+// their presence here confirms the server pushed them to this proxy.
+func EnvoyHasListener(t *testing.T, ip string, port int, nameSubstr string) bool {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/listeners", net.JoinHostPort(ip, strconv.Itoa(port)))
+
+	rsp, err := httpClient.Get(url)
+	require.NoError(t, err)
+	defer rsp.Body.Close()
+
+	body, err := io.ReadAll(rsp.Body)
+	require.NoError(t, err)
+
+	if rsp.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected response status: %d - body: %s", rsp.StatusCode, body)
+	}
+
+	return strings.Contains(string(body), nameSubstr)
 }

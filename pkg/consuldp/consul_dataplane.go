@@ -47,6 +47,11 @@ type ConsulDataplane struct {
 	aclToken        string
 	metricsConfig   *metricsConfig
 	lifecycleConfig *lifecycleConfig
+	// upstreamIndex maps upstream service identities decoded from CDS SNIs on
+	// the proxied xDS stream. It is consulted during virtual-FQDN expansion so
+	// the dataplane fills missing tokens from the real upstream identity rather
+	// than the source proxy defaults.
+	upstreamIndex *dns.UpstreamIndex
 }
 
 // NewConsulDP creates a new instance of ConsulDataplane
@@ -66,8 +71,9 @@ func NewConsulDP(cfg *Config) (*ConsulDataplane, error) {
 	})
 
 	return &ConsulDataplane{
-		logger: logger,
-		cfg:    cfg,
+		logger:        logger,
+		cfg:           cfg,
+		upstreamIndex: dns.NewUpstreamIndex(),
 	}, nil
 }
 
@@ -186,7 +192,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	if cdp.cfg.Mode == ModeTypeDNSProxy {
 		// start up DNS server with the configuration from the consul-dataplane flags / environment variables since
 		// envoy bootstrapping is bypassed.
-		if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, cdp.cfg.Proxy.Namespace, cdp.cfg.Proxy.Partition); err != nil {
+		if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, cdp.cfg.Proxy.Namespace, cdp.cfg.Proxy.Partition, ""); err != nil {
 			cdp.logger.Error("failed to start the dns proxy", "error", err)
 			return err
 		}
@@ -214,7 +220,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
 
 	// start up DNS server with envoy bootstrap params.
-	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition); err != nil {
+	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition, bootstrapParams.Datacenter); err != nil {
 		cdp.logger.Error("failed to start the dns proxy", "error", err)
 		return err
 	}
@@ -287,17 +293,28 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 }
 
 func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,
-	dnsConfig *DNSServerConfig, namespace, partition string) error {
+	dnsConfig *DNSServerConfig, namespace, partition, datacenter string) error {
 	dnsClientInterface := pbdns.NewDNSServiceClient(cdp.serverConn)
 
+	var (
+		virtualDNSInlineAddr string
+		virtualDNSEgressAddr string
+	)
+	virtualDNSInlineAddr = fmt.Sprintf("127.0.0.1:%d", VirtualDNSInlinePort)
+	virtualDNSEgressAddr = fmt.Sprintf("127.0.0.1:%d", VirtualDNSEgressPort)
+
 	dnsServer, err := dns.NewDNSServer(dns.DNSServerParams{
-		BindAddr:  dnsConfig.BindAddr,
-		Port:      dnsConfig.Port,
-		Client:    dnsClientInterface,
-		Logger:    cdp.logger,
-		Partition: partition,
-		Namespace: namespace,
-		Token:     cdp.aclToken,
+		BindAddr:             dnsConfig.BindAddr,
+		Port:                 dnsConfig.Port,
+		Client:               dnsClientInterface,
+		Logger:               cdp.logger,
+		Partition:            partition,
+		Namespace:            namespace,
+		Token:                cdp.aclToken,
+		Datacenter:           datacenter,
+		VirtualDNSInlineAddr: virtualDNSInlineAddr,
+		VirtualDNSEgressAddr: virtualDNSEgressAddr,
+		UpstreamIndex:        cdp.upstreamIndex,
 	})
 	if err == dns.ErrServerDisabled {
 		cdp.logger.Info("dns server disabled: configure the Consul DNS port to enable")

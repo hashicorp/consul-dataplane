@@ -1,0 +1,3 @@
+```release-note:feature
+dns-proxy: Triage DNS queries before forwarding so virtual Consul DNS queries can be resolved by Envoy when possible. Forward `.virtual.*.consul` queries to Envoy's inline DNS listener and external domains to Envoy's egress DNS listener, falling back to Consul when Envoy cannot answer or is unavailable. Adds listener health backoff handling to avoid repeatedly forwarding to unhealthy Envoy listeners.
+```
