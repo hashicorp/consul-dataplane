@@ -1,0 +1,3 @@
+```release-note:security
+docker: Remove unnecessary `root` group membership for the `consul-dataplane` service user in the UBI-based release images (`release-ubi`, `release-fips-ubi`). The `usermod -a -G root` call granted the process read access to files with group-read permissions owned by `root`, violating the principle of least privilege. The user continues to run as UID 100 in its own dedicated group (GID 1000).
+```
