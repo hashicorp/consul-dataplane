@@ -183,8 +183,7 @@ RUN microdnf update -y && \
 
 # Create a non-root user to run the software.
 RUN groupadd --gid 1000 $PRODUCT_NAME && \
-    adduser --uid 100 --system -g $PRODUCT_NAME $PRODUCT_NAME && \
-    usermod -a -G root $PRODUCT_NAME
+    adduser --uid 100 --system -g $PRODUCT_NAME $PRODUCT_NAME
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
@@ -234,8 +233,7 @@ RUN microdnf update -y && \
 
 # Create a non-root user to run the software.
 RUN groupadd --gid 1000 $PRODUCT_NAME && \
-    adduser --uid 100 --system -g $PRODUCT_NAME $PRODUCT_NAME && \
-    usermod -a -G root $PRODUCT_NAME
+    adduser --uid 100 --system -g $PRODUCT_NAME $PRODUCT_NAME
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
