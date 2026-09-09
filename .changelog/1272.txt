@@ -1,0 +1,3 @@
+```release-note:security
+Pin `docker/login-action` to a commit hash to fix high-severity code-scanning alerts for missing pinned commit hashes in GitHub Actions workflows.
+```
