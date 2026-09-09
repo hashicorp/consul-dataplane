@@ -1,8 +1,5 @@
 ```release-note:security
 Upgrade `go-discover` build stage to use `google.golang.org/grpc` 1.83.2.
 This resolves [GHSA-vp52-pcj8-j9qc](https://github.com/advisories/GHSA-vp52-pcj8-j9qc)
-```
-
-```release-note:security
 Upgrade `go-discover` build stage to use `golang.org/x/net` 0.58.0.
 ```
