@@ -5,12 +5,15 @@ SECURITY:
 This resolves [GO-2026-6354](https://pkg.go.dev/vuln/GO-2026-6354) (CVE-2026-78662) and [GO-2026-6355](https://pkg.go.dev/vuln/GO-2026-6355) (CVE-2026-56855)
 Upgrade `go-discover` build stage to use `golang.org/x/net` 0.59.0.
 Upgrade `golang.org/x/net` to 0.59.0. [[GH-1281](https://github.com/hashicorp/consul-dataplane/pull/1281)]
+
 * Upgrade `go-discover` build stage to use `google.golang.org/grpc` 1.83.2.
 This resolves [GHSA-vp52-pcj8-j9qc](https://github.com/advisories/GHSA-vp52-pcj8-j9qc)
-Upgrade `go-discover` build stage to use `golang.org/x/net` 0.58.0. [[GH-1276](https://github.com/hashicorp/consul-dataplane/pull/1276)]
+
 * Upgrade go version to 1.26.7 to address security vulnerabilities. [[GH-1262](https://github.com/hashicorp/consul-dataplane/pull/1262)]
+
 * Upgrade to use `google.golang.org/grpc` 1.83.2.
 This resolves [GHSA-vp52-pcj8-j9qc](https://github.com/advisories/GHSA-vp52-pcj8-j9qc) [[GH-1271](https://github.com/hashicorp/consul-dataplane/pull/1271)]
+
 * docker: Remove unnecessary `root` group membership for the `consul-dataplane` service user in the UBI-based release images (`release-ubi`, `release-fips-ubi`). The `usermod -a -G root` call granted the process read access to files with group-read permissions owned by `root`, violating the principle of least privilege. The user continues to run as UID 100 in its own dedicated group (GID 1000). [[GH-1266](https://github.com/hashicorp/consul-dataplane/pull/1266)]
 
 IMPROVEMENTS:
