@@ -1,0 +1,6 @@
+```release-note:security
+Upgrade `go-discover` build stage to use `golang.org/x/crypto` 0.57.0.
+This resolves [GO-2026-6354](https://pkg.go.dev/vuln/GO-2026-6354) (CVE-2026-78662) and [GO-2026-6355](https://pkg.go.dev/vuln/GO-2026-6355) (CVE-2026-56855)
+Upgrade `go-discover` build stage to use `golang.org/x/net` 0.59.0.
+Upgrade `golang.org/x/net` to 0.59.0.
+```

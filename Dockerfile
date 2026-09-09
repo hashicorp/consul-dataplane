@@ -55,8 +55,8 @@ RUN apk add --no-cache git
 RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
     cd /src/go-discover && \
     git checkout ca13b81fe744b323d3730020a898a288ce502069 && \
-    go get golang.org/x/net@v0.58.0 && \
-    go get golang.org/x/crypto@v0.54.0 && \
+    go get golang.org/x/net@v0.59.0 && \
+    go get golang.org/x/crypto@v0.57.0 && \
     go get google.golang.org/grpc@v1.83.2 && \
     go get go.opentelemetry.io/otel@v1.44.0 && \
     go mod tidy && \
