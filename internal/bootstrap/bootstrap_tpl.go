@@ -299,6 +299,9 @@ const bootstrapTemplate = `{
         }
       }
     }
+  },
+  "cluster_manager": {
+	"enable_deferred_cluster_creation": true
   }
 }
 `
