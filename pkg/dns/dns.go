@@ -13,6 +13,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/consul/proto-public/pbdns"
@@ -85,9 +86,13 @@ type DNSServer struct {
 	virtualDNSEgressAddr string
 	upstreamIndex        *UpstreamIndex
 
-	listenerHealthLock            sync.Mutex
-	inlineListenerUnavailableTill time.Time
-	egressListenerUnavailableTill time.Time
+	// inlineListenerUnavailableTill/egressListenerUnavailableTill store the
+	// UnixNano timestamp until which the corresponding listener should be
+	// treated as unavailable (skip forwarding, go straight to Consul). They're
+	// read/written via sync/atomic instead of a mutex since it's a single
+	// int64 value accessed concurrently from many query goroutines.
+	inlineListenerUnavailableTill atomic.Int64
+	egressListenerUnavailableTill atomic.Int64
 }
 
 // NewDNSServer creates a new DNS proxy server
@@ -676,27 +681,19 @@ func (d *DNSServer) queryConsul(raw []byte, proto pbdns.Protocol) ([]byte, error
 }
 
 func (d *DNSServer) canTryInlineListener() bool {
-	d.listenerHealthLock.Lock()
-	defer d.listenerHealthLock.Unlock()
-	return time.Now().After(d.inlineListenerUnavailableTill)
+	return time.Now().UnixNano() > d.inlineListenerUnavailableTill.Load()
 }
 
 func (d *DNSServer) canTryEgressListener() bool {
-	d.listenerHealthLock.Lock()
-	defer d.listenerHealthLock.Unlock()
-	return time.Now().After(d.egressListenerUnavailableTill)
+	return time.Now().UnixNano() > d.egressListenerUnavailableTill.Load()
 }
 
 func (d *DNSServer) markInlineListenerUnavailable() {
-	d.listenerHealthLock.Lock()
-	defer d.listenerHealthLock.Unlock()
-	d.inlineListenerUnavailableTill = time.Now().Add(inlineListenerUnhealthyTTL)
+	d.inlineListenerUnavailableTill.Store(time.Now().Add(inlineListenerUnhealthyTTL).UnixNano())
 }
 
 func (d *DNSServer) markEgressListenerUnavailable() {
-	d.listenerHealthLock.Lock()
-	defer d.listenerHealthLock.Unlock()
-	d.egressListenerUnavailableTill = time.Now().Add(listenerUnhealthyTTL)
+	d.egressListenerUnavailableTill.Store(time.Now().Add(listenerUnhealthyTTL).UnixNano())
 }
 
 // triageAndResolve is the main entry point for the virtual DNS triage logic.
