@@ -267,11 +267,41 @@ type PrometheusTelemetryConfig struct {
 	// ServiceMetricsURL is an optional URL that must serve Prometheus metrics.
 	// The metrics at this URL are scraped and merged into Consul Dataplane's
 	// main Prometheus metrics.
+	//
+	// Deprecated: use ServiceMetricsURLs, which supports scraping more than one
+	// URL. When both are set, this URL is scraped first.
 	ServiceMetricsURL string
+	// ServiceMetricsURLs is an optional list of URLs that must serve Prometheus
+	// metrics. The metrics at these URLs are scraped and merged into Consul
+	// Dataplane's main Prometheus metrics. This allows a service to expose
+	// metrics on more than one port.
+	ServiceMetricsURLs []string
 	// ScrapePath is the URL path where Envoy serves Prometheus metrics.
 	ScrapePath string
 	// MergePort is the port to server merged metrics.
 	MergePort int
+}
+
+// serviceMetricsURLs returns every service metrics URL to scrape, combining the
+// deprecated single ServiceMetricsURL field with the ServiceMetricsURLs list.
+// Empty entries are skipped and exact duplicates are removed, since scraping the
+// same URL twice would duplicate every metric in the merged output.
+func (p PrometheusTelemetryConfig) serviceMetricsURLs() []string {
+	var urls []string
+	seen := make(map[string]struct{})
+
+	for _, u := range append([]string{p.ServiceMetricsURL}, p.ServiceMetricsURLs...) {
+		if u == "" {
+			continue
+		}
+		if _, dup := seen[u]; dup {
+			continue
+		}
+		seen[u] = struct{}{}
+		urls = append(urls, u)
+	}
+
+	return urls
 }
 
 // EnvoyConfig contains configuration for the Envoy process.

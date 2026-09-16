@@ -85,6 +85,73 @@ func TestMetricsServerClosed(t *testing.T) {
 
 }
 
+func TestServiceMetricsURLs(t *testing.T) {
+	cases := map[string]struct {
+		cfg      PrometheusTelemetryConfig
+		expected []string
+	}{
+		"none set": {
+			cfg:      PrometheusTelemetryConfig{},
+			expected: nil,
+		},
+		"only the deprecated single url": {
+			cfg:      PrometheusTelemetryConfig{ServiceMetricsURL: "http://127.0.0.1:8080/metrics"},
+			expected: []string{"http://127.0.0.1:8080/metrics"},
+		},
+		"only the list": {
+			cfg: PrometheusTelemetryConfig{ServiceMetricsURLs: []string{
+				"http://127.0.0.1:8080/metrics",
+				"http://127.0.0.1:9090/admin/metrics",
+			}},
+			expected: []string{
+				"http://127.0.0.1:8080/metrics",
+				"http://127.0.0.1:9090/admin/metrics",
+			},
+		},
+		"the deprecated single url is scraped first": {
+			cfg: PrometheusTelemetryConfig{
+				ServiceMetricsURL:  "http://127.0.0.1:7070/metrics",
+				ServiceMetricsURLs: []string{"http://127.0.0.1:8080/metrics"},
+			},
+			expected: []string{
+				"http://127.0.0.1:7070/metrics",
+				"http://127.0.0.1:8080/metrics",
+			},
+		},
+		"duplicates are removed": {
+			cfg: PrometheusTelemetryConfig{
+				ServiceMetricsURL: "http://127.0.0.1:8080/metrics",
+				ServiceMetricsURLs: []string{
+					"http://127.0.0.1:8080/metrics",
+					"http://127.0.0.1:9090/metrics",
+					"http://127.0.0.1:9090/metrics",
+				},
+			},
+			expected: []string{
+				"http://127.0.0.1:8080/metrics",
+				"http://127.0.0.1:9090/metrics",
+			},
+		},
+		"empty entries are skipped": {
+			cfg: PrometheusTelemetryConfig{
+				ServiceMetricsURLs: []string{"", "http://127.0.0.1:8080/metrics", ""},
+			},
+			expected: []string{"http://127.0.0.1:8080/metrics"},
+		},
+		"a url containing a comma is not split": {
+			cfg:      PrometheusTelemetryConfig{ServiceMetricsURL: "http://127.0.0.1:8080/metrics?labels=a,b"},
+			expected: []string{"http://127.0.0.1:8080/metrics?labels=a,b"},
+		},
+	}
+
+	for name, c := range cases {
+		c := c
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, c.expected, c.cfg.serviceMetricsURLs())
+		})
+	}
+}
+
 func TestMetricsServerEnabled(t *testing.T) {
 	mergedMetricsBackendBindAddr := mergedMetricsBackendBindHost + defaultMergedMetricsBackendBindPort
 	cases := map[string]struct {
@@ -112,6 +179,40 @@ func TestMetricsServerEnabled(t *testing.T) {
 				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
 				makeFakeMetric("fake-service-metrics-url"),
+			},
+		},
+		"with multiple service metrics urls": {
+			telemetry: &TelemetryConfig{
+				UseCentralConfig: true,
+				Prometheus: PrometheusTelemetryConfig{
+					ServiceMetricsURLs: []string{
+						"http://127.0.0.1:8080/metrics",
+						"http://127.0.0.1:9090/admin/metrics",
+					},
+				},
+			},
+			bindAddr: mergedMetricsBackendBindAddr,
+			expMetrics: []string{
+				makeFakeMetric(cdpMetricsUrl),
+				makeFakeMetric(envoyMetricsUrl),
+				makeFakeMetric("http://127.0.0.1:8080/metrics"),
+				makeFakeMetric("http://127.0.0.1:9090/admin/metrics"),
+			},
+		},
+		"with both the deprecated single url and the list": {
+			telemetry: &TelemetryConfig{
+				UseCentralConfig: true,
+				Prometheus: PrometheusTelemetryConfig{
+					ServiceMetricsURL:  "fake-service-metrics-url",
+					ServiceMetricsURLs: []string{"http://127.0.0.1:9090/metrics"},
+				},
+			},
+			bindAddr: mergedMetricsBackendBindAddr,
+			expMetrics: []string{
+				makeFakeMetric(cdpMetricsUrl),
+				makeFakeMetric(envoyMetricsUrl),
+				makeFakeMetric("fake-service-metrics-url"),
+				makeFakeMetric("http://127.0.0.1:9090/metrics"),
 			},
 		},
 		"custom scrape path": {

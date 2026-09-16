@@ -22,6 +22,7 @@ type DataplaneConfig struct {
 	LoginBearerToken              string
 	DNSBindPort                   string
 	ServiceMetricsURL             string
+	ServiceMetricsURLs            []string
 	ShutdownGracePeriodSeconds    string
 	ShutdownDrainListenersEnabled bool
 	DumpEnvoyConfigOnExitEnabled  bool
@@ -44,6 +45,12 @@ func (cfg DataplaneConfig) ToArgs() []string {
 		"-telemetry-use-central-config",
 		"-telemetry-prom-scrape-path", "/metrics",
 		"-telemetry-prom-service-metrics-url", cfg.ServiceMetricsURL,
+	}
+
+	// -telemetry-prom-service-metrics-url may be repeated to scrape metrics
+	// from more than one port.
+	for _, u := range cfg.ServiceMetricsURLs {
+		args = append(args, "-telemetry-prom-service-metrics-url", u)
 	}
 
 	if cfg.ShutdownGracePeriodSeconds != "" {

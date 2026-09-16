@@ -1,0 +1,3 @@
+```release-note:feature
+telemetry: `-telemetry-prom-service-metrics-url` may now be passed multiple times, allowing metrics from more than one service port to be scraped and merged. The `DP_TELEMETRY_PROM_SERVICE_METRICS_URL` environment variable continues to work and may be supplemented with `DP_TELEMETRY_PROM_SERVICE_METRICS_URL{1,9}`.
+```

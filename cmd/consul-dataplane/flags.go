@@ -55,6 +55,19 @@ func MapVar(fs *flag.FlagSet, v flag.Value, name, env, usage string) {
 	}
 }
 
+// StringSliceVar supports repeated flags and the environment variables VAR and
+// VAR{1,9}. Values are appended in that order.
+func StringSliceVar(fs *flag.FlagSet, v flag.Value, name, env, usage string) {
+	usage = includeEnvUsage(fmt.Sprintf("%s and %s{1,9}", env, env), usage)
+	fs.Var(v, name, usage)
+	for _, ev := range orderedMultiValueEnv(env) {
+		err := v.Set(ev.value)
+		if err != nil {
+			log.Fatalf("error in environment variable %s: %s", ev.name, err)
+		}
+	}
+}
+
 func includeEnvUsage(env, usage string) string {
 	return fmt.Sprintf("%s Environment variable: %s.", usage, env)
 }

@@ -186,8 +186,10 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 				return err
 			}
 			m.urls = []urlFn{staticUrlFn(cdpMetricsUrl), envoyUrlFn}
-			if m.cfg != nil && m.cfg.Prometheus.ServiceMetricsURL != "" {
-				m.urls = append(m.urls, staticUrlFn(m.cfg.Prometheus.ServiceMetricsURL))
+			if m.cfg != nil {
+				for _, serviceMetricsURL := range m.cfg.Prometheus.serviceMetricsURLs() {
+					m.urls = append(m.urls, staticUrlFn(serviceMetricsURL))
+				}
 			}
 
 			// 3. Determine what the merged metrics bind port is. It can be set as a flag.

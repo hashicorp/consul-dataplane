@@ -120,13 +120,14 @@ type TelemetryFlags struct {
 }
 
 type PrometheusTelemetryFlags struct {
-	RetentionTime     *Duration `json:"retentionTime,omitempty"`
-	CACertsPath       *string   `json:"caCertsPath,omitempty"`
-	KeyFile           *string   `json:"keyFile,omitempty"`
-	CertFile          *string   `json:"certFile,omitempty"`
-	ServiceMetricsURL *string   `json:"serviceMetricsURL,omitempty"`
-	ScrapePath        *string   `json:"scrapePath,omitempty"`
-	MergePort         *int      `json:"mergePort,omitempty"`
+	RetentionTime      *Duration            `json:"retentionTime,omitempty"`
+	CACertsPath        *string              `json:"caCertsPath,omitempty"`
+	KeyFile            *string              `json:"keyFile,omitempty"`
+	CertFile           *string              `json:"certFile,omitempty"`
+	ServiceMetricsURL  *string              `json:"serviceMetricsURL,omitempty"`
+	ServiceMetricsURLs FlagStringSliceValue `json:"serviceMetricsURLs,omitempty"`
+	ScrapePath         *string              `json:"scrapePath,omitempty"`
+	MergePort          *int                 `json:"mergePort,omitempty"`
 }
 
 type EnvoyFlags struct {
@@ -345,13 +346,14 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 		Telemetry: &consuldp.TelemetryConfig{
 			UseCentralConfig: boolVal(cfg.Telemetry.UseCentralConfig),
 			Prometheus: consuldp.PrometheusTelemetryConfig{
-				RetentionTime:     durationVal(cfg.Telemetry.Prometheus.RetentionTime),
-				CACertsPath:       stringVal(cfg.Telemetry.Prometheus.CACertsPath),
-				CertFile:          stringVal(cfg.Telemetry.Prometheus.CertFile),
-				KeyFile:           stringVal(cfg.Telemetry.Prometheus.KeyFile),
-				ServiceMetricsURL: stringVal(cfg.Telemetry.Prometheus.ServiceMetricsURL),
-				ScrapePath:        stringVal(cfg.Telemetry.Prometheus.ScrapePath),
-				MergePort:         intVal(cfg.Telemetry.Prometheus.MergePort),
+				RetentionTime:      durationVal(cfg.Telemetry.Prometheus.RetentionTime),
+				CACertsPath:        stringVal(cfg.Telemetry.Prometheus.CACertsPath),
+				CertFile:           stringVal(cfg.Telemetry.Prometheus.CertFile),
+				KeyFile:            stringVal(cfg.Telemetry.Prometheus.KeyFile),
+				ServiceMetricsURL:  stringVal(cfg.Telemetry.Prometheus.ServiceMetricsURL),
+				ServiceMetricsURLs: cfg.Telemetry.Prometheus.ServiceMetricsURLs,
+				ScrapePath:         stringVal(cfg.Telemetry.Prometheus.ScrapePath),
+				MergePort:          intVal(cfg.Telemetry.Prometheus.MergePort),
 			},
 		},
 		XDSServer: &consuldp.XDSServer{
