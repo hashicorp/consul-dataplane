@@ -108,19 +108,17 @@ func TestServiceMetricsURLs(t *testing.T) {
 				"http://127.0.0.1:9090/admin/metrics",
 			},
 		},
-		"the deprecated single url is scraped first": {
+		"the list supersedes the deprecated single url": {
 			cfg: PrometheusTelemetryConfig{
 				ServiceMetricsURL:  "http://127.0.0.1:7070/metrics",
 				ServiceMetricsURLs: []string{"http://127.0.0.1:8080/metrics"},
 			},
 			expected: []string{
-				"http://127.0.0.1:7070/metrics",
 				"http://127.0.0.1:8080/metrics",
 			},
 		},
 		"duplicates are removed": {
 			cfg: PrometheusTelemetryConfig{
-				ServiceMetricsURL: "http://127.0.0.1:8080/metrics",
 				ServiceMetricsURLs: []string{
 					"http://127.0.0.1:8080/metrics",
 					"http://127.0.0.1:9090/metrics",
@@ -131,6 +129,13 @@ func TestServiceMetricsURLs(t *testing.T) {
 				"http://127.0.0.1:8080/metrics",
 				"http://127.0.0.1:9090/metrics",
 			},
+		},
+		"a list of only empty entries falls back to nothing, not the deprecated url": {
+			cfg: PrometheusTelemetryConfig{
+				ServiceMetricsURL:  "http://127.0.0.1:7070/metrics",
+				ServiceMetricsURLs: []string{""},
+			},
+			expected: nil,
 		},
 		"empty entries are skipped": {
 			cfg: PrometheusTelemetryConfig{
@@ -199,7 +204,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 				makeFakeMetric("http://127.0.0.1:9090/admin/metrics"),
 			},
 		},
-		"with both the deprecated single url and the list": {
+		"the list supersedes the deprecated single url": {
 			telemetry: &TelemetryConfig{
 				UseCentralConfig: true,
 				Prometheus: PrometheusTelemetryConfig{
@@ -211,7 +216,6 @@ func TestMetricsServerEnabled(t *testing.T) {
 			expMetrics: []string{
 				makeFakeMetric(cdpMetricsUrl),
 				makeFakeMetric(envoyMetricsUrl),
-				makeFakeMetric("fake-service-metrics-url"),
 				makeFakeMetric("http://127.0.0.1:9090/metrics"),
 			},
 		},

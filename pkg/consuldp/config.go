@@ -269,12 +269,14 @@ type PrometheusTelemetryConfig struct {
 	// main Prometheus metrics.
 	//
 	// Deprecated: use ServiceMetricsURLs, which supports scraping more than one
-	// URL. When both are set, this URL is scraped first.
+	// URL. This field is ignored when ServiceMetricsURLs is non-empty.
 	ServiceMetricsURL string
 	// ServiceMetricsURLs is an optional list of URLs that must serve Prometheus
 	// metrics. The metrics at these URLs are scraped and merged into Consul
 	// Dataplane's main Prometheus metrics. This allows a service to expose
 	// metrics on more than one port.
+	//
+	// It supersedes the deprecated ServiceMetricsURL.
 	ServiceMetricsURLs []string
 	// ScrapePath is the URL path where Envoy serves Prometheus metrics.
 	ScrapePath string
@@ -282,15 +284,23 @@ type PrometheusTelemetryConfig struct {
 	MergePort int
 }
 
-// serviceMetricsURLs returns every service metrics URL to scrape, combining the
-// deprecated single ServiceMetricsURL field with the ServiceMetricsURLs list.
-// Empty entries are skipped and exact duplicates are removed, since scraping the
-// same URL twice would duplicate every metric in the merged output.
+// serviceMetricsURLs returns the service metrics URLs to scrape.
+//
+// ServiceMetricsURLs supersedes the deprecated single ServiceMetricsURL, so when
+// the list holds any URL the deprecated field is ignored rather than scraped in
+// addition to it. Empty entries are skipped and exact duplicates are removed,
+// since scraping the same URL twice would duplicate every metric in the merged
+// output.
 func (p PrometheusTelemetryConfig) serviceMetricsURLs() []string {
+	configured := p.ServiceMetricsURLs
+	if len(configured) == 0 {
+		configured = []string{p.ServiceMetricsURL}
+	}
+
 	var urls []string
 	seen := make(map[string]struct{})
 
-	for _, u := range append([]string{p.ServiceMetricsURL}, p.ServiceMetricsURLs...) {
+	for _, u := range configured {
 		if u == "" {
 			continue
 		}
