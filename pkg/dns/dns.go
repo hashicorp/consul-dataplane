@@ -369,7 +369,7 @@ const (
 func classifyDomain(name string) domainClass {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 	if strings.HasSuffix(name, ".consul") || name == "consul" {
-		if _, _, _, _, ok := parseVirtualTokens(name); ok {
+		if _, _, _, _, _, ok := parseVirtualTokens(name); ok {
 			return domainClassVirtual
 		}
 		return domainClassConsul
@@ -408,20 +408,20 @@ func classifyDomain(name string) domainClass {
 // <value>.<qualifier> pair causes ok=false so that names such as
 // "blue.virtual.service.consul" (where "service" is the Consul query-kind, not
 // a virtual qualifier) are not misclassified.
-func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
+func parseVirtualTokens(name string) (port, svc, ns, partition, dc string, ok bool) {
 	name = strings.ToLower(strings.TrimSuffix(name, "."))
 
 	// Find the service name: everything up to the first ".virtual." segment.
 	virtualIdx := strings.Index(name, ".virtual.")
 	if virtualIdx < 0 {
-		return "", "", "", "", false
+		return "", "", "", "", "", false
 	}
 	prefix := name[:virtualIdx]
 	// Strip the optional ".service" query-kind alias (e.g. "api.service.virtual…"
 	// or "http.api.service.virtual…" → strip ".service" suffix).
 	prefix = strings.TrimSuffix(prefix, ".service")
 	if prefix == "" {
-		return "", "", "", "", false
+		return "", "", "", "", "", false
 	}
 
 	// Consul supports an optional named-port prefix: "<port>.<svc>.virtual.consul".
@@ -431,14 +431,17 @@ func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 	if dotIdx := strings.Index(prefix, "."); dotIdx >= 0 {
 		if strings.Contains(prefix[dotIdx+1:], ".") {
 			// More than one dot in the prefix — not a recognised form.
-			return "", "", "", "", false
+			return "", "", "", "", "", false
 		}
-		// Strip the port label; keep only the base service name.
+		// Report the port label rather than discarding it. The caller needs it to
+		// tell a named-port query apart from a service-level one: a named port has
+		// its own virtual IP, which only the Consul server can resolve.
+		port = prefix[:dotIdx]
 		prefix = prefix[dotIdx+1:]
 	}
 	svc = prefix
 	if svc == "" {
-		return "", "", "", "", false
+		return "", "", "", "", "", false
 	}
 	// Remainder after "<svc>.virtual." — must be exactly "consul" (bare form)
 	// or one of the recognised <value>.<qualifier> pair sequences followed by
@@ -448,11 +451,11 @@ func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 	// The remainder must end with "consul" (the TLD).
 	if remainder == "consul" {
 		// Bare form: <svc>[.service].virtual.consul — no qualifiers.
-		return svc, "", "", "", true
+		return port, svc, "", "", "", true
 	}
 	const consulSuffix = ".consul"
 	if !strings.HasSuffix(remainder, consulSuffix) {
-		return "", "", "", "", false
+		return "", "", "", "", "", false
 	}
 	remainder = remainder[:len(remainder)-len(consulSuffix)]
 
@@ -462,7 +465,7 @@ func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 	parts := strings.Split(remainder, ".")
 	if len(parts)%2 != 0 {
 		// An odd number of labels cannot form complete <val>.<qualifier> pairs.
-		return "", "", "", "", false
+		return "", "", "", "", "", false
 	}
 	for i := 0; i < len(parts); i += 2 {
 		val, qualifier := parts[i], parts[i+1]
@@ -475,11 +478,11 @@ func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 			dc = val
 		default:
 			// Unrecognised qualifier — not a virtual domain.
-			return "", "", "", "", false
+			return "", "", "", "", "", false
 		}
 	}
 
-	return svc, ns, partition, dc, true
+	return port, svc, ns, partition, dc, true
 }
 
 // expandVirtualFQDN expands any of the 8 short-form virtual domain names into
@@ -490,7 +493,7 @@ func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 // Missing components are filled from the provided default namespace, partition
 // and datacenter.
 // func expandVirtualFQDN(name, defaultNS, defaultPartition, defaultDC string) string {
-// 	svc, ns, partition, dc, ok := parseVirtualTokens(name)
+// 	_, svc, ns, partition, dc, ok := parseVirtualTokens(name)
 // 	if !ok {
 // 		return strings.ToLower(strings.TrimSuffix(name, "."))
 // 	}
@@ -514,7 +517,7 @@ func parseVirtualTokens(name string) (svc, ns, partition, dc string, ok bool) {
 // This keeps the dataplane's expansion consistent with Envoy's inline answer in
 // cross-partition, cross-namespace, and cross-datacenter scenarios.
 func (d *DNSServer) expandVirtualName(name string) string {
-	svc, ns, partition, dc, ok := parseVirtualTokens(name)
+	_, svc, ns, partition, dc, ok := parseVirtualTokens(name)
 	if !ok {
 		return strings.ToLower(strings.TrimSuffix(name, "."))
 	}
@@ -738,6 +741,21 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 
 	case domainClassVirtual:
 		if d.datacenter == "" || d.virtualDNSInlineAddr == "" {
+			return d.queryConsul(raw, proto)
+		}
+
+		// A named-port query ("<port>.<svc>.virtual...") selects one of the
+		// service's per-port virtual IPs. Envoy's inline DNS table is keyed on the
+		// base service name, so it cannot answer these, and expandVirtualName
+		// deliberately drops the port label to match that keying. Forwarding such a
+		// query to Envoy therefore asks for the *service*, and a hit returns the
+		// service-level virtual IP -- which routes to the service's default port
+		// and hands the caller another port's response with a 200.
+		//
+		// Consul resolves the port label itself, so ask it directly with the
+		// original query rather than risking a confidently wrong inline answer.
+		if port, _, _, _, _, ok := parseVirtualTokens(originalName); ok && port != "" {
+			d.logger.Debug("named-port virtual dns query, querying consul directly", "domain", originalName, "port", port)
 			return d.queryConsul(raw, proto)
 		}
 
