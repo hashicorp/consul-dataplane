@@ -186,8 +186,10 @@ func (m *metricsConfig) startMetrics(ctx context.Context, bcfg *bootstrap.Bootst
 				return err
 			}
 			m.urls = []urlFn{staticUrlFn(cdpMetricsUrl), envoyUrlFn}
-			if m.cfg != nil && m.cfg.Prometheus.ServiceMetricsURL != "" {
-				m.urls = append(m.urls, staticUrlFn(m.cfg.Prometheus.ServiceMetricsURL))
+			if m.cfg != nil {
+				for _, serviceMetricsURL := range m.cfg.Prometheus.serviceMetricsURLs() {
+					m.urls = append(m.urls, staticUrlFn(serviceMetricsURL))
+				}
 			}
 
 			// 3. Determine what the merged metrics bind port is. It can be set as a flag.
@@ -287,15 +289,57 @@ func (m *metricsConfig) metricsServerExited() <-chan struct{} {
 // Consul Dataplane, Envoy and (optionally) the service/application. The Envoy
 // and service metrics are scraped synchronously during the handling of this
 // request.
+//
+// Each source is scraped independently: one unreachable source must not
+// suppress the others. Previously any failure aborted the loop, so a single
+// dead service-metrics port silently dropped every source configured after it,
+// making the merged output depend on the order the sources happen to be listed.
+// A failure is logged and skipped instead, and the request only fails outright
+// when nothing at all could be scraped.
 func (m *metricsConfig) mergedMetricsHandler(rw http.ResponseWriter, req *http.Request) {
+	// Track bytes written so a late failure cannot try to replace a partially
+	// written body with an error status. Once any source has been copied to the
+	// response the headers are already sent, and http.Error would append its
+	// message to the metrics body rather than setting the status.
+	counter := &countingResponseWriter{ResponseWriter: rw}
+
+	var (
+		scraped  int
+		firstURL string
+		firstErr error
+	)
 	for _, urlFn := range m.urls {
 		urlStr := urlFn(req)
 		m.logger.Debug("scraping url for merging", "url", urlStr)
-		if err := m.scrapeMetrics(rw, urlStr); err != nil {
-			m.scrapeError(rw, urlStr, err)
-			return
+		if err := m.scrapeMetrics(counter, urlStr); err != nil {
+			m.logger.Error("failed to scrape metrics", "url", urlStr, "error", err)
+			if firstErr == nil {
+				firstURL, firstErr = urlStr, err
+			}
+			continue
 		}
+		scraped++
 	}
+
+	// Only report an error when there is nothing to serve and the response body
+	// is still empty, so the status can still be set.
+	if scraped == 0 && firstErr != nil && counter.written == 0 {
+		m.scrapeError(rw, firstURL, firstErr)
+	}
+}
+
+// countingResponseWriter records how many bytes have been written to the
+// underlying ResponseWriter, so callers can tell whether the response body has
+// already been committed.
+type countingResponseWriter struct {
+	http.ResponseWriter
+	written int64
+}
+
+func (w *countingResponseWriter) Write(p []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(p)
+	w.written += int64(n)
+	return n, err
 }
 
 // scrapeMetrics fetches metrics from the given url and copies them to the response.

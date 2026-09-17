@@ -6,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"strings"
 
 	"dario.cat/mergo"
@@ -120,13 +121,14 @@ type TelemetryFlags struct {
 }
 
 type PrometheusTelemetryFlags struct {
-	RetentionTime     *Duration `json:"retentionTime,omitempty"`
-	CACertsPath       *string   `json:"caCertsPath,omitempty"`
-	KeyFile           *string   `json:"keyFile,omitempty"`
-	CertFile          *string   `json:"certFile,omitempty"`
-	ServiceMetricsURL *string   `json:"serviceMetricsURL,omitempty"`
-	ScrapePath        *string   `json:"scrapePath,omitempty"`
-	MergePort         *int      `json:"mergePort,omitempty"`
+	RetentionTime      *Duration            `json:"retentionTime,omitempty"`
+	CACertsPath        *string              `json:"caCertsPath,omitempty"`
+	KeyFile            *string              `json:"keyFile,omitempty"`
+	CertFile           *string              `json:"certFile,omitempty"`
+	ServiceMetricsURL  *string              `json:"serviceMetricsURL,omitempty"`
+	ServiceMetricsURLs FlagStringSliceValue `json:"serviceMetricsURLs,omitempty"`
+	ScrapePath         *string              `json:"scrapePath,omitempty"`
+	MergePort          *int                 `json:"mergePort,omitempty"`
 }
 
 type EnvoyFlags struct {
@@ -345,13 +347,14 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 		Telemetry: &consuldp.TelemetryConfig{
 			UseCentralConfig: boolVal(cfg.Telemetry.UseCentralConfig),
 			Prometheus: consuldp.PrometheusTelemetryConfig{
-				RetentionTime:     durationVal(cfg.Telemetry.Prometheus.RetentionTime),
-				CACertsPath:       stringVal(cfg.Telemetry.Prometheus.CACertsPath),
-				CertFile:          stringVal(cfg.Telemetry.Prometheus.CertFile),
-				KeyFile:           stringVal(cfg.Telemetry.Prometheus.KeyFile),
-				ServiceMetricsURL: stringVal(cfg.Telemetry.Prometheus.ServiceMetricsURL),
-				ScrapePath:        stringVal(cfg.Telemetry.Prometheus.ScrapePath),
-				MergePort:         intVal(cfg.Telemetry.Prometheus.MergePort),
+				RetentionTime:      durationVal(cfg.Telemetry.Prometheus.RetentionTime),
+				CACertsPath:        stringVal(cfg.Telemetry.Prometheus.CACertsPath),
+				CertFile:           stringVal(cfg.Telemetry.Prometheus.CertFile),
+				KeyFile:            stringVal(cfg.Telemetry.Prometheus.KeyFile),
+				ServiceMetricsURL:  deprecatedServiceMetricsURL(cfg.Telemetry.Prometheus),
+				ServiceMetricsURLs: cfg.Telemetry.Prometheus.ServiceMetricsURLs.Values(),
+				ScrapePath:         stringVal(cfg.Telemetry.Prometheus.ScrapePath),
+				MergePort:          intVal(cfg.Telemetry.Prometheus.MergePort),
 			},
 		},
 		XDSServer: &consuldp.XDSServer{
@@ -365,8 +368,47 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 	}, nil
 }
 
+// flagValueTransformers teaches mergo how to merge flag values that track
+// whether they were supplied.
+//
+// mergo's default behaviour only overrides a destination when the source is
+// non-empty, which would make an explicitly supplied but empty value a no-op.
+// For a value that records its own presence, being supplied is what decides
+// precedence, so a supplied source replaces the destination outright.
+type flagValueTransformers struct{}
+
+func (flagValueTransformers) Transformer(t reflect.Type) func(dst, src reflect.Value) error {
+	if t != reflect.TypeOf(FlagStringSliceValue{}) {
+		return nil
+	}
+
+	return func(dst, src reflect.Value) error {
+		if !dst.CanSet() {
+			return nil
+		}
+		if src.Interface().(FlagStringSliceValue).IsSet() {
+			dst.Set(src)
+		}
+		return nil
+	}
+}
+
+// deprecatedServiceMetricsURL returns the deprecated single service metrics
+// URL, or an empty string when the service metrics URL list was supplied.
+//
+// The list is populated by the -telemetry-prom-service-metrics-url flag and its
+// environment variables, which outrank a config file. Keeping both would scrape
+// the superseded URL in addition to the requested ones, so the list suppresses
+// it entirely.
+func deprecatedServiceMetricsURL(cfg PrometheusTelemetryFlags) string {
+	if cfg.ServiceMetricsURLs.IsSet() {
+		return ""
+	}
+	return stringVal(cfg.ServiceMetricsURL)
+}
+
 func mergeConfigs(c1, c2 DataplaneConfigFlags) (DataplaneConfigFlags, error) {
-	err := mergo.Merge(&c1, c2, mergo.WithOverride, mergo.WithoutDereference)
+	err := mergo.Merge(&c1, c2, mergo.WithOverride, mergo.WithoutDereference, mergo.WithTransformers(flagValueTransformers{}))
 	if err != nil {
 		return DataplaneConfigFlags{}, err
 	}

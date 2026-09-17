@@ -101,3 +101,37 @@ func multiValueEnv(baseName string) map[string]string {
 	}
 	return result
 }
+
+// Read multiple environment variables of the form VAR and VAR{1,9}, preserving
+// that order.
+//
+// For example, if these variables are set
+//
+//	VAR=a VAR1=b VAR2=c
+//
+// then calling orderedMultiValueEnv("VAR") returns the name/value pairs
+// [{VAR, a}, {VAR1, b}, {VAR2, c}].
+//
+// Unlike multiValueEnv this returns a slice, because the order in which the
+// values are applied is significant for list-valued flags.
+func orderedMultiValueEnv(baseName string) []envVar {
+	var result []envVar
+	for i := 0; i < 10; i++ {
+		name := baseName
+		if i > 0 {
+			name = fmt.Sprintf("%s%d", baseName, i)
+		}
+		val := os.Getenv(name)
+		if val == "" {
+			// Ignore empty vars.
+			continue
+		}
+		result = append(result, envVar{name: name, value: val})
+	}
+	return result
+}
+
+type envVar struct {
+	name  string
+	value string
+}

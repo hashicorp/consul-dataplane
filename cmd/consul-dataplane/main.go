@@ -93,7 +93,7 @@ func init() {
 	StringVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.CACertsPath, "telemetry-prom-ca-certs-path", "DP_TELEMETRY_PROM_CA_CERTS_PATH", "The path to a file or directory containing CA certificates used to verify the Prometheus server's certificate.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.KeyFile, "telemetry-prom-key-file", "DP_TELEMETRY_PROM_KEY_FILE", "The path to the client private key used to serve Prometheus metrics.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.CertFile, "telemetry-prom-cert-file", "DP_TELEMETRY_PROM_CERT_FILE", "The path to the client certificate used to serve Prometheus metrics.")
-	StringVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.ServiceMetricsURL, "telemetry-prom-service-metrics-url", "DP_TELEMETRY_PROM_SERVICE_METRICS_URL", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics.")
+	StringSliceVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.ServiceMetricsURLs, "telemetry-prom-service-metrics-url", "DP_TELEMETRY_PROM_SERVICE_METRICS_URL", "Prometheus metrics at this URL are scraped and included in Consul Dataplane's main Prometheus metrics. This flag may be passed multiple times to scrape and merge metrics from more than one port.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.ScrapePath, "telemetry-prom-scrape-path", "DP_TELEMETRY_PROM_SCRAPE_PATH", "The URL path where Envoy serves Prometheus metrics.")
 	IntVar(flags, &flagOpts.dataplaneConfig.Telemetry.Prometheus.MergePort, "telemetry-prom-merge-port", "DP_TELEMETRY_PROM_MERGE_PORT", "The port to serve merged Prometheus metrics.")
 
