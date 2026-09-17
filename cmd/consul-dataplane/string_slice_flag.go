@@ -42,12 +42,14 @@ func (s *FlagStringSliceValue) String() string {
 }
 
 func (s *FlagStringSliceValue) Set(value string) error {
-	// Record the occurrence even when the value is empty. Empty values are not
-	// collected, so passing only an empty value yields an explicit empty list
-	// rather than an error, matching the behaviour of the single string flag
-	// this replaced.
+	// Record the occurrence even when the value is empty. An empty value clears
+	// any previously accumulated values (e.g. from environment variables) so
+	// that -flag= is an explicit request to use no values and overrides a
+	// lower-precedence configuration. Non-empty values are appended, so
+	// subsequent -flag=x after -flag= accumulate as expected.
 	s.set = true
 	if value == "" {
+		s.values = nil
 		return nil
 	}
 	s.values = append(s.values, value)
@@ -68,6 +70,9 @@ func (s FlagStringSliceValue) IsSet() bool {
 func (s FlagStringSliceValue) MarshalJSON() ([]byte, error) {
 	if !s.set {
 		return []byte("null"), nil
+	}
+	if len(s.values) == 0 {
+		return []byte("[]"), nil
 	}
 	return json.Marshal(s.values)
 }

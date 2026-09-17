@@ -102,7 +102,7 @@ func TestServiceMetricsURLPrecedence(t *testing.T) {
 			cfg, err := opts.buildDataplaneConfig(nil)
 			require.NoError(t, err)
 
-			require.Equal(t, c.expURL, cfg.Telemetry.Prometheus.ServiceMetricsURL,
+			require.Equal(t, c.expURL, cfg.Telemetry.Prometheus.ServiceMetricsURL, //nolint:staticcheck
 				"deprecated single URL")
 			require.Equal(t, c.expURLs, cfg.Telemetry.Prometheus.ServiceMetricsURLs,
 				"service metrics URL list")

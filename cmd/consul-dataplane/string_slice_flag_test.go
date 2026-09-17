@@ -56,12 +56,21 @@ func TestFlagStringSliceValue(t *testing.T) {
 		require.True(t, v.IsSet(), "an explicit empty flag must override lower-precedence configuration")
 	})
 
-	t.Run("skips empty values but keeps the rest", func(t *testing.T) {
+	t.Run("an empty flag clears previously accumulated values", func(t *testing.T) {
+		var v FlagStringSliceValue
+		require.NoError(t, newFlagSet(&v).Parse([]string{
+			"-url=http://127.0.0.1:8080/metrics",
+			"-url=",
+		}))
+		require.Empty(t, v.Values())
+		require.True(t, v.IsSet(), "presence bit must still be set after clearing")
+	})
+
+	t.Run("values after an empty flag are accumulated normally", func(t *testing.T) {
 		var v FlagStringSliceValue
 		require.NoError(t, newFlagSet(&v).Parse([]string{
 			"-url=",
 			"-url=http://127.0.0.1:8080/metrics",
-			"-url=",
 		}))
 		require.Equal(t, []string{"http://127.0.0.1:8080/metrics"}, v.Values())
 		require.True(t, v.IsSet())
@@ -111,6 +120,20 @@ func TestFlagStringSliceValueJSON(t *testing.T) {
 		require.Equal(t, v.Values(), back.Values())
 		require.True(t, back.IsSet())
 	})
+
+	t.Run("supplied empty list round trips preserving presence bit", func(t *testing.T) {
+		// set=true, values=nil: marshals as [] not null so UnmarshalJSON
+		// sets the presence bit and a lower-precedence URL is not used.
+		v := NewFlagStringSliceValue()
+		data, err := json.Marshal(v)
+		require.NoError(t, err)
+		require.JSONEq(t, `[]`, string(data))
+
+		var back FlagStringSliceValue
+		require.NoError(t, json.Unmarshal(data, &back))
+		require.Empty(t, back.Values())
+		require.True(t, back.IsSet(), "presence bit must survive a JSON round-trip")
+	})
 }
 
 func TestStringSliceVarEnv(t *testing.T) {
@@ -151,5 +174,32 @@ func TestStringSliceVarEnv(t *testing.T) {
 			"http://127.0.0.1:8080/metrics",
 			"http://127.0.0.1:9090/metrics",
 		}, v.Values())
+	})
+
+	t.Run("an explicit empty flag clears env var values", func(t *testing.T) {
+		t.Setenv("DP_TEST_URL", "http://127.0.0.1:8080/metrics")
+
+		var v FlagStringSliceValue
+		fs := flag.NewFlagSet("", flag.ContinueOnError)
+		StringSliceVar(fs, &v, "url", "DP_TEST_URL", "")
+		require.NoError(t, fs.Parse([]string{"-url="}))
+
+		require.Empty(t, v.Values(), "explicit empty flag must clear env var values")
+		require.True(t, v.IsSet(), "presence bit must remain set")
+	})
+
+	t.Run("values after an explicit empty flag are accumulated despite env var", func(t *testing.T) {
+		t.Setenv("DP_TEST_URL", "http://127.0.0.1:8080/metrics")
+
+		var v FlagStringSliceValue
+		fs := flag.NewFlagSet("", flag.ContinueOnError)
+		StringSliceVar(fs, &v, "url", "DP_TEST_URL", "")
+		require.NoError(t, fs.Parse([]string{
+			"-url=",
+			"-url=http://127.0.0.1:9090/metrics",
+		}))
+
+		require.Equal(t, []string{"http://127.0.0.1:9090/metrics"}, v.Values())
+		require.True(t, v.IsSet())
 	})
 }

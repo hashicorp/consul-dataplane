@@ -45,7 +45,7 @@ func validConfig(mode ModeType) *Config {
 				CACertsPath:       "/tmp/my-certs/",
 				KeyFile:           "/tmp/my-key.pem",
 				CertFile:          "/tmp/my-cert.pem",
-				ServiceMetricsURL: "http://127.0.0.1:12345/metrics",
+				ServiceMetricsURL: "http://127.0.0.1:12345/metrics", //nolint:staticcheck
 			},
 		},
 		DNSServer: &DNSServerConfig{

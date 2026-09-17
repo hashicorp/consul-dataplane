@@ -95,7 +95,7 @@ func TestServiceMetricsURLs(t *testing.T) {
 			expected: nil,
 		},
 		"only the deprecated single url": {
-			cfg:      PrometheusTelemetryConfig{ServiceMetricsURL: "http://127.0.0.1:8080/metrics"},
+			cfg:      PrometheusTelemetryConfig{ServiceMetricsURL: "http://127.0.0.1:8080/metrics"}, //nolint:staticcheck
 			expected: []string{"http://127.0.0.1:8080/metrics"},
 		},
 		"only the list": {
@@ -110,7 +110,7 @@ func TestServiceMetricsURLs(t *testing.T) {
 		},
 		"the list supersedes the deprecated single url": {
 			cfg: PrometheusTelemetryConfig{
-				ServiceMetricsURL:  "http://127.0.0.1:7070/metrics",
+				ServiceMetricsURL:  "http://127.0.0.1:7070/metrics", //nolint:staticcheck
 				ServiceMetricsURLs: []string{"http://127.0.0.1:8080/metrics"},
 			},
 			expected: []string{
@@ -132,7 +132,7 @@ func TestServiceMetricsURLs(t *testing.T) {
 		},
 		"a list of only empty entries falls back to nothing, not the deprecated url": {
 			cfg: PrometheusTelemetryConfig{
-				ServiceMetricsURL:  "http://127.0.0.1:7070/metrics",
+				ServiceMetricsURL:  "http://127.0.0.1:7070/metrics", //nolint:staticcheck
 				ServiceMetricsURLs: []string{""},
 			},
 			expected: nil,
@@ -144,7 +144,7 @@ func TestServiceMetricsURLs(t *testing.T) {
 			expected: []string{"http://127.0.0.1:8080/metrics"},
 		},
 		"a url containing a comma is not split": {
-			cfg:      PrometheusTelemetryConfig{ServiceMetricsURL: "http://127.0.0.1:8080/metrics?labels=a,b"},
+			cfg:      PrometheusTelemetryConfig{ServiceMetricsURL: "http://127.0.0.1:8080/metrics?labels=a,b"}, //nolint:staticcheck
 			expected: []string{"http://127.0.0.1:8080/metrics?labels=a,b"},
 		},
 	}
@@ -176,7 +176,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 			telemetry: &TelemetryConfig{
 				UseCentralConfig: true,
 				Prometheus: PrometheusTelemetryConfig{
-					ServiceMetricsURL: "fake-service-metrics-url",
+					ServiceMetricsURL: "fake-service-metrics-url", //nolint:staticcheck
 				},
 			},
 			bindAddr: mergedMetricsBackendBindAddr,
@@ -208,7 +208,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 			telemetry: &TelemetryConfig{
 				UseCentralConfig: true,
 				Prometheus: PrometheusTelemetryConfig{
-					ServiceMetricsURL:  "fake-service-metrics-url",
+					ServiceMetricsURL:  "fake-service-metrics-url", //nolint:staticcheck
 					ServiceMetricsURLs: []string{"http://127.0.0.1:9090/metrics"},
 				},
 			},
@@ -223,7 +223,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 			telemetry: &TelemetryConfig{
 				UseCentralConfig: true,
 				Prometheus: PrometheusTelemetryConfig{
-					ServiceMetricsURL: "fake-service-metrics-url",
+					ServiceMetricsURL: "fake-service-metrics-url", //nolint:staticcheck
 					// ScrapePath does not affect Consul Dataplane's metrics server.
 					// It only affects where Envoy serves metrics.
 					ScrapePath: "/test/scrape/path",
@@ -241,7 +241,7 @@ func TestMetricsServerEnabled(t *testing.T) {
 				UseCentralConfig: true,
 				Prometheus: PrometheusTelemetryConfig{
 					MergePort:         1234,
-					ServiceMetricsURL: "fake-service-metrics-url",
+					ServiceMetricsURL: "fake-service-metrics-url", //nolint:staticcheck
 					// ScrapePath does not affect Consul Dataplane's metrics server.
 					// It only affects where Envoy serves metrics.
 					ScrapePath: "/test/scrape/path",
