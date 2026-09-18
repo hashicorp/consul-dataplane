@@ -23,15 +23,16 @@ type FlagOpts struct {
 }
 
 type DataplaneConfigFlags struct {
-	Mode      *string        `json:"mode,omitempty"`
-	Consul    ConsulFlags    `json:"consul,omitempty"`
-	Service   ServiceFlags   `json:"service,omitempty"`
-	Proxy     ProxyFlags     `json:"proxy,omitempty"`
-	Logging   LogFlags       `json:"logging,omitempty"`
-	XDSServer XDSServerFlags `json:"xdsServer,omitempty"`
-	DNSServer DNSServerFlags `json:"dnsServer,omitempty"`
-	Telemetry TelemetryFlags `json:"telemetry,omitempty"`
-	Envoy     EnvoyFlags     `json:"envoy,omitempty"`
+	Mode             *string               `json:"mode,omitempty"`
+	Consul           ConsulFlags           `json:"consul,omitempty"`
+	Service          ServiceFlags          `json:"service,omitempty"`
+	Proxy            ProxyFlags            `json:"proxy,omitempty"`
+	Logging          LogFlags              `json:"logging,omitempty"`
+	XDSServer        XDSServerFlags        `json:"xdsServer,omitempty"`
+	DNSServer        DNSServerFlags        `json:"dnsServer,omitempty"`
+	Telemetry        TelemetryFlags        `json:"telemetry,omitempty"`
+	Envoy            EnvoyFlags            `json:"envoy,omitempty"`
+	CredentialBroker CredentialBrokerFlags `json:"credentialBroker,omitempty"`
 }
 
 type ConsulFlags struct {
@@ -102,6 +103,11 @@ type ProxyFlags struct {
 type XDSServerFlags struct {
 	BindAddr *string `json:"bindAddress,omitempty"`
 	BindPort *int    `json:"bindPort,omitempty"`
+}
+
+type CredentialBrokerFlags struct {
+	BindAddr        *string  `json:"bindAddress,omitempty"`
+	RefreshFraction *float64 `json:"refreshFraction,omitempty"`
 }
 
 type DNSServerFlags struct {
@@ -289,7 +295,7 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 		}
 	}
 
-	return &consuldp.Config{
+	dpCfg := &consuldp.Config{
 		Consul: &consuldp.ConsulConfig{
 			Addresses:           stringVal(cfg.Consul.Addresses),
 			GRPCPort:            intVal(cfg.Consul.GRPCPort),
@@ -365,7 +371,14 @@ func constructRuntimeConfig(cfg DataplaneConfigFlags, extraArgs []string) (*cons
 			BindAddr: stringVal(cfg.DNSServer.BindAddr),
 			Port:     intVal(cfg.DNSServer.BindPort),
 		},
-	}, nil
+	}
+	if bind := stringVal(cfg.CredentialBroker.BindAddr); bind != "" {
+		dpCfg.CredentialBroker = &consuldp.CredentialBrokerConfig{
+			BindAddr:        bind,
+			RefreshFraction: float64Val(cfg.CredentialBroker.RefreshFraction),
+		}
+	}
+	return dpCfg, nil
 }
 
 // flagValueTransformers teaches mergo how to merge flag values that track

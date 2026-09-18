@@ -386,4 +386,13 @@ type Config struct {
 	Telemetry *TelemetryConfig
 	Envoy     *EnvoyConfig
 	XDSServer *XDSServer
+	// CredentialBroker, when BindAddr is set, starts the Local Credential Broker
+	// on a pod-local UDS for consul-obo-outbound.
+	CredentialBroker *CredentialBrokerConfig
+}
+
+// CredentialBrokerConfig hosts the in-memory DEK broker.
+type CredentialBrokerConfig struct {
+	BindAddr        string
+	RefreshFraction float64
 }
