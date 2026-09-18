@@ -1044,7 +1044,7 @@ func TestParseVirtualTokens(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotSvc, gotNS, gotAP, gotDC, gotOK := parseVirtualTokens(tc.input)
+			_, gotSvc, gotNS, gotAP, gotDC, gotOK := parseVirtualTokens(tc.input)
 			if gotOK != tc.wantOK {
 				t.Fatalf("parseVirtualTokens(%q) ok = %v, want %v", tc.input, gotOK, tc.wantOK)
 			}
