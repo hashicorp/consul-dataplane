@@ -18,6 +18,13 @@ type UpstreamComponents struct {
 	Namespace  string
 	Partition  string
 	Datacenter string
+	// Peer is set for upstreams reached through a cluster peering connection
+	// (decoded from the "external" SNI scheme; see PeeredServiceSNI in
+	// agent/connect/sni.go). It is empty for local/partition-local upstreams.
+	// Peer and Datacenter are mutually exclusive: a peered upstream never has
+	// a Datacenter, since peering carries the *local* partition, not a remote
+	// datacenter.
+	Peer string
 }
 
 // UpstreamIndex is a thread-safe index of upstream identities keyed by their
@@ -102,9 +109,45 @@ func (idx *UpstreamIndex) Lookup(service, namespace, partition, datacenter strin
 	return match, found
 }
 
+// HasPeeredEntry reports whether the index contains any peered-upstream
+// identity for the given service name, optionally constrained by namespace
+// and/or partition (empty constraints match any value).
+//
+// Unlike Lookup, this does not require the match to be unambiguous: a local
+// copy and one or more peer-imported copies of the same service name are
+// expected to coexist in the index, and their mere coexistence is exactly the
+// condition callers use this for — to detect that Envoy's inline virtual-DNS
+// table cannot safely disambiguate between them (see the "static-server"
+// same-name-across-peers collision) and that the query should instead be
+// deferred to the real Consul server, which can.
+func (idx *UpstreamIndex) HasPeeredEntry(service, namespace, partition string) bool {
+	if idx == nil || service == "" {
+		return false
+	}
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+	for _, comp := range idx.entries {
+		if comp.Peer == "" || comp.Service != service {
+			continue
+		}
+		if namespace != "" && comp.Namespace != namespace {
+			continue
+		}
+		if partition != "" && comp.Partition != partition {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
 const (
 	sniMarkerInternal   = "internal"
 	sniMarkerInternalV1 = "internal-v1"
+	// sniMarkerExternal identifies a peered-upstream SNI, e.g.
+	// "<svc>.<ns>.<ap>.<peer>.external.<trustdomain>" (PeeredServiceSNI in
+	// agent/connect/sni.go).
+	sniMarkerExternal = "external"
 
 	// customizationHashLen is the exact length of the hex string that
 	// naming.CustomizeClusterName (agent/xds/naming/naming.go) prepends when a
@@ -176,6 +219,7 @@ func stripClusterNamePrefixes(sni string) string {
 //	non-default partition, with subset:      <subset>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
 //	non-default partition, multi-port:       <port>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
 //	non-default partition, multi-port+subset:<port>.<subset>.<svc>.<ns>.<ap>.<dc>.internal-v1.<trustdomain>
+//	peered upstream:                         <svc>.<ns>.<ap>.<peer>.external.<trustdomain>
 //
 // Any of the above may arrive prefixed with a customisation hash
 // (naming.CustomizeClusterName), a literal cluster-name token such as
@@ -187,8 +231,10 @@ func stripClusterNamePrefixes(sni string) string {
 // subset/port of a service shares that identity.
 //
 // This parsing is intentionally coupled to Consul's SNI label scheme (see
-// agent/connect/sni.go in the Consul server). SNIs that are external, peered,
-// gateway, or prepared-query are not internal upstreams and return ok=false.
+// agent/connect/sni.go in the Consul server). Peered upstreams are decoded
+// (with Peer set and Datacenter left empty) solely so callers can detect and
+// route around them; gateway and prepared-query SNIs are not upstreams and
+// still return ok=false.
 func ParseServiceSNI(sni string) (UpstreamComponents, bool) {
 	sni = strings.ToLower(strings.TrimSuffix(sni, "."))
 	if sni == "" {
@@ -205,10 +251,22 @@ func ParseServiceSNI(sni string) (UpstreamComponents, bool) {
 	//
 	// internal-v1:  labels[i-4]=svc  labels[i-3]=ns  labels[i-2]=ap  labels[i-1]=dc
 	// internal:     labels[i-3]=svc  labels[i-2]=ns                   labels[i-1]=dc
+	// external:     labels[i-4]=svc  labels[i-3]=ns  labels[i-2]=ap  labels[i-1]=peer
 	//
 	// i must be large enough that all four (or three) positions are in-bounds.
 	for i, label := range labels {
 		switch label {
+		case sniMarkerExternal:
+			// Need at least 4 labels before the marker: svc, ns, ap, peer.
+			if i < 4 {
+				continue
+			}
+			return UpstreamComponents{
+				Service:   labels[i-4],
+				Namespace: labels[i-3],
+				Partition: labels[i-2],
+				Peer:      labels[i-1],
+			}, true
 		case sniMarkerInternalV1:
 			// Need at least 4 labels before the marker: svc, ns, ap, dc.
 			if i < 4 {

@@ -634,6 +634,47 @@ func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
 		<-done
 	})
 
+	s.Run("peered upstream skips inline listener and queries consul directly", func() {
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+
+		originalName := "static-server.virtual.consul"
+		query := buildDNSQuery(s.T(), originalName)
+		consulResp := buildDNSAnswerResponse(s.T(), originalName, originalName, dnsmessage.RCodeSuccess)
+
+		// Bind a UDP listener to stand in for Envoy's inline listener, but never
+		// answer it: if the fix regresses and the query is forwarded here, the
+		// test will time out waiting on Consul instead of getting a fast local
+		// answer, making the regression obvious.
+		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+		s.Require().NoError(err)
+		defer udpConn.Close()
+
+		idx := NewUpstreamIndex()
+		idx.Update([]string{
+			// Local copy and a peer-imported copy of the same service name.
+			"static-server.default.dc1.internal." + "e5b1a4d3.consul",
+			"static-server.default.default.peer1.external." + "e5b1a4d3.consul",
+		}, nil)
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			namespace:            "default",
+			partition:            "default",
+			datacenter:           "dc1",
+			virtualDNSInlineAddr: udpConn.LocalAddr().String(),
+			upstreamIndex:        idx,
+		}
+
+		mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+			Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+			Once()
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(consulResp, resp)
+	})
+
 	s.Run("nxdomain from inline listener falls back to consul", func() {
 		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 

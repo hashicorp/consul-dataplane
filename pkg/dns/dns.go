@@ -759,6 +759,22 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 			return d.queryConsul(raw, proto)
 		}
 
+		// Envoy's inline DNS table (built by the control plane) keys peered
+		// upstreams the same way as local ones, so a local service and any
+		// peer-imported copy of a same-named service collide on one FQDN and
+		// have their virtual IPs merged into a single answer. The dataplane
+		// cannot safely disambiguate that locally, so if this query's
+		// service name is known (via the upstream index, populated from CDS
+		// SNIs) to have at least one peered identity, skip the inline
+		// listener entirely and defer to the real Consul server, which
+		// resolves peered virtual DNS correctly.
+		if _, svc, ns, partition, dc, ok := parseVirtualTokens(originalName); ok && dc == "" {
+			if d.upstreamIndex.HasPeeredEntry(svc, ns, partition) {
+				d.logger.Debug("virtual dns query has a peered identity, skipping inline listener", "domain", originalName)
+				return d.queryConsul(raw, proto)
+			}
+		}
+
 		// Expand the short form to the full FQDN.
 		expandedName := d.expandVirtualName(originalName)
 
