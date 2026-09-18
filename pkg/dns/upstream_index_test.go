@@ -179,9 +179,10 @@ func TestParseServiceSNI(t *testing.T) {
 			ok:   true,
 		},
 		{
-			name: "external not indexed",
+			name: "peered upstream indexed with peer set",
 			sni:  "web.default.default.peer1.external." + td,
-			ok:   false,
+			want: UpstreamComponents{Service: "web", Namespace: "default", Partition: "default", Peer: "peer1"},
+			ok:   true,
 		},
 		{
 			name: "empty",
