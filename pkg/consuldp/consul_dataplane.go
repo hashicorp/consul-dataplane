@@ -12,11 +12,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-metrics"
 	"google.golang.org/grpc"
 
 	"github.com/hashicorp/consul-dataplane/pkg/dns"
@@ -218,6 +218,11 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to get bootstrap params: %w", err)
 	}
 	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
+
+	if err = cdp.startCredentialBroker(ctx); err != nil {
+		cdp.logger.Error("failed to start credential broker", "error", err)
+		return err
+	}
 
 	// start up DNS server with envoy bootstrap params.
 	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition, bootstrapParams.Datacenter); err != nil {

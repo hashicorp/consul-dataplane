@@ -25,6 +25,19 @@ var (
 		return &n, nil
 	}
 
+	asFloat64 = func(s string) (*float64, error) {
+		if s == "" {
+			return nil, nil
+		}
+
+		n, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		return &n, nil
+	}
+
 	asBool = func(s string) (*bool, error) {
 		if s == "" {
 			return nil, nil

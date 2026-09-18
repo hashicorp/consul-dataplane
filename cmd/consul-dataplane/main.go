@@ -108,6 +108,8 @@ func init() {
 
 	StringVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindAddr, "xds-bind-addr", "DP_XDS_BIND_ADDR", "The address on which the Envoy xDS server is available.")
 	IntVar(flags, &flagOpts.dataplaneConfig.XDSServer.BindPort, "xds-bind-port", "DP_XDS_BIND_PORT", "The port on which the Envoy xDS server is available.")
+	StringVar(flags, &flagOpts.dataplaneConfig.CredentialBroker.BindAddr, "credential-broker-bind-addr", "DP_CREDENTIAL_BROKER_BIND_ADDR", "Unix socket for the local credential broker (e.g. unix:///consul/connect-inject/credential-broker.sock). Empty disables the broker.")
+	Float64Var(flags, &flagOpts.dataplaneConfig.CredentialBroker.RefreshFraction, "credential-broker-refresh-fraction", "DP_CREDENTIAL_BROKER_REFRESH_FRACTION", "Fraction of DEK lifetime remaining at which FetchKey refresh starts (default 0.2).")
 
 	BoolVar(flags, &flagOpts.dataplaneConfig.Consul.TLS.Disabled, "tls-disabled", "DP_TLS_DISABLED", "Communicate with Consul servers over a plaintext connection. Useful for testing, but not recommended for production.")
 	StringVar(flags, &flagOpts.dataplaneConfig.Consul.TLS.CACertsPath, "ca-certs", "DP_CA_CERTS", "The path to a file or directory containing CA certificates used to verify the server's certificate.")

@@ -1,0 +1,35 @@
+// Copyright IBM Corp. 2026
+// SPDX-License-Identifier: MPL-2.0
+
+syntax = "proto3";
+
+package hashicorp.consul.dataplane;
+
+option go_package = "github.com/hashicorp/consul-dataplane/internal/pbdataplane";
+
+// LocalCredentialBroker is the Sidecar-B UDS contract. Creating the socket is
+// the authorization; the caller cannot name another service.
+service LocalCredentialBroker {
+  rpc GetKey(GetKeyRequest) returns (GetKeyResponse);
+  rpc GetBrokerStatus(GetBrokerStatusRequest) returns (GetBrokerStatusResponse);
+}
+
+message GetKeyRequest {
+  string key_id = 1;
+}
+
+message GetKeyResponse {
+  string key_id = 1;
+  bytes key_material = 2;
+  string algorithm = 3;
+  int64 not_before_unix = 4;
+  int64 refresh_after_unix = 5;
+  int64 expires_at_unix = 6;
+}
+
+message GetBrokerStatusRequest {}
+
+message GetBrokerStatusResponse {
+  bool ready = 1;
+  int32 keys_cached = 2;
+}

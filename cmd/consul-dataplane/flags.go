@@ -31,6 +31,12 @@ func IntVar(fs *flag.FlagSet, p **int, name, env, usage string) {
 	*p = parseEnv(env, asInt)
 }
 
+func Float64Var(fs *flag.FlagSet, p **float64, name, env, usage string) {
+	usage = includeEnvUsage(env, usage)
+	fs.Var(newFloat64PtrValue(p), name, usage)
+	*p = parseEnv(env, asFloat64)
+}
+
 func BoolVar(fs *flag.FlagSet, p **bool, name, env, usage string) {
 	usage = includeEnvUsage(env, usage)
 	fs.Var(newBoolPtrValue(p), name, usage)
@@ -120,6 +126,38 @@ func (s *intPtrValue) Get() interface{} {
 func (s *intPtrValue) String() string {
 	if s.b {
 		return strconv.Itoa(**s.v)
+	}
+	return ""
+}
+
+type float64PtrValue struct {
+	v **float64
+	b bool
+}
+
+func newFloat64PtrValue(p **float64) *float64PtrValue {
+	return &float64PtrValue{p, false}
+}
+
+func (s *float64PtrValue) Set(val string) error {
+	n, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		return err
+	}
+	*s.v, s.b = &n, true
+	return nil
+}
+
+func (s *float64PtrValue) Get() interface{} {
+	if s.b {
+		return *s.v
+	}
+	return (*float64)(nil)
+}
+
+func (s *float64PtrValue) String() string {
+	if s.b {
+		return strconv.FormatFloat(**s.v, 'g', -1, 64)
 	}
 	return ""
 }
@@ -222,6 +260,13 @@ func intVal(v *int) int {
 func boolVal(v *bool) bool {
 	if v == nil {
 		return false
+	}
+	return *v
+}
+
+func float64Val(v *float64) float64 {
+	if v == nil {
+		return 0
 	}
 	return *v
 }
