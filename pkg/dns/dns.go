@@ -22,6 +22,13 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// processStart is a fixed reference point captured at process startup. It's
+// used together with time.Since to derive purely monotonic durations for
+// tracking listener backoff deadlines, since storing a wall-clock UnixNano
+// timestamp would drop Go's monotonic-clock reading and make the backoff
+// susceptible to wall-clock corrections/jumps.
+var processStart = time.Now()
+
 // ErrServerDisabled is returned when the server is disabled
 var ErrServerDisabled error = errors.New("server is disabled")
 
@@ -87,10 +94,14 @@ type DNSServer struct {
 	upstreamIndex        *UpstreamIndex
 
 	// inlineListenerUnavailableTill/egressListenerUnavailableTill store the
-	// UnixNano timestamp until which the corresponding listener should be
-	// treated as unavailable (skip forwarding, go straight to Consul). They're
-	// read/written via sync/atomic instead of a mutex since it's a single
-	// int64 value accessed concurrently from many query goroutines.
+	// deadline, expressed as nanoseconds elapsed since processStart (i.e.
+	// time.Since(processStart)), until which the corresponding listener
+	// should be treated as unavailable (skip forwarding, go straight to
+	// Consul). A monotonic elapsed-time value is used instead of a wall-clock
+	// UnixNano timestamp so that wall-clock corrections/jumps can't end the
+	// backoff early or extend it indefinitely. They're read/written via
+	// sync/atomic instead of a mutex since it's a single int64 value accessed
+	// concurrently from many query goroutines.
 	inlineListenerUnavailableTill atomic.Int64
 	egressListenerUnavailableTill atomic.Int64
 }
@@ -681,19 +692,37 @@ func (d *DNSServer) queryConsul(raw []byte, proto pbdns.Protocol) ([]byte, error
 }
 
 func (d *DNSServer) canTryInlineListener() bool {
-	return time.Now().UnixNano() > d.inlineListenerUnavailableTill.Load()
+	return time.Since(processStart) > time.Duration(d.inlineListenerUnavailableTill.Load())
 }
 
 func (d *DNSServer) canTryEgressListener() bool {
-	return time.Now().UnixNano() > d.egressListenerUnavailableTill.Load()
+	return time.Since(processStart) > time.Duration(d.egressListenerUnavailableTill.Load())
 }
 
 func (d *DNSServer) markInlineListenerUnavailable() {
-	d.inlineListenerUnavailableTill.Store(time.Now().Add(inlineListenerUnhealthyTTL).UnixNano())
+	advanceDeadline(&d.inlineListenerUnavailableTill, int64(time.Since(processStart)+inlineListenerUnhealthyTTL))
 }
 
 func (d *DNSServer) markEgressListenerUnavailable() {
-	d.egressListenerUnavailableTill.Store(time.Now().Add(listenerUnhealthyTTL).UnixNano())
+	advanceDeadline(&d.egressListenerUnavailableTill, int64(time.Since(processStart)+listenerUnhealthyTTL))
+}
+
+// advanceDeadline moves deadline forward to newVal, but only if newVal is
+// later than the currently stored value. This is done via a CAS loop rather
+// than a plain Store so that concurrent callers can't clobber a later
+// deadline with an earlier one (e.g. a goroutine that computed its deadline
+// and then got descheduled before storing it), which would otherwise shorten
+// the intended backoff.
+func advanceDeadline(deadline *atomic.Int64, newVal int64) {
+	for {
+		cur := deadline.Load()
+		if newVal <= cur {
+			return
+		}
+		if deadline.CompareAndSwap(cur, newVal) {
+			return
+		}
+	}
 }
 
 // triageAndResolve is the main entry point for the virtual DNS triage logic.
