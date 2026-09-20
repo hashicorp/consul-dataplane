@@ -5,6 +5,7 @@ package credentialbroker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/hashicorp/consul-dataplane/internal/pbdataplane"
 )
+
+var errKeyExpired = errors.New("key expired")
 
 // Fetcher loads a DEK from the Consul control plane.
 type Fetcher interface {
@@ -38,10 +41,20 @@ type Config struct {
 // OAuth config — only DEKs keyed by key_id.
 type Broker struct {
 	pbdataplane.UnimplementedLocalCredentialBrokerServer
-	cfg    Config
-	mu     sync.RWMutex
-	keys   map[string]*cachedKey
-	server *grpc.Server
+	cfg      Config
+	mu       sync.RWMutex
+	keys     map[string]*cachedKey
+	server   *grpc.Server
+	flightMu sync.Mutex
+	flights  map[string]*fetchFlight
+	exitedCh chan error
+}
+
+// fetchFlight coalesces concurrent FetchKey calls for the same key_id.
+type fetchFlight struct {
+	done chan struct{}
+	resp *pbdataplane.GetKeyResponse
+	err  error
 }
 
 type cachedKey struct {
@@ -59,9 +72,16 @@ func New(cfg Config) *Broker {
 		cfg.Logger = hclog.NewNullLogger()
 	}
 	return &Broker{
-		cfg:  cfg,
-		keys: make(map[string]*cachedKey),
+		cfg:     cfg,
+		keys:    make(map[string]*cachedKey),
+		flights: make(map[string]*fetchFlight),
 	}
+}
+
+// Exited returns a channel that receives when the broker gRPC server stops
+// unexpectedly. It is nil when the broker was not started (empty BindAddr).
+func (b *Broker) Exited() <-chan error {
+	return b.exitedCh
 }
 
 // Start binds the Unix socket (fail-closed) and serves GetKey in the background.
@@ -73,6 +93,9 @@ func (b *Broker) Start(ctx context.Context) error {
 	}
 	if path == "" {
 		return nil
+	}
+	if b.cfg.Fetcher == nil {
+		return fmt.Errorf("credential broker: Fetcher is required")
 	}
 	lis, err := b.listenUnix(path)
 	if err != nil {
@@ -91,12 +114,16 @@ func (b *Broker) Serve(ctx context.Context) error {
 	if path == "" {
 		return nil
 	}
+	if b.cfg.Fetcher == nil {
+		return fmt.Errorf("credential broker: Fetcher is required")
+	}
 	lis, err := b.listenUnix(path)
 	if err != nil {
 		return err
 	}
 	b.server = grpc.NewServer()
 	pbdataplane.RegisterLocalCredentialBrokerServer(b.server, b)
+	b.exitedCh = make(chan error, 1)
 	go func() {
 		<-ctx.Done()
 		b.server.GracefulStop()
@@ -105,6 +132,7 @@ func (b *Broker) Serve(ctx context.Context) error {
 	b.cfg.Logger.Info("credential broker listening", "path", path)
 	err = b.server.Serve(lis)
 	if err != nil && ctx.Err() == nil {
+		b.exitedCh <- err
 		return err
 	}
 	return nil
@@ -112,16 +140,16 @@ func (b *Broker) Serve(ctx context.Context) error {
 
 func (b *Broker) listenUnix(path string) (net.Listener, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("credential broker mkdir %q: %w", filepath.Dir(path), err)
 	}
 	_ = os.Remove(path)
 	lis, err := net.Listen("unix", path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("credential broker listen %q: %w", path, err)
 	}
 	if err := os.Chmod(path, 0o660); err != nil {
 		_ = lis.Close()
-		return nil, err
+		return nil, fmt.Errorf("credential broker chmod %q: %w", path, err)
 	}
 	return wrapPeerCreds(lis, b.cfg.Logger), nil
 }
@@ -129,15 +157,23 @@ func (b *Broker) listenUnix(path string) (net.Listener, error) {
 func (b *Broker) serveBackground(ctx context.Context, lis net.Listener, path string) {
 	b.server = grpc.NewServer()
 	pbdataplane.RegisterLocalCredentialBrokerServer(b.server, b)
+	b.exitedCh = make(chan error, 1)
 	go func() {
 		<-ctx.Done()
 		b.server.GracefulStop()
 		_ = os.Remove(path)
 	}()
 	go func() {
-		if err := b.server.Serve(lis); err != nil && ctx.Err() == nil {
-			b.cfg.Logger.Error("credential broker serve failed", "error", err)
+		err := b.server.Serve(lis)
+		if ctx.Err() != nil {
+			return
 		}
+		if err != nil {
+			b.cfg.Logger.Error("credential broker serve failed", "error", err)
+			b.exitedCh <- err
+			return
+		}
+		b.exitedCh <- errors.New("credential broker exited unexpectedly")
 	}()
 }
 
@@ -146,26 +182,82 @@ func (b *Broker) GetKey(ctx context.Context, req *pbdataplane.GetKeyRequest) (*p
 	if keyID == "" {
 		return nil, status.Error(codes.NotFound, "not found")
 	}
+	if b.cfg.Fetcher == nil {
+		return nil, status.Error(codes.Internal, "broker misconfigured")
+	}
+
 	now := time.Now()
 	if rec := b.get(keyID); rec != nil {
-		if !rec.expiresAt.IsZero() && now.After(rec.expiresAt) {
+		if isExpired(rec, now) {
 			b.drop(keyID)
 			return nil, status.Error(codes.FailedPrecondition, "key expired")
 		}
-		if rec.refreshAfter.IsZero() || now.Before(rec.refreshAfter) {
+		if !needsRefresh(rec, now) {
+			return toGetKey(rec.resp), nil
+		}
+	}
+
+	resp, err := b.fetchCoalesced(ctx, keyID)
+	if err != nil {
+		if errors.Is(err, errKeyExpired) {
+			if rec := b.get(keyID); rec != nil && !isExpired(rec, time.Now()) {
+				return toGetKey(rec.resp), nil
+			}
+			return nil, status.Error(codes.FailedPrecondition, "key expired")
+		}
+		if rec := b.get(keyID); rec != nil && !isExpired(rec, time.Now()) {
+			return toGetKey(rec.resp), nil
+		}
+		return nil, status.Error(codes.NotFound, "not found")
+	}
+	return resp, nil
+}
+
+func (b *Broker) fetchCoalesced(ctx context.Context, keyID string) (*pbdataplane.GetKeyResponse, error) {
+	b.flightMu.Lock()
+	if f, ok := b.flights[keyID]; ok {
+		b.flightMu.Unlock()
+		select {
+		case <-f.done:
+			return f.resp, f.err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	f := &fetchFlight{done: make(chan struct{})}
+	b.flights[keyID] = f
+	b.flightMu.Unlock()
+
+	resp, err := b.doFetch(ctx, keyID)
+	f.resp, f.err = resp, err
+	b.flightMu.Lock()
+	delete(b.flights, keyID)
+	b.flightMu.Unlock()
+	close(f.done)
+	return resp, err
+}
+
+func (b *Broker) doFetch(ctx context.Context, keyID string) (*pbdataplane.GetKeyResponse, error) {
+	now := time.Now()
+	if rec := b.get(keyID); rec != nil {
+		if isExpired(rec, now) {
+			b.drop(keyID)
+			return nil, errKeyExpired
+		}
+		if !needsRefresh(rec, now) {
 			return toGetKey(rec.resp), nil
 		}
 	}
 	fetched, err := b.cfg.Fetcher.FetchKey(ctx, keyID)
 	if err != nil {
-		if rec := b.get(keyID); rec != nil && (rec.expiresAt.IsZero() || now.Before(rec.expiresAt)) {
-			return toGetKey(rec.resp), nil
-		}
-		return nil, status.Error(codes.NotFound, "not found")
+		return nil, err
 	}
-	rec := cacheFromFetch(fetched, b.cfg.RefreshFraction)
-	if !rec.expiresAt.IsZero() && now.After(rec.expiresAt) {
-		return nil, status.Error(codes.FailedPrecondition, "key expired")
+	rec, err := cacheFromFetch(fetched, b.cfg.RefreshFraction)
+	if err != nil {
+		return nil, err
+	}
+	if isExpired(rec, now) {
+		return nil, errKeyExpired
 	}
 	b.put(keyID, rec)
 	return toGetKey(rec.resp), nil
@@ -189,6 +281,12 @@ func (b *Broker) get(keyID string) *cachedKey {
 func (b *Broker) put(keyID string, rec *cachedKey) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	now := time.Now()
+	for id, k := range b.keys {
+		if isExpired(k, now) {
+			delete(b.keys, id)
+		}
+	}
 	b.keys[keyID] = rec
 }
 
@@ -198,7 +296,18 @@ func (b *Broker) drop(keyID string) {
 	delete(b.keys, keyID)
 }
 
-func cacheFromFetch(resp *pbdataplane.FetchKeyResponse, fraction float64) *cachedKey {
+func isExpired(rec *cachedKey, now time.Time) bool {
+	return !rec.expiresAt.IsZero() && !now.Before(rec.expiresAt)
+}
+
+func needsRefresh(rec *cachedKey, now time.Time) bool {
+	return !rec.refreshAfter.IsZero() && !now.Before(rec.refreshAfter)
+}
+
+func cacheFromFetch(resp *pbdataplane.FetchKeyResponse, fraction float64) (*cachedKey, error) {
+	if resp == nil {
+		return nil, fmt.Errorf("nil FetchKeyResponse")
+	}
 	rec := &cachedKey{resp: resp}
 	if resp.ExpiresAtUnix > 0 {
 		rec.expiresAt = time.Unix(resp.ExpiresAtUnix, 0)
@@ -209,7 +318,7 @@ func cacheFromFetch(resp *pbdataplane.FetchKeyResponse, fraction float64) *cache
 		lifetime := time.Unix(resp.ExpiresAtUnix, 0).Sub(time.Unix(resp.NotBeforeUnix, 0))
 		rec.refreshAfter = rec.expiresAt.Add(-time.Duration(float64(lifetime) * fraction))
 	}
-	return rec
+	return rec, nil
 }
 
 func toGetKey(resp *pbdataplane.FetchKeyResponse) *pbdataplane.GetKeyResponse {

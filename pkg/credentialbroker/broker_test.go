@@ -111,12 +111,133 @@ func (f *countingFetcher) calls() int {
 }
 
 func TestCacheFromFetchDefaultRefreshFraction(t *testing.T) {
-	rec := cacheFromFetch(&pbdataplane.FetchKeyResponse{
+	rec, err := cacheFromFetch(&pbdataplane.FetchKeyResponse{
 		NotBeforeUnix: 1000,
 		ExpiresAtUnix: 2000,
 	}, 0.2)
+	require.NoError(t, err)
 	require.Equal(t, time.Unix(1800, 0), rec.refreshAfter)
 	require.Equal(t, time.Unix(2000, 0), rec.expiresAt)
+}
+
+func TestCacheFromFetchNilResponse(t *testing.T) {
+	_, err := cacheFromFetch(nil, 0.2)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "nil FetchKeyResponse")
+}
+
+func TestBrokerNilFetcherRejected(t *testing.T) {
+	b := New(Config{BindAddr: "unix:///tmp/unused-cb.sock"})
+	err := b.Start(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Fetcher is required")
+
+	_, err = b.GetKey(context.Background(), &pbdataplane.GetKeyRequest{KeyId: "k"})
+	require.Equal(t, codes.Internal, status.Code(err))
+}
+
+func TestBrokerNilFetchResponseNotFound(t *testing.T) {
+	b := New(Config{Fetcher: staticFetcher{resp: nil}})
+	_, err := b.GetKey(context.Background(), &pbdataplane.GetKeyRequest{KeyId: "k"})
+	require.Equal(t, codes.NotFound, status.Code(err))
+}
+
+func TestBrokerExpiredRefreshKeepsValidCache(t *testing.T) {
+	now := time.Now()
+	fetcher := &countingFetcher{resp: &pbdataplane.FetchKeyResponse{
+		KeyId:            "k43",
+		KeyMaterial:      []byte("0123456789abcdef0123456789abcdef"),
+		NotBeforeUnix:    now.Add(-time.Minute).Unix(),
+		RefreshAfterUnix: now.Add(-time.Second).Unix(),
+		ExpiresAtUnix:    now.Add(time.Hour).Unix(),
+	}}
+	b := New(Config{Fetcher: fetcher})
+	got, err := b.GetKey(context.Background(), &pbdataplane.GetKeyRequest{KeyId: "k43"})
+	require.NoError(t, err)
+	require.Equal(t, []byte("0123456789abcdef0123456789abcdef"), got.KeyMaterial)
+
+	fetcher.resp = &pbdataplane.FetchKeyResponse{
+		KeyId:         "k43",
+		KeyMaterial:   []byte("expired-key-material-should-not!!"),
+		ExpiresAtUnix: now.Add(-time.Second).Unix(),
+	}
+	got, err = b.GetKey(context.Background(), &pbdataplane.GetKeyRequest{KeyId: "k43"})
+	require.NoError(t, err)
+	require.Equal(t, []byte("0123456789abcdef0123456789abcdef"), got.KeyMaterial)
+	require.Equal(t, 2, fetcher.calls())
+}
+
+type blockingFetcher struct {
+	started chan struct{}
+	release chan struct{}
+	resp    *pbdataplane.FetchKeyResponse
+	n       int
+	mu      sync.Mutex
+}
+
+func (f *blockingFetcher) FetchKey(context.Context, string) (*pbdataplane.FetchKeyResponse, error) {
+	f.mu.Lock()
+	f.n++
+	n := f.n
+	f.mu.Unlock()
+	if n == 1 {
+		close(f.started)
+		<-f.release
+	}
+	return f.resp, nil
+}
+
+func (f *blockingFetcher) calls() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.n
+}
+
+func TestBrokerRefreshSingleflight(t *testing.T) {
+	now := time.Now()
+	fetcher := &blockingFetcher{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+		resp: &pbdataplane.FetchKeyResponse{
+			KeyId:            "k43",
+			KeyMaterial:      []byte("0123456789abcdef0123456789abcdef"),
+			RefreshAfterUnix: now.Add(-time.Second).Unix(),
+			ExpiresAtUnix:    now.Add(time.Hour).Unix(),
+		},
+	}
+	b := New(Config{Fetcher: fetcher})
+	// Seed cache already past refreshAfter so concurrent Gets coalesce.
+	b.put("k43", cacheFromFetchMust(t, &pbdataplane.FetchKeyResponse{
+		KeyId:            "k43",
+		KeyMaterial:      []byte("0123456789abcdef0123456789abcdef"),
+		RefreshAfterUnix: now.Add(-time.Second).Unix(),
+		ExpiresAtUnix:    now.Add(time.Hour).Unix(),
+	}, 0.2))
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := b.GetKey(context.Background(), &pbdataplane.GetKeyRequest{KeyId: "k43"})
+			require.NoError(t, err)
+		}()
+	}
+	select {
+	case <-fetcher.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for FetchKey")
+	}
+	close(fetcher.release)
+	wg.Wait()
+	require.Equal(t, 1, fetcher.calls())
+}
+
+func cacheFromFetchMust(t *testing.T, resp *pbdataplane.FetchKeyResponse, fraction float64) *cachedKey {
+	t.Helper()
+	rec, err := cacheFromFetch(resp, fraction)
+	require.NoError(t, err)
+	return rec
 }
 
 func TestBrokerRefreshFetchesAtTwentyPercentRemaining(t *testing.T) {
@@ -136,7 +257,7 @@ func TestBrokerRefreshFetchesAtTwentyPercentRemaining(t *testing.T) {
 	require.Equal(t, 1, fetcher.calls())
 
 	fetcher.resp.RefreshAfterUnix = now.Add(-time.Second).Unix()
-	b.put("k43", cacheFromFetch(fetcher.resp, 0.2))
+	b.put("k43", cacheFromFetchMust(t, fetcher.resp, 0.2))
 	_, err = b.GetKey(context.Background(), &pbdataplane.GetKeyRequest{KeyId: "k43"})
 	require.NoError(t, err)
 	require.Equal(t, 2, fetcher.calls())

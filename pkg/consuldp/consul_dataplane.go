@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/go-metrics"
 	"google.golang.org/grpc"
 
+	"github.com/hashicorp/consul-dataplane/pkg/credentialbroker"
 	"github.com/hashicorp/consul-dataplane/pkg/dns"
 	"github.com/hashicorp/consul-dataplane/pkg/envoy"
 	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
@@ -45,8 +46,9 @@ type ConsulDataplane struct {
 	dpServiceClient pbdataplane.DataplaneServiceClient
 	xdsServer       *xdsServer
 	aclToken        string
-	metricsConfig   *metricsConfig
-	lifecycleConfig *lifecycleConfig
+	metricsConfig     *metricsConfig
+	lifecycleConfig   *lifecycleConfig
+	credentialBroker  *credentialbroker.Broker
 	// upstreamIndex maps upstream service identities decoded from CDS SNIs on
 	// the proxied xDS stream. It is consulted during virtual-FQDN expansion so
 	// the dataplane fills missing tokens from the real upstream identity rather
@@ -292,9 +294,31 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 				}
 			}
 			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
+		case err := <-cdp.credentialBrokerExited():
+			cdp.logger.Error("credential broker exited unexpectedly", "error", err)
+			if qerr := proxy.Quit(); qerr != nil {
+				cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", qerr)
+				if kerr := proxy.Kill(); kerr != nil {
+					cdp.logger.Error("failed to kill proxy", "error", kerr)
+				}
+			}
+			if err != nil {
+				doneCh <- fmt.Errorf("credential broker exited unexpectedly: %w", err)
+			} else {
+				doneCh <- errors.New("credential broker exited unexpectedly")
+			}
 		}
 	}()
 	return <-doneCh
+}
+
+// credentialBrokerExited is nil when the broker was not started, so the select
+// case is never chosen (same pattern as optional subsystems).
+func (cdp *ConsulDataplane) credentialBrokerExited() <-chan error {
+	if cdp.credentialBroker == nil {
+		return nil
+	}
+	return cdp.credentialBroker.Exited()
 }
 
 func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,

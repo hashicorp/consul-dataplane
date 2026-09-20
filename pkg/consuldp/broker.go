@@ -31,6 +31,7 @@ func (cdp *ConsulDataplane) startCredentialBroker(ctx context.Context) error {
 	if err := b.Start(ctx); err != nil {
 		return fmt.Errorf("start credential broker: %w", err)
 	}
+	cdp.credentialBroker = b
 	return nil
 }
 

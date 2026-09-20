@@ -19,7 +19,7 @@ func peerUID(conn net.Conn) (uint32, error) {
 	}
 	raw, err := uc.SyscallConn()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("LOCAL_PEERCRED SyscallConn: %w", err)
 	}
 	var uid uint32
 	var ctrlErr error
@@ -31,7 +31,10 @@ func peerUID(conn net.Conn) (uint32, error) {
 		}
 		uid = cred.Uid
 	}); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("LOCAL_PEERCRED Control: %w", err)
 	}
-	return uid, ctrlErr
+	if ctrlErr != nil {
+		return 0, fmt.Errorf("LOCAL_PEERCRED: %w", ctrlErr)
+	}
+	return uid, nil
 }
