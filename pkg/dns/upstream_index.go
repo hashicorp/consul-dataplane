@@ -257,16 +257,13 @@ func ParseServiceSNI(sni string) (UpstreamComponents, bool) {
 	for i, label := range labels {
 		switch label {
 		case sniMarkerExternal:
-			// Need at least 4 labels before the marker: svc, ns, ap, peer.
-			if i < 4 {
-				continue
+			if i >= 4 {
+				return UpstreamComponents{Service: labels[i-4], Namespace: labels[i-3], Partition: labels[i-2], Peer: labels[i-1]}, true
 			}
-			return UpstreamComponents{
-				Service:   labels[i-4],
-				Namespace: labels[i-3],
-				Partition: labels[i-2],
-				Peer:      labels[i-1],
-			}, true
+			if i >= 3 {
+				return UpstreamComponents{Service: labels[i-3], Namespace: labels[i-2], Partition: "default", Peer: labels[i-1]}, true
+			}
+			continue
 		case sniMarkerInternalV1:
 			// Need at least 4 labels before the marker: svc, ns, ap, dc.
 			if i < 4 {
