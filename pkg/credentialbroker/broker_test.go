@@ -198,11 +198,13 @@ func TestBrokerRefreshSingleflight(t *testing.T) {
 	fetcher := &blockingFetcher{
 		started: make(chan struct{}),
 		release: make(chan struct{}),
+		// Refresh result must be fresh. A still-due refreshAfter lets callers
+		// that miss the in-flight call start another FetchKey.
 		resp: &pbdataplane.FetchKeyResponse{
 			KeyId:            "k43",
 			KeyMaterial:      []byte("0123456789abcdef0123456789abcdef"),
-			RefreshAfterUnix: now.Add(-time.Second).Unix(),
-			ExpiresAtUnix:    now.Add(time.Hour).Unix(),
+			RefreshAfterUnix: now.Add(time.Hour).Unix(),
+			ExpiresAtUnix:    now.Add(2 * time.Hour).Unix(),
 		},
 	}
 	b := New(Config{Fetcher: fetcher})
