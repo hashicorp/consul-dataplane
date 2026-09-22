@@ -105,10 +105,6 @@ func (idx *UpstreamIndex) Lookup(service, namespace, partition, datacenter strin
 const (
 	sniMarkerInternal   = "internal"
 	sniMarkerInternalV1 = "internal-v1"
-	// sniMarkerExternal identifies a peered-upstream SNI, e.g.
-	// "<svc>.<ns>.<ap>.<peer>.external.<trustdomain>" (PeeredServiceSNI in
-	// agent/connect/sni.go).
-	sniMarkerExternal = "external"
 
 	// customizationHashLen is the exact length of the hex string that
 	// naming.CustomizeClusterName (agent/xds/naming/naming.go) prepends when a
