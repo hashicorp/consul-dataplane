@@ -18,13 +18,6 @@ type UpstreamComponents struct {
 	Namespace  string
 	Partition  string
 	Datacenter string
-	// Peer is set for upstreams reached through a cluster peering connection
-	// (decoded from the "external" SNI scheme; see PeeredServiceSNI in
-	// agent/connect/sni.go). It is empty for local/partition-local upstreams.
-	// Peer and Datacenter are mutually exclusive: a peered upstream never has
-	// a Datacenter, since peering carries the *local* partition, not a remote
-	// datacenter.
-	Peer string
 }
 
 // UpstreamIndex is a thread-safe index of upstream identities keyed by their
@@ -107,38 +100,6 @@ func (idx *UpstreamIndex) Lookup(service, namespace, partition, datacenter strin
 		found = true
 	}
 	return match, found
-}
-
-// HasPeeredEntry reports whether the index contains any peered-upstream
-// identity for the given service name, optionally constrained by namespace
-// and/or partition (empty constraints match any value).
-//
-// Unlike Lookup, this does not require the match to be unambiguous: a local
-// copy and one or more peer-imported copies of the same service name are
-// expected to coexist in the index, and their mere coexistence is exactly the
-// condition callers use this for — to detect that Envoy's inline virtual-DNS
-// table cannot safely disambiguate between them (see the "static-server"
-// same-name-across-peers collision) and that the query should instead be
-// deferred to the real Consul server, which can.
-func (idx *UpstreamIndex) HasPeeredEntry(service, namespace, partition string) bool {
-	if idx == nil || service == "" {
-		return false
-	}
-	idx.mu.RLock()
-	defer idx.mu.RUnlock()
-	for _, comp := range idx.entries {
-		if comp.Peer == "" || comp.Service != service {
-			continue
-		}
-		if namespace != "" && comp.Namespace != namespace {
-			continue
-		}
-		if partition != "" && comp.Partition != partition {
-			continue
-		}
-		return true
-	}
-	return false
 }
 
 const (
@@ -256,14 +217,6 @@ func ParseServiceSNI(sni string) (UpstreamComponents, bool) {
 	// i must be large enough that all four (or three) positions are in-bounds.
 	for i, label := range labels {
 		switch label {
-		case sniMarkerExternal:
-			if i >= 4 {
-				return UpstreamComponents{Service: labels[i-4], Namespace: labels[i-3], Partition: labels[i-2], Peer: labels[i-1]}, true
-			}
-			if i >= 3 {
-				return UpstreamComponents{Service: labels[i-3], Namespace: labels[i-2], Partition: "default", Peer: labels[i-1]}, true
-			}
-			continue
 		case sniMarkerInternalV1:
 			// Need at least 4 labels before the marker: svc, ns, ap, dc.
 			if i < 4 {

@@ -655,6 +655,16 @@ func isEnvoyHit(raw []byte) bool {
 	return msg.RCode == dnsmessage.RCodeSuccess
 }
 
+// dnsAnswerCount returns the number of resource records in a raw DNS
+// response's answer section, or 0 if the message can't be parsed.
+func dnsAnswerCount(raw []byte) int {
+	var msg dnsmessage.Message
+	if err := msg.Unpack(raw); err != nil {
+		return 0
+	}
+	return len(msg.Answers)
+}
+
 // forwardUDP sends a raw DNS query to addr and returns the raw response.
 func forwardUDP(addr string, query []byte, timeout time.Duration) ([]byte, error) {
 	conn, err := net.DialTimeout("udp", addr, timeout)
@@ -794,12 +804,12 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 		// SNIs) to have at least one peered identity, skip the inline
 		// listener entirely and defer to the real Consul server, which
 		// resolves peered virtual DNS correctly.
-		if _, svc, ns, partition, dc, ok := parseVirtualTokens(originalName); ok && dc == "" {
-			if d.upstreamIndex.HasPeeredEntry(svc, ns, partition) {
-				d.logger.Debug("virtual dns query has a peered identity, skipping inline listener", "domain", originalName)
-				return d.queryConsul(raw, proto)
-			}
-		}
+		// if _, svc, ns, partition, dc, ok := parseVirtualTokens(originalName); ok && dc == "" {
+		// 	if d.upstreamIndex.HasPeeredEntry(svc, ns, partition) {
+		// 		d.logger.Debug("virtual dns query has a peered identity, skipping inline listener", "domain", originalName)
+		// 		return d.queryConsul(raw, proto)
+		// 	}
+		// }
 
 		// Expand the short form to the full FQDN.
 		expandedName := d.expandVirtualName(originalName)
@@ -821,21 +831,37 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 
 		envoyResp, envoyErr := forwardUDP(d.virtualDNSInlineAddr, rewrittenQuery, envoyDNSForwardTimeout)
 		if envoyErr == nil && isEnvoyHit(envoyResp) {
-			// Hit — rewrite the response name back to the original and return.
-			d.logger.Debug("virtual dns resolved via inline listener", "domain", originalName, "expanded_name", expandedName)
-			out, err := rewriteResponseName(envoyResp, expandedName, originalName)
-			if err != nil {
-				return envoyResp, nil
+			if n := dnsAnswerCount(envoyResp); n > 1 {
+				// Envoy's inline DNS table collapsed multiple distinct
+				// upstream identities that share this virtual FQDN (e.g. the
+				// same service name in different admin partitions, peers, or
+				// datacenters) into one merged answer. Envoy itself can't
+				// disambiguate which address belongs to the identity this
+				// query actually means, so trusting this answer risks
+				// silently routing to the wrong one. Defer to the real
+				// Consul server instead, which resolves the query using the
+				// caller's true identity context rather than a collapsed
+				// inline table. Note this deliberately falls through to the
+				// same Consul fallback used for an Envoy miss/error below.
+				d.logger.Debug("virtual dns inline listener returned an ambiguous multi-answer response, falling back to consul",
+					"domain", originalName, "expanded_name", expandedName, "answer_count", n)
+			} else {
+				// Hit — rewrite the response name back to the original and return.
+				d.logger.Debug("virtual dns resolved via inline listener", "domain", originalName, "expanded_name", expandedName)
+				out, err := rewriteResponseName(envoyResp, expandedName, originalName)
+				if err != nil {
+					return envoyResp, nil
+				}
+				return out, nil
 			}
-			return out, nil
 		}
 		if envoyErr != nil {
 			d.markInlineListenerUnavailable()
 		}
 
-		// NXDOMAIN from Envoy (or forwarding error) — fall back to Consul server.
-		// Use the original (unexpanded) query so the server applies its own
-		// expansion logic.
+		// NXDOMAIN or an ambiguous multi-answer response from Envoy (or a
+		// forwarding error) — fall back to Consul server. Use the original
+		// (unexpanded) query so the server applies its own expansion logic.
 		d.logger.Debug("virtual dns miss, falling back to consul server",
 			"domain", originalName, "envoy_error", envoyErr)
 		consulResp, consulErr := d.queryConsul(raw, proto)
