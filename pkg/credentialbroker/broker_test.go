@@ -490,6 +490,9 @@ func TestListenFailsWhenPathIsDirectory(t *testing.T) {
 	dir := t.TempDir()
 	sock := filepath.Join(dir, "not-a-socket")
 	require.NoError(t, os.Mkdir(sock, 0o755))
+	// listenUnix removes the path before binding. A file inside the directory
+	// keeps Remove from succeeding, so Listen fails on Linux and Darwin.
+	require.NoError(t, os.WriteFile(filepath.Join(sock, "keep"), []byte("x"), 0o644))
 	b := New(Config{BindAddr: sock, Fetcher: staticFetcher{}})
 	err := b.Start(context.Background())
 	require.Error(t, err)
