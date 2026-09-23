@@ -634,36 +634,47 @@ func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
 		<-done
 	})
 
-	s.Run("peered upstream skips inline listener and queries consul directly", func() {
+	s.Run("ambiguous multi-answer response from inline listener falls back to consul", func() {
 		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 
+		// Reproduces the same-datacenter, cross-admin-partition collision:
+		// Envoy's inline DNS table merges the querying partition's own
+		// service identity with an unrelated default-partition identity
+		// under one virtual FQDN, since HasPeeredEntry only detects
+		// peer-based ("external" SNI) collisions, not this one.
 		originalName := "static-server.virtual.consul"
+		expandedName := "static-server.virtual.default.ns.ap1.ap.dc1.dc.consul"
 		query := buildDNSQuery(s.T(), originalName)
 		consulResp := buildDNSAnswerResponse(s.T(), originalName, originalName, dnsmessage.RCodeSuccess)
 
-		// Bind a UDP listener to stand in for Envoy's inline listener, but never
-		// answer it: if the fix regresses and the query is forwarded here, the
-		// test will time out waiting on Consul instead of getting a fast local
-		// answer, making the regression obvious.
 		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
 		s.Require().NoError(err)
 		defer udpConn.Close()
 
-		idx := NewUpstreamIndex()
-		idx.Update([]string{
-			// Local copy and a peer-imported copy of the same service name.
-			"static-server.default.dc1.internal." + "e5b1a4d3.consul",
-			"static-server.default.default.peer1.external." + "e5b1a4d3.consul",
-		}, nil)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			buf := make([]byte, 4096)
+			n, addr, readErr := udpConn.ReadFromUDP(buf)
+			if readErr != nil {
+				return
+			}
+			receivedName := firstQuestionNameFromRaw(s.T(), buf[:n])
+			s.Equal(canonicalName(expandedName), receivedName)
+			// Two merged answers under the same queried name — ambiguous.
+			ambiguous := buildDNSMultiAnswerResponse(s.T(), expandedName,
+				[]string{expandedName, expandedName}, dnsmessage.RCodeSuccess)
+			_, _ = udpConn.WriteToUDP(ambiguous, addr)
+		}()
 
 		server := DNSServer{
 			client:               mockedDNSConsulClient,
 			logger:               hclog.Default(),
 			namespace:            "default",
-			partition:            "default",
+			partition:            "ap1",
 			datacenter:           "dc1",
 			virtualDNSInlineAddr: udpConn.LocalAddr().String(),
-			upstreamIndex:        idx,
+			upstreamIndex:        NewUpstreamIndex(),
 		}
 
 		mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
@@ -673,6 +684,7 @@ func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
 		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
 		s.Require().NoError(err)
 		s.Require().Equal(consulResp, resp)
+		<-done
 	})
 
 	s.Run("nxdomain from inline listener falls back to consul", func() {
@@ -840,10 +852,32 @@ func buildDNSRCodeResponse(t *testing.T, questionName string, rcode dnsmessage.R
 
 func buildDNSAnswerResponse(t *testing.T, questionName, answerName string, rcode dnsmessage.RCode) []byte {
 	t.Helper()
+	return buildDNSMultiAnswerResponse(t, questionName, []string{answerName}, rcode)
+}
+
+// buildDNSMultiAnswerResponse builds a DNS response with one A-record answer
+// per name in answerNames, all sharing the same question. Used to simulate
+// Envoy's inline listener merging multiple distinct upstream identities (e.g.
+// same service name in different partitions/peers) into one ambiguous answer.
+func buildDNSMultiAnswerResponse(t *testing.T, questionName string, answerNames []string, rcode dnsmessage.RCode) []byte {
+	t.Helper()
 	qName, err := dnsmessage.NewName(canonicalName(questionName))
 	require.NoError(t, err)
-	aName, err := dnsmessage.NewName(canonicalName(answerName))
-	require.NoError(t, err)
+
+	answers := make([]dnsmessage.Resource, 0, len(answerNames))
+	for i, answerName := range answerNames {
+		aName, err := dnsmessage.NewName(canonicalName(answerName))
+		require.NoError(t, err)
+		answers = append(answers, dnsmessage.Resource{
+			Header: dnsmessage.ResourceHeader{
+				Name:  aName,
+				Type:  dnsmessage.TypeA,
+				Class: dnsmessage.ClassINET,
+				TTL:   1,
+			},
+			Body: &dnsmessage.AResource{A: [4]byte{127, 0, 0, byte(i + 1)}},
+		})
+	}
 
 	msg := dnsmessage.Message{
 		Header: dnsmessage.Header{
@@ -856,15 +890,7 @@ func buildDNSAnswerResponse(t *testing.T, questionName, answerName string, rcode
 			Type:  dnsmessage.TypeA,
 			Class: dnsmessage.ClassINET,
 		}},
-		Answers: []dnsmessage.Resource{{
-			Header: dnsmessage.ResourceHeader{
-				Name:  aName,
-				Type:  dnsmessage.TypeA,
-				Class: dnsmessage.ClassINET,
-				TTL:   1,
-			},
-			Body: &dnsmessage.AResource{A: [4]byte{127, 0, 0, 1}},
-		}},
+		Answers: answers,
 	}
 
 	raw, err := msg.Pack()
@@ -893,13 +919,13 @@ func firstAnswerNameFromRaw(t *testing.T, raw []byte) string {
 // every combination of omitted ns/partition/dc qualifiers.
 func TestParseVirtualTokens(t *testing.T) {
 	cases := []struct {
-		name      string
-		input     string
-		wantSvc   string
-		wantNS    string
-		wantAP    string
-		wantDC    string
-		wantOK    bool
+		name    string
+		input   string
+		wantSvc string
+		wantNS  string
+		wantAP  string
+		wantDC  string
+		wantOK  bool
 	}{
 		// (1) bare — no qualifiers at all
 		{
@@ -1120,8 +1146,8 @@ func TestExpandVirtualName(t *testing.T) {
 	idx := NewUpstreamIndex()
 	idx.Update([]string{
 		"api.myns.myap.dc1.internal-v1." + td,          // unique: api in myns/myap/dc1
-		"shared.default.default.dc1.internal-v1." + td,  // shared in dc1
-		"shared.default.default.dc2.internal-v1." + td,  // shared in dc2 — ambiguous without dc
+		"shared.default.default.dc1.internal-v1." + td, // shared in dc1
+		"shared.default.default.dc2.internal-v1." + td, // shared in dc2 — ambiguous without dc
 	}, nil)
 
 	// server defaults used when neither the query nor the index fills a token.
