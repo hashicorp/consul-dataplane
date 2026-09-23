@@ -24,6 +24,9 @@ import (
 
 var errKeyExpired = errors.New("key expired")
 
+// chmodSocket is replaced in tests to exercise a chmod failure after listen.
+var chmodSocket = os.Chmod
+
 // Fetcher loads a DEK from the Consul control plane.
 type Fetcher interface {
 	FetchKey(ctx context.Context, keyID string) (*pbdataplane.FetchKeyResponse, error)
@@ -121,21 +124,13 @@ func (b *Broker) Serve(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	b.server = grpc.NewServer()
-	pbdataplane.RegisterLocalCredentialBrokerServer(b.server, b)
-	b.exitedCh = make(chan error, 1)
-	go func() {
-		<-ctx.Done()
-		b.server.GracefulStop()
-		_ = os.Remove(path)
-	}()
-	b.cfg.Logger.Info("credential broker listening", "path", path)
-	err = b.server.Serve(lis)
-	if err != nil && ctx.Err() == nil {
-		b.exitedCh <- err
+	b.serveBackground(ctx, lis, path)
+	select {
+	case err := <-b.exitedCh:
 		return err
+	case <-ctx.Done():
+		return nil
 	}
-	return nil
 }
 
 func (b *Broker) listenUnix(path string) (net.Listener, error) {
@@ -147,7 +142,7 @@ func (b *Broker) listenUnix(path string) (net.Listener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("credential broker listen %q: %w", path, err)
 	}
-	if err := os.Chmod(path, 0o660); err != nil {
+	if err := chmodSocket(path, 0o660); err != nil {
 		_ = lis.Close()
 		return nil, fmt.Errorf("credential broker chmod %q: %w", path, err)
 	}
@@ -256,7 +251,8 @@ func (b *Broker) doFetch(ctx context.Context, keyID string) (*pbdataplane.GetKey
 	if err != nil {
 		return nil, err
 	}
-	if isExpired(rec, now) {
+	// Re-check against the time of return. A key can expire while FetchKey is in flight.
+	if isExpired(rec, time.Now()) {
 		return nil, errKeyExpired
 	}
 	b.put(keyID, rec)

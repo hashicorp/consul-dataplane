@@ -40,15 +40,15 @@ type httpClient interface {
 
 // ConsulDataplane represents the consul-dataplane process
 type ConsulDataplane struct {
-	logger          hclog.Logger
-	cfg             *Config
-	serverConn      *grpc.ClientConn
-	dpServiceClient pbdataplane.DataplaneServiceClient
-	xdsServer       *xdsServer
-	aclToken        string
-	metricsConfig     *metricsConfig
-	lifecycleConfig   *lifecycleConfig
-	credentialBroker  *credentialbroker.Broker
+	logger           hclog.Logger
+	cfg              *Config
+	serverConn       *grpc.ClientConn
+	dpServiceClient  pbdataplane.DataplaneServiceClient
+	xdsServer        *xdsServer
+	aclToken         string
+	metricsConfig    *metricsConfig
+	lifecycleConfig  *lifecycleConfig
+	credentialBroker *credentialbroker.Broker
 	// upstreamIndex maps upstream service identities decoded from CDS SNIs on
 	// the proxied xDS stream. It is consulted during virtual-FQDN expansion so
 	// the dataplane fills missing tokens from the real upstream identity rather
@@ -295,18 +295,7 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 			}
 			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
 		case err := <-cdp.credentialBrokerExited():
-			cdp.logger.Error("credential broker exited unexpectedly", "error", err)
-			if qerr := proxy.Quit(); qerr != nil {
-				cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", qerr)
-				if kerr := proxy.Kill(); kerr != nil {
-					cdp.logger.Error("failed to kill proxy", "error", kerr)
-				}
-			}
-			if err != nil {
-				doneCh <- fmt.Errorf("credential broker exited unexpectedly: %w", err)
-			} else {
-				doneCh <- errors.New("credential broker exited unexpectedly")
-			}
+			doneCh <- cdp.handleCredentialBrokerExit(proxy, err)
 		}
 	}()
 	return <-doneCh
@@ -319,6 +308,25 @@ func (cdp *ConsulDataplane) credentialBrokerExited() <-chan error {
 		return nil
 	}
 	return cdp.credentialBroker.Exited()
+}
+
+type stoppableProxy interface {
+	Quit() error
+	Kill() error
+}
+
+func (cdp *ConsulDataplane) handleCredentialBrokerExit(proxy stoppableProxy, err error) error {
+	cdp.logger.Error("credential broker exited unexpectedly", "error", err)
+	if qerr := proxy.Quit(); qerr != nil {
+		cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", qerr)
+		if kerr := proxy.Kill(); kerr != nil {
+			cdp.logger.Error("failed to kill proxy", "error", kerr)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("credential broker exited unexpectedly: %w", err)
+	}
+	return errors.New("credential broker exited unexpectedly")
 }
 
 func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,

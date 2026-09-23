@@ -93,6 +93,51 @@ func TestPeerUIDRejectsNonUnix(t *testing.T) {
 	require.Contains(t, err.Error(), "not a unix connection")
 }
 
+type scriptedListener struct {
+	conns []net.Conn
+}
+
+func (l *scriptedListener) Accept() (net.Conn, error) {
+	if len(l.conns) == 0 {
+		return nil, net.ErrClosed
+	}
+	c := l.conns[0]
+	l.conns = l.conns[1:]
+	return c, nil
+}
+
+func (l *scriptedListener) Close() error { return nil }
+func (l *scriptedListener) Addr() net.Addr {
+	return &net.UnixAddr{Net: "unix", Name: "scripted"}
+}
+
+func TestPeerCredAcceptContinuesWhenPeerUIDFails(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ln.Close() })
+	accepted := make(chan struct{})
+	go func() {
+		c, err := ln.Accept()
+		if err == nil {
+			close(accepted)
+			defer c.Close()
+			_, _ = io.Copy(io.Discard, c)
+		}
+	}()
+	conn, err := net.Dial("tcp", ln.Addr().String())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	select {
+	case <-accepted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("tcp accept did not complete")
+	}
+
+	wrapped := wrapPeerCreds(&scriptedListener{conns: []net.Conn{conn}}, hclog.NewNullLogger())
+	_, err = wrapped.Accept()
+	require.ErrorIs(t, err, net.ErrClosed)
+}
+
 func TestWrapPeerCredsNilLogger(t *testing.T) {
 	path := unixTestSock(t)
 	lis, err := net.Listen("unix", path)
