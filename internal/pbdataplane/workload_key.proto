@@ -1,0 +1,33 @@
+// Copyright IBM Corp. 2026
+// SPDX-License-Identifier: MPL-2.0
+
+syntax = "proto3";
+
+package hashicorp.consul.dataplane;
+
+option go_package = "github.com/hashicorp/consul-dataplane/internal/pbdataplane";
+
+// FetchKeyRequest identifies a content-encryption key. Authorization is the
+// authenticated dataplane session (ACL token + proxy identity), not a
+// caller-supplied workload_id.
+message FetchKeyRequest {
+  string key_id = 1;
+  string proxy_id = 2;
+  string node_name = 3;
+  string node_id = 4;
+  string namespace = 5;
+  string partition = 6;
+}
+
+message FetchKeyResponse {
+  string key_id = 1;
+  bytes key_material = 2;
+  string algorithm = 3;
+  int64 not_before_unix = 4;
+  int64 refresh_after_unix = 5;
+  int64 expires_at_unix = 6;
+}
+
+service WorkloadKeyService {
+  rpc FetchKey(FetchKeyRequest) returns (FetchKeyResponse);
+}

@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -1024,4 +1025,70 @@ func boolReference(b bool) *bool {
 
 func intReference(i int) *int {
 	return &i
+}
+
+func TestCredentialBrokerBindAddr(t *testing.T) {
+	t.Run("empty disables broker", func(t *testing.T) {
+		cfg, err := constructRuntimeConfig(DataplaneConfigFlags{}, nil)
+		require.NoError(t, err)
+		require.Nil(t, cfg.CredentialBroker)
+	})
+	t.Run("bind addr enables broker", func(t *testing.T) {
+		addr := "unix:///consul/connect-inject/credential-broker.sock"
+		frac := 0.25
+		cfg, err := constructRuntimeConfig(DataplaneConfigFlags{
+			CredentialBroker: CredentialBrokerFlags{
+				BindAddr:        &addr,
+				RefreshFraction: &frac,
+			},
+		}, nil)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.CredentialBroker)
+		require.Equal(t, addr, cfg.CredentialBroker.BindAddr)
+		require.Equal(t, 0.25, cfg.CredentialBroker.RefreshFraction)
+	})
+}
+
+func TestFloat64PtrValue(t *testing.T) {
+	var p *float64
+	v := newFloat64PtrValue(&p)
+	require.Equal(t, "", v.String())
+	require.Nil(t, v.Get())
+	require.NoError(t, v.Set("0.25"))
+	require.NotNil(t, p)
+	require.Equal(t, 0.25, *p)
+	require.Equal(t, "0.25", v.String())
+	require.Equal(t, p, v.Get())
+	require.Error(t, v.Set("nope"))
+	require.Equal(t, 0.25, float64Val(p))
+	require.Equal(t, 0.0, float64Val(nil))
+}
+
+func TestAsFloat64(t *testing.T) {
+	got, err := asFloat64("")
+	require.NoError(t, err)
+	require.Nil(t, got)
+	got, err = asFloat64("0.2")
+	require.NoError(t, err)
+	require.Equal(t, 0.2, *got)
+	_, err = asFloat64("x")
+	require.Error(t, err)
+}
+
+func TestParseEnvFloat64(t *testing.T) {
+	t.Setenv("DP_CREDENTIAL_BROKER_REFRESH_FRACTION", "0.3")
+	got := parseEnv("DP_CREDENTIAL_BROKER_REFRESH_FRACTION", asFloat64)
+	require.NotNil(t, got)
+	require.Equal(t, 0.3, *got)
+}
+
+func TestFloat64VarFlagAndEnv(t *testing.T) {
+	t.Setenv("DP_TEST_BROKER_FRACTION", "0.15")
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	var p *float64
+	Float64Var(fs, &p, "credential-broker-refresh-fraction", "DP_TEST_BROKER_FRACTION", "usage")
+	require.NotNil(t, p)
+	require.Equal(t, 0.15, *p)
+	require.NoError(t, fs.Parse([]string{"-credential-broker-refresh-fraction", "0.4"}))
+	require.Equal(t, 0.4, *p)
 }

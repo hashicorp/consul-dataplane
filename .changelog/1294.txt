@@ -1,0 +1,3 @@
+```release-note:feature
+oauth: Add an optional local credential broker (`-credential-broker-bind-addr`, `-credential-broker-refresh-fraction`) that fetches DEKs via WorkloadKeyService.FetchKey and serves GetKey on a pod-local UDS so consul-obo-outbound is not an SDS client. Unix peer credentials (SO_PEERCRED / LOCAL_PEERCRED) must match the dataplane UID. The bind address must be a unix socket; listen failures abort dataplane startup.
+```

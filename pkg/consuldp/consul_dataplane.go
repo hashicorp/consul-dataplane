@@ -12,13 +12,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/consul-server-connection-manager/discovery"
 	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/hashicorp/consul/proto-public/pbdns"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-metrics"
 	"google.golang.org/grpc"
 
+	"github.com/hashicorp/consul-dataplane/pkg/credentialbroker"
 	"github.com/hashicorp/consul-dataplane/pkg/dns"
 	"github.com/hashicorp/consul-dataplane/pkg/envoy"
 	metricscache "github.com/hashicorp/consul-dataplane/pkg/metrics-cache"
@@ -39,14 +40,15 @@ type httpClient interface {
 
 // ConsulDataplane represents the consul-dataplane process
 type ConsulDataplane struct {
-	logger          hclog.Logger
-	cfg             *Config
-	serverConn      *grpc.ClientConn
-	dpServiceClient pbdataplane.DataplaneServiceClient
-	xdsServer       *xdsServer
-	aclToken        string
-	metricsConfig   *metricsConfig
-	lifecycleConfig *lifecycleConfig
+	logger           hclog.Logger
+	cfg              *Config
+	serverConn       *grpc.ClientConn
+	dpServiceClient  pbdataplane.DataplaneServiceClient
+	xdsServer        *xdsServer
+	aclToken         string
+	metricsConfig    *metricsConfig
+	lifecycleConfig  *lifecycleConfig
+	credentialBroker *credentialbroker.Broker
 	// upstreamIndex maps upstream service identities decoded from CDS SNIs on
 	// the proxied xDS stream. It is consulted during virtual-FQDN expansion so
 	// the dataplane fills missing tokens from the real upstream identity rather
@@ -219,6 +221,11 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 	}
 	cdp.logger.Debug("generated envoy bootstrap params", "params", bootstrapParams)
 
+	if err = cdp.startCredentialBroker(ctx); err != nil {
+		cdp.logger.Error("failed to start credential broker", "error", err)
+		return err
+	}
+
 	// start up DNS server with envoy bootstrap params.
 	if err = cdp.startDNSProxy(ctx, cdp.cfg.DNSServer, bootstrapParams.Namespace, bootstrapParams.Partition, bootstrapParams.Datacenter); err != nil {
 		cdp.logger.Error("failed to start the dns proxy", "error", err)
@@ -287,9 +294,39 @@ func (cdp *ConsulDataplane) Run(ctx context.Context) error {
 				}
 			}
 			doneCh <- errors.New("proxy lifecycle management server exited unexpectedly")
+		case err := <-cdp.credentialBrokerExited():
+			doneCh <- cdp.handleCredentialBrokerExit(proxy, err)
 		}
 	}()
 	return <-doneCh
+}
+
+// credentialBrokerExited is nil when the broker was not started, so the select
+// case is never chosen (same pattern as optional subsystems).
+func (cdp *ConsulDataplane) credentialBrokerExited() <-chan error {
+	if cdp.credentialBroker == nil {
+		return nil
+	}
+	return cdp.credentialBroker.Exited()
+}
+
+type stoppableProxy interface {
+	Quit() error
+	Kill() error
+}
+
+func (cdp *ConsulDataplane) handleCredentialBrokerExit(proxy stoppableProxy, err error) error {
+	cdp.logger.Error("credential broker exited unexpectedly", "error", err)
+	if qerr := proxy.Quit(); qerr != nil {
+		cdp.logger.Error("failed to stop proxy, will attempt to kill", "error", qerr)
+		if kerr := proxy.Kill(); kerr != nil {
+			cdp.logger.Error("failed to kill proxy", "error", kerr)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("credential broker exited unexpectedly: %w", err)
+	}
+	return errors.New("credential broker exited unexpectedly")
 }
 
 func (cdp *ConsulDataplane) startDNSProxy(ctx context.Context,
