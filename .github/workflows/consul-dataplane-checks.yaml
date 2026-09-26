@@ -6,6 +6,8 @@ on:
       - main
       - release/**
   pull_request:
+    # ready_for_review lets coverage run when a draft is marked ready.
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   conditional-skip:
@@ -66,6 +68,8 @@ jobs:
     needs:
       - get-go-version
       - unit-tests
+    # Skip coverage reporting/gating on draft PRs; it runs once marked ready.
+    if: ${{ !github.event.pull_request.draft }}
     uses: ./.github/workflows/reusable-coverage-report.yml
     permissions:
       contents: write
@@ -80,8 +84,9 @@ jobs:
     needs: [coverage-report]
     # Patch coverage measures the lines a PR adds/modifies, so it only applies
     # to pull requests. Pushes to main run coverage-report for the badge but
-    # have no "patch" to evaluate. Only gate when the report succeeded.
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.coverage-report.result == 'success' }}
+    # have no "patch" to evaluate. Draft PRs are skipped until marked ready.
+    # Only gate when the report succeeded.
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.coverage-report.result == 'success' && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     env:
       # Minimum required coverage of the lines a PR adds/modifies (patch
