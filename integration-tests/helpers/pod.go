@@ -43,10 +43,10 @@ func RunPod(t *testing.T, suite *Suite, podName string, mappedPorts []nat.Port) 
 	}
 }
 
-// ExposeInternalPorts creates iptables rules to forward traffic from
+// ExposeInternalPorts creates nftables rules to forward traffic from
 // public-facing ports to those bound only on the loopback interface. This
 // is useful for testing our DNS proxy which can **only** be bound to the
-// loopback interace.
+// loopback interface.
 func (p *Pod) ExposeInternalPorts(t *testing.T, ports []nat.Port) {
 	t.Helper()
 
@@ -59,12 +59,14 @@ func (p *Pod) ExposeInternalPorts(t *testing.T, ports []nat.Port) {
 
 	cmds := []string{
 		"sysctl -w net.ipv4.conf.all.route_localnet=1",
-		"apk add iptables",
+		"apk add nftables",
+		"nft add table ip nat",
+		"nft add chain ip nat prerouting { type nat hook prerouting priority -100 ; }",
 	}
 
 	for _, port := range ports {
 		cmds = append(cmds, fmt.Sprintf(
-			"iptables -t nat -A PREROUTING -p %s --dport %s -j DNAT --to-destination 127.0.0.1:%s",
+			"nft add rule ip nat prerouting %s dport %s dnat to 127.0.0.1:%s",
 			port.Proto(),
 			port.Port(),
 			port.Port(),
