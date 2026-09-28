@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.38.4
+ARG ENVOY_VERSION=1.39.1
 ARG ENVOY_FIPS_SUFFIX=fips1403
 FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
 
