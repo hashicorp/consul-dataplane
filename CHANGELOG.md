@@ -3,8 +3,7 @@
 SECURITY:
 
 * Pin `docker/login-action` to a commit hash to fix high-severity code-scanning alerts for missing pinned commit hashes in GitHub Actions workflows. [[GH-1272](https://github.com/hashicorp/consul-dataplane/pull/1272)]
-* Update the `go-discover` build stage to v1.5.0, removing the `github.com/Azure/go-autorest/autorest/adal` dependency (weak/legacy cryptographic algorithms) in favor of modern Azure SDK credential libraries.
-Upgrade `go-discover` build stage to use `google.golang.org/grpc` 1.84.0. [[GH-1306](https://github.com/hashicorp/consul-dataplane/pull/1306)]
+* Update the `go-discover` build stage to v1.5.0, removing the `github.com/Azure/go-autorest/autorest/adal` dependency (weak/legacy cryptographic algorithms) in favor of modern Azure SDK credential libraries. [[GH-1306](https://github.com/hashicorp/consul-dataplane/pull/1306)]
 
 FEATURES:
 
