@@ -54,10 +54,10 @@ FROM golang:${GOLANG_VERSION}-alpine AS go-discover
 RUN apk add --no-cache git
 RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
     cd /src/go-discover && \
-    git checkout ca13b81fe744b323d3730020a898a288ce502069 && \
+    git checkout 8f14004e9a7f17e73e6908db44c42f1a724ea7ca && \
     go get golang.org/x/net@v0.59.0 && \
     go get golang.org/x/crypto@v0.57.0 && \
-    go get google.golang.org/grpc@v1.83.2 && \
+    go get google.golang.org/grpc@v1.84.0 && \
     go get go.opentelemetry.io/otel@v1.44.0 && \
     go mod tidy && \
     CGO_ENABLED=0 go build -o /go/bin/discover ./cmd/discover
