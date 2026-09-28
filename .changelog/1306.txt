@@ -1,0 +1,4 @@
+```release-note:security
+Update the `go-discover` build stage to v1.5.0, removing the `github.com/Azure/go-autorest/autorest/adal` dependency (weak/legacy cryptographic algorithms) in favor of modern Azure SDK credential libraries.
+Upgrade `go-discover` build stage to use `google.golang.org/grpc` 1.84.0.
+```
