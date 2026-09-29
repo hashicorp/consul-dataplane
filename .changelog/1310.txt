@@ -1,0 +1,7 @@
+```release-note:security
+Update the `go-discover` build stage to v1.5.0, removing the `github.com/Azure/go-autorest/autorest/adal` dependency (weak/legacy cryptographic algorithms) in favor of modern Azure SDK credential libraries.
+```
+
+```release-note:improvement
+Update Envoy version to 1.39.1
+```
