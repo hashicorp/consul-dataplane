@@ -31,6 +31,12 @@ name: Scan Binaries and Containers
 
 on:
   workflow_dispatch:
+    inputs:
+      force-build:
+        description: "Always build all artifacts, even if the latest commit only touched skippable files (e.g. CHANGELOG.md)"
+        type: boolean
+        required: false
+        default: false
 
 # Only allow one run of this workflow per ref at a time.
 concurrency:
@@ -60,6 +66,10 @@ jobs:
       # (for pre-merge testing). Pass the flag through so build.yml's
       # conditional-skip guard doesn't reject the run.
       allow-unprotected-branches: true
+      # When true (the default), build every artifact for scanning. Otherwise
+      # conditional-skip skips the build (and therefore every scan) when the
+      # branch's latest commit only touched skippable files such as CHANGELOG.md.
+      force-build: ${{ inputs.force-build }}
     secrets: inherit
 
   # 2. Resolve the Go toolchain version the scanner uses for go_modules analysis.
