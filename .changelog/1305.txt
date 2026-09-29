@@ -1,3 +1,0 @@
-```release-note:improvement
-Update Envoy version to 1.39.1
-```
