@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.38.4
+ARG ENVOY_VERSION=1.39.1
 ARG ENVOY_FIPS_SUFFIX=fips1403
 FROM hashicorppreview/envoy-dev:${ENVOY_VERSION}-latest AS envoy-binary
 
@@ -54,7 +54,7 @@ FROM golang:${GOLANG_VERSION}-alpine AS go-discover
 RUN apk add --no-cache git
 RUN git clone https://github.com/hashicorp/go-discover.git /src/go-discover && \
     cd /src/go-discover && \
-    git checkout ca13b81fe744b323d3730020a898a288ce502069 && \
+    git checkout 8f14004e9a7f17e73e6908db44c42f1a724ea7ca && \
     go get golang.org/x/net@v0.59.0 && \
     go get golang.org/x/crypto@v0.57.0 && \
     go get google.golang.org/grpc@v1.83.2 && \
