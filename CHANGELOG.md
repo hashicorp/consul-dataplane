@@ -1,3 +1,22 @@
+## 2.1.0-rc1 (September 28, 2026)
+
+SECURITY:
+
+* Pin `docker/login-action` to a commit hash to fix high-severity code-scanning alerts for missing pinned commit hashes in GitHub Actions workflows. [[GH-1272](https://github.com/hashicorp/consul-dataplane/pull/1272)]
+* Update the `go-discover` build stage to v1.5.0, removing the `github.com/Azure/go-autorest/autorest/adal` dependency (weak/legacy cryptographic algorithms) in favor of modern Azure SDK credential libraries. [[GH-1306](https://github.com/hashicorp/consul-dataplane/pull/1306)]
+
+FEATURES:
+
+* dns-proxy: Triage DNS queries before forwarding so virtual Consul DNS queries can be resolved by Envoy when possible. Forward `.virtual.*.consul` queries to Envoy's inline DNS listener and external domains to Envoy's egress DNS listener, falling back to Consul when Envoy cannot answer or is unavailable. Adds listener health backoff handling to avoid repeatedly forwarding to unhealthy Envoy listeners. [[GH-1177](https://github.com/hashicorp/consul-dataplane/pull/1177)]
+* oauth: Add an optional local credential broker (`-credential-broker-bind-addr`, `-credential-broker-refresh-fraction`) that fetches DEKs via WorkloadKeyService.FetchKey and serves GetKey on a pod-local UDS so consul-obo-outbound is not an SDS client. Unix peer credentials (SO_PEERCRED / LOCAL_PEERCRED) must match the dataplane UID. The bind address must be a unix socket; listen failures abort dataplane startup. [[GH-1294](https://github.com/hashicorp/consul-dataplane/pull/1294)]
+* telemetry: `-telemetry-prom-service-metrics-url` may now be passed multiple times, allowing metrics from more than one service port to be scraped and merged. The `DP_TELEMETRY_PROM_SERVICE_METRICS_URL` environment variable continues to work and may be supplemented with `DP_TELEMETRY_PROM_SERVICE_METRICS_URL{1,9}`. [[GH-1295](https://github.com/hashicorp/consul-dataplane/pull/1295)]
+
+IMPROVEMENTS:
+
+* Update Envoy version to 1.39.1 [[GH-1305](https://github.com/hashicorp/consul-dataplane/pull/1305)]
+* Updated integration test with `nftables` from `iptables`. [[GH-1218](https://github.com/hashicorp/consul-dataplane/pull/1218)]
+* ci: Increased the stale PR automation windows to 90 days before marking a pull request stale and 60 days before closing it. [[GH-1197](https://github.com/hashicorp/consul-dataplane/pull/1197)]
+
 ## 2.0.4 (September 9, 2026)
 
 SECURITY:
