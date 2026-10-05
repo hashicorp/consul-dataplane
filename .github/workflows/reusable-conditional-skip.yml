@@ -8,6 +8,11 @@ on:
         type: boolean
         required: false
         default: false
+      force-build:
+        description: "Never skip build and tests, regardless of which files changed"
+        type: boolean
+        required: false
+        default: false
     outputs:
       skip-ci:
         description: "Whether we should skip build and test jobs"
@@ -66,7 +71,7 @@ jobs:
           for file in ${NON_SKIPPABLE_FILES}; do echo "  $file"; done
       - name: Skip tests and build if only skippable files changed
         id: maybe-skip-ci
-        if: ${{ steps.changed-files.outputs.only_changed == 'true' }}
+        if: ${{ !inputs.force-build && steps.changed-files.outputs.only_changed == 'true' }}
         run: |
           echo "Skipping tests and build because only skippable files changed"
           echo "skip-ci=true" >> $GITHUB_OUTPUT
