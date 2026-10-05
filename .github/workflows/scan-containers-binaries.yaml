@@ -21,6 +21,8 @@
 #     hashicorp/security-scanner repo with PRODSEC_SCANNER_READ_ONLY, on GitHub-hosted runners.
 #   * All scans load config from .release/security-scan.hcl, with local_daemon
 #     enabled in a temporary copy for locally built container images.
+#   * Binary scans pin the scanner revision and preserve successful empty runs
+#     in the runner's checkout so clean scans produce valid SARIF.
 #   * CRT-only jobs (IBM Twistlock, UST publishing, Datadog metrics) are omitted
 #     as they require internal infrastructure that does not apply here.
 #
@@ -398,7 +400,58 @@ jobs:
           repository: hashicorp/security-scanner
           token: ${{ secrets.PRODSEC_SCANNER_READ_ONLY }}
           path: security-scanner
-          ref: main
+          ref: b7b0398d6d31e3f65f5cbf98f3fda0640b3f1425
+
+      # The scanner drops clean binary runs, then rejects the resulting SARIF.
+      # Retain the completed runs without changing findings or error handling.
+      # Remove this compatibility fix once the scanner includes an upstream fix.
+      - name: Preserve empty binary scan runs
+        shell: bash
+        working-directory: security-scanner
+        run: |
+          set -euo pipefail
+          git apply --ignore-space-change <<'PATCH'
+          diff --git a/pkg/scanner/scan_binary.go b/pkg/scanner/scan_binary.go
+          --- a/pkg/scanner/scan_binary.go
+          +++ b/pkg/scanner/scan_binary.go
+          @@ -158,7 +158,7 @@
+                   if err != nil {
+                       return nil, nil, fmt.Errorf("failed to scan with regex: %w", err)
+                   }
+          -        if regexScan != nil && len(regexScan.Results) > 0 {
+          +        if regexScan != nil {
+                       log.Info("adding regex scan results")
+                       sarifOutput.Runs = append(sarifOutput.Runs, regexScan)
+                   }
+          @@ -171,7 +171,7 @@
+                   if err != nil {
+                       return nil, nil, fmt.Errorf("failed to scan secrets: %w", err)
+                   }
+          -        if secretScan != nil && len(secretScan.Results) > 0 {
+          +        if secretScan != nil {
+                       log.Info("adding secrets scan results")
+                       sarifOutput.Runs = append(sarifOutput.Runs, secretScan)
+                   }
+          @@ -184,7 +184,7 @@
+                   if err != nil {
+                       return nil, nil, fmt.Errorf("failed to scan go module: %w", err)
+                   }
+          -        if goModulesScan != nil && len(goModulesScan.Results) > 0 {
+          +        if goModulesScan != nil {
+                       log.Info("adding go module scan results")
+                       sarifOutput.Runs = append(sarifOutput.Runs, goModulesScan)
+                   }
+          @@ -202,7 +202,7 @@
+                   if err != nil {
+                       return nil, nil, fmt.Errorf("failed to scan go module: %w", err)
+                   }
+          -        if goStdlibScan != nil && len(goStdlibScan.Results) > 0 {
+          +        if goStdlibScan != nil {
+                       log.Info("adding go stdlib scan results")
+                       sarifOutput.Runs = append(sarifOutput.Runs, goStdlibScan)
+                   }
+          PATCH
+          gofmt -w pkg/scanner/scan_binary.go
 
       - name: Scan binary
         id: scan
