@@ -25,6 +25,11 @@ on:
         type: boolean
         required: false
         default: false
+      force-build:
+        description: "Always run build and tests, even if only skippable files changed"
+        type: boolean
+        required: false
+        default: false
 
 env:
   PKG_NAME: "consul-dataplane"
@@ -34,6 +39,7 @@ jobs:
     uses: ./.github/workflows/reusable-conditional-skip.yml
     with:
       allow-unprotected-branches: ${{ inputs.allow-unprotected-branches || false }}
+      force-build: ${{ inputs.force-build || false }}
 
   get-go-version:
     # Cascades down to test jobs
