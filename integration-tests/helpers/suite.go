@@ -14,9 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 )
@@ -136,9 +137,9 @@ func (s *Suite) RunContainer(t *testing.T, name string, captureLogs bool, req Co
 	hostMappedPorts := make(map[nat.Port]int, len(req.ExposedPorts))
 	for _, portString := range req.ExposedPorts {
 		port := nat.Port(portString)
-		hostPort, err := container.MappedPort(ctx, port)
+		hostPort, err := container.MappedPort(ctx, portString)
 		require.NoError(t, err)
-		hostMappedPorts[port] = hostPort.Int()
+		hostMappedPorts[port] = int(hostPort.Num())
 	}
 
 	return &Container{
@@ -196,7 +197,7 @@ func (s *Suite) Volume(t *testing.T) *Volume {
 
 		v, err := docker.VolumeCreate(
 			s.Context(t),
-			volume.CreateOptions{
+			client.VolumeCreateOptions{
 				Name: fmt.Sprintf("%s-volume", s.Name),
 			},
 		)
@@ -210,14 +211,14 @@ func (s *Suite) Volume(t *testing.T) *Volume {
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 
-				if err := docker.VolumeRemove(ctx, v.Name, true); err != nil {
+				if _, err := docker.VolumeRemove(ctx, v.Volume.Name, client.VolumeRemoveOptions{Force: true}); err != nil {
 					t.Logf("failed to remove volume: %v", err)
 				}
 				s.volume = nil
 			}
 		})
 
-		s.volume = &Volume{Volume: v, suite: s}
+		s.volume = &Volume{Volume: v.Volume, suite: s}
 	}
 
 	return s.volume
