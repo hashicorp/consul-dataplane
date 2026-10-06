@@ -12,7 +12,7 @@ linters:
     rules:
       - linters:
           - staticcheck
-        path: (cmd/consul-dataplane/config.go|pkg/consuldp/bootstrap(_test)?.go)
+        path: (pkg/consuldp/bootstrap.go)
         text: 'SA1019:'
       - linters:
           - staticcheck
