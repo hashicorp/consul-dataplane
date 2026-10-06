@@ -214,3 +214,4 @@ jobs:
         INPUT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         INPUT_DETAILS_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         INPUT_OWNER: "hashicorp"
+
