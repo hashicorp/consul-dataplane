@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	"github.com/hashicorp/consul/api"
+	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/mod/semver"
 
@@ -347,15 +347,15 @@ func TestIntegration(t *testing.T) {
 		fmt.Fprintf(os.Stderr, "error initializing docker client: %s\n", err)
 		os.Exit(1)
 	}
-	err = cli.ContainerKill(context.Background(), containerID, "SIGTERM")
+	_, err = cli.ContainerKill(context.Background(), containerID, client.ContainerKillOptions{Signal: "SIGTERM"})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error killing docker container %s: %s\n", containerID, err)
 		os.Exit(1)
 	}
 	// TODO: It may be preferrable to use ContainerStop to set a longer
 	// StopTimeout to avoid issues with cleanup, but importing the
-	// docker/docker/container package for StopOptions has dependency issues.
-	// https://pkg.go.dev/github.com/docker/docker/client#Client.ContainerStop
+	// container package for StopOptions has dependency issues.
+	// https://pkg.go.dev/github.com/moby/moby/client#Client.ContainerStop
 	// err = cli.ContainerStop(context.Background(), containerID, container.StopOptions{})
 
 	// Expect outgoing connections through sidecar are allowed until shutdown
