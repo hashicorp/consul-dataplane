@@ -13,6 +13,7 @@
 ARG GOLANG_VERSION
 ARG ENVOY_VERSION=1.39.1
 ARG ENVOY_FIPS_SUFFIX=fips1403
+ARG OPENSSL_MIN_VERSION=3.0.22-1~deb12u1
 FROM hashicorp/envoy:${ENVOY_VERSION} AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
@@ -47,6 +48,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends libcap2-bin && 
     setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Overlay the latest patched Bookworm OpenSSL libraries onto distroless images.
+FROM debian:bookworm-slim AS openssl-security
+
+ARG OPENSSL_MIN_VERSION
+
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 && \
+    installed_version="$(dpkg-query -W -f='${Version}' libssl3)" && \
+    dpkg --compare-versions "$installed_version" ge "$OPENSSL_MIN_VERSION" && \
+    mkdir -p /openssl-overlay/var/lib/dpkg/status.d && \
+    dpkg-query -L libssl3 | while IFS= read -r path; do \
+        if [ -f "$path" ] || [ -L "$path" ]; then \
+            cp -a --parents "$path" /openssl-overlay; \
+        fi; \
+    done && \
+    dpkg-query -s libssl3 > /openssl-overlay/var/lib/dpkg/status.d/libssl3 && \
+    cp /var/lib/dpkg/info/libssl3:*.md5sums /openssl-overlay/var/lib/dpkg/status.d/libssl3.md5sums && \
+    rm -rf /var/lib/apt/lists/*
+
 # go-discover builds the discover binary (which we don't currently publish
 # either).
 ARG GOLANG_VERSION
@@ -70,6 +89,8 @@ RUN apk add --no-cache dumb-init
 # release-default release image
 # -----------------------------------
 FROM gcr.io/distroless/base-debian12 AS release-default
+
+COPY --from=openssl-security /openssl-overlay/ /
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
@@ -112,6 +133,8 @@ ENTRYPOINT ["/usr/local/bin/dumb-init", "/usr/local/bin/consul-dataplane"]
 # FIPS release-default release image
 # -----------------------------------
 FROM gcr.io/distroless/base-debian12 AS release-fips-default
+
+COPY --from=openssl-security /openssl-overlay/ /
 
 ARG BIN_NAME=consul-dataplane
 ENV BIN_NAME=$BIN_NAME
