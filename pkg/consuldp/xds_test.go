@@ -15,7 +15,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -143,11 +142,4 @@ func TestSetupXDSServer(t *testing.T) {
 			}
 		})
 	}
-}
-
-// stubServerStream is a minimal grpc.ServerStream whose SendMsg behaviour is
-// controlled by the test.
-type stubServerStream struct {
-	grpc.ServerStream
-	sendErr error
 }
