@@ -1,6 +1,6 @@
 module github.com/hashicorp/consul-dataplane
 
-go 1.26.7
+go 1.26.9
 
 require (
 	dario.cat/mergo v1.0.0
@@ -14,7 +14,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/sys v0.48.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.11
