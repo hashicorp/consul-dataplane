@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-metrics"
 	"github.com/hashi-derek/grpc-proxy/proxy"
+	"github.com/hashicorp/go-metrics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -139,7 +139,7 @@ func (s *metricServerStream) SendMsg(m interface{}) error {
 		// before the send would let a failed write advance the index while
 		// Envoy retains its previous inline DNS table, potentially turning
 		// previously resolvable names into NXDOMAIN.
-		tapClusterFrame(s.upstreamIndex, m)
+		//tapClusterFrame(s.upstreamIndex, m)
 		metrics.SetGauge([]string{"envoy_connected"}, 1)
 		return nil
 	}

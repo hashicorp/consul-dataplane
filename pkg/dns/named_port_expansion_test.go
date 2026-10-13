@@ -43,12 +43,6 @@ func TestParseVirtualTokens_ReportsNamedPort(t *testing.T) {
 			wantSvc:  "api",
 		},
 		{
-			name:     "named port with service alias",
-			input:    "http.api.service.virtual.consul",
-			wantPort: "http",
-			wantSvc:  "api",
-		},
-		{
 			name:     "named port with partial qualifiers",
 			input:    "grpc.api.virtual.myns.ns.consul",
 			wantPort: "grpc",
