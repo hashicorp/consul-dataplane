@@ -57,10 +57,6 @@ type DNSServerParams struct {
 	VirtualDNSInlineAddr string
 	// VirtualDNSEgressAddr is the address of Envoy's egress DNS listener (127.0.0.1:8654).
 	VirtualDNSEgressAddr string
-	// UpstreamIndex, when set, is consulted during virtual-FQDN expansion to
-	// fill missing namespace/partition/datacenter tokens from the real upstream
-	// identity (decoded from CDS SNIs) instead of the source proxy defaults.
-	UpstreamIndex *UpstreamIndex
 }
 
 // DNSServerInterface is the interface for athe DNSServer
@@ -91,7 +87,6 @@ type DNSServer struct {
 	datacenter           string
 	virtualDNSInlineAddr string
 	virtualDNSEgressAddr string
-	upstreamIndex        *UpstreamIndex
 
 	// inlineListenerUnavailableTill/egressListenerUnavailableTill store the
 	// deadline, expressed as nanoseconds elapsed since processStart (i.e.
@@ -125,7 +120,6 @@ func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
 	s.virtualDNSEgressAddr = p.VirtualDNSEgressAddr
 	s.namespace = p.Namespace
 	s.token = p.Token
-	s.upstreamIndex = p.UpstreamIndex
 	return s, nil
 }
 

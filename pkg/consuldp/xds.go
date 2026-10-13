@@ -15,8 +15,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	"github.com/hashicorp/consul-dataplane/pkg/dns"
 )
 
 const (
@@ -120,15 +118,12 @@ func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServ
 
 func (cdp *ConsulDataplane) streamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		return handler(srv, &metricServerStream{ServerStream: ss, upstreamIndex: cdp.upstreamIndex})
+		return handler(srv, &metricServerStream{ServerStream: ss})
 	}
 }
 
 type metricServerStream struct {
 	grpc.ServerStream
-	// upstreamIndex, when set, receives CDS cluster SNIs decoded from the
-	// server->Envoy frames that pass through this stream.
-	upstreamIndex *dns.UpstreamIndex
 }
 
 func (s *metricServerStream) SendMsg(m interface{}) error {
