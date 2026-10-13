@@ -151,10 +151,3 @@ type stubServerStream struct {
 	grpc.ServerStream
 	sendErr error
 }
-
-func (s *stubServerStream) SendMsg(m interface{}) error  { return s.sendErr }
-func (s *stubServerStream) Context() context.Context     { return context.Background() }
-func (s *stubServerStream) SetHeader(metadata.MD) error  { return nil }
-func (s *stubServerStream) SendHeader(metadata.MD) error { return nil }
-func (s *stubServerStream) SetTrailer(metadata.MD)       {}
-func (s *stubServerStream) RecvMsg(m interface{}) error  { return nil }
