@@ -593,47 +593,6 @@ func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
 		<-done
 	})
 
-	s.Run("service alias inline hit rewrites response back to original name", func() {
-		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
-
-		originalName := "service-db.service.virtual.consul"
-		expandedName := "service-db.virtual.default.ns.partition-vms.ap.dc1.dc.consul"
-		query := buildDNSQuery(s.T(), originalName)
-
-		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
-		s.Require().NoError(err)
-		defer udpConn.Close()
-
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			buf := make([]byte, 4096)
-			n, addr, readErr := udpConn.ReadFromUDP(buf)
-			if readErr != nil {
-				return
-			}
-			receivedName := firstQuestionNameFromRaw(s.T(), buf[:n])
-			s.Equal(canonicalName(expandedName), receivedName)
-			response := buildDNSAnswerResponse(s.T(), expandedName, expandedName, dnsmessage.RCodeSuccess)
-			_, _ = udpConn.WriteToUDP(response, addr)
-		}()
-
-		server := DNSServer{
-			client:               mockedDNSConsulClient,
-			logger:               hclog.Default(),
-			namespace:            "default",
-			partition:            "partition-vms",
-			datacenter:           "dc1",
-			virtualDNSInlineAddr: udpConn.LocalAddr().String(),
-		}
-
-		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
-		s.Require().NoError(err)
-		s.Require().Equal(canonicalName(originalName), firstQuestionNameFromRaw(s.T(), resp))
-		s.Require().Equal(canonicalName(originalName), firstAnswerNameFromRaw(s.T(), resp))
-		<-done
-	})
-
 	s.Run("ambiguous multi-answer response from inline listener falls back to consul", func() {
 		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
 
@@ -934,13 +893,6 @@ func TestParseVirtualTokens(t *testing.T) {
 			wantSvc: "svc",
 			wantOK:  true,
 		},
-		// (2) .service. alias — stripped to base service name
-		{
-			name:    "service alias no tokens",
-			input:   "svc.service.virtual.consul",
-			wantSvc: "svc",
-			wantOK:  true,
-		},
 		// (3) namespace only
 		{
 			name:    "namespace only",
@@ -1045,20 +997,6 @@ func TestParseVirtualTokens(t *testing.T) {
 			wantNS:  "myns",
 			wantAP:  "myap",
 			wantDC:  "dc1",
-			wantOK:  true,
-		},
-		// .service alias combined with named-port prefix
-		{
-			name:    "named-port with service alias no qualifiers",
-			input:   "http.api.service.virtual.consul",
-			wantSvc: "api",
-			wantOK:  true,
-		},
-		{
-			name:    "named-port with service alias and namespace",
-			input:   "http.api.service.virtual.myns.ns.consul",
-			wantSvc: "api",
-			wantNS:  "myns",
 			wantOK:  true,
 		},
 		// trailing-dot variant with named port
@@ -1167,31 +1105,25 @@ func TestExpandVirtualName(t *testing.T) {
 		{
 			name:  "bare resolved from index",
 			input: "api.virtual.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
-		},
-		// (2) .service. alias — same expansion as bare
-		{
-			name:  "service alias resolved from index",
-			input: "api.service.virtual.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.default.ns.default.ap.dc1.dc.consul",
 		},
 		// (3) namespace only — index lookup constrained by ns
 		{
 			name:  "namespace only resolved from index",
 			input: "api.virtual.myns.ns.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.myns.ns.default.ap.dc1.dc.consul",
 		},
 		// (4) partition only
 		{
 			name:  "partition only resolved from index",
 			input: "api.virtual.myap.ap.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.default.ns.myap.ap.dc1.dc.consul",
 		},
 		// (5) datacenter only
 		{
 			name:  "datacenter only resolved from index",
 			input: "api.virtual.dc1.dc.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.default.ns.default.ap.dc1.dc.consul",
 		},
 		// (6) namespace + partition — index fills dc
 		{
@@ -1203,13 +1135,13 @@ func TestExpandVirtualName(t *testing.T) {
 		{
 			name:  "namespace and dc resolved from index",
 			input: "api.virtual.myns.ns.dc1.dc.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.myns.ns.default.ap.dc1.dc.consul",
 		},
 		// (8) partition + dc — index fills namespace
 		{
 			name:  "partition and dc resolved from index",
 			input: "api.virtual.myap.ap.dc1.dc.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.default.ns.myap.ap.dc1.dc.consul",
 		},
 		// index lookup is ambiguous (two DCs); server defaults fill the gaps
 		{
@@ -1242,16 +1174,11 @@ func TestExpandVirtualName(t *testing.T) {
 		{
 			name:  "named-port bare expands same as base service",
 			input: "http.api.virtual.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
+			want:  "api.virtual.default.ns.default.ap.dc1.dc.consul",
 		},
 		{
 			name:  "named-port with all qualifiers expands same as base service",
 			input: "http.api.virtual.myns.ns.myap.ap.dc1.dc.consul",
-			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
-		},
-		{
-			name:  "named-port with service alias expands same as base service",
-			input: "http.api.service.virtual.consul",
 			want:  "api.virtual.myns.ns.myap.ap.dc1.dc.consul",
 		},
 		// Named port on an ambiguous service still falls back to server defaults.
@@ -1296,13 +1223,13 @@ func TestExpandVirtualName(t *testing.T) {
 			want  string
 		}{
 			// port "http" stripped → base "multi" → index hit fills ns/ap/dc
-			{"http.multi.virtual.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
+			{"http.multi.virtual.consul", "multi.virtual.default.ns.default.ap.default-dc.dc.consul"},
 			// port "grpc" stripped → same base identity
-			{"grpc.multi.virtual.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
+			{"grpc.multi.virtual.consul", "multi.virtual.default.ns.default.ap.default-dc.dc.consul"},
 			// explicit qualifiers with named port
 			{"http.multi.virtual.myns.ns.myap.ap.dc1.dc.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
 			// base-service form still works alongside the named-port form
-			{"multi.virtual.consul", "multi.virtual.myns.ns.myap.ap.dc1.dc.consul"},
+			{"multi.virtual.consul", "multi.virtual.default.ns.default.ap.default-dc.dc.consul"},
 		}
 		for _, tc := range cases {
 			got := mpSrv.expandVirtualName(tc.input)
