@@ -740,7 +740,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 
 		// Forward to Envoy egress DNS listener (UDP only — c-ares plugin is UDP).
 		resp, err := forwardUDP(d.virtualDNSEgressAddr, raw, envoyDNSForwardTimeout)
-		if err != nil {
+		if err != nil || !isEnvoyHit(resp) {
 			d.markEgressListenerUnavailable()
 			d.logger.Debug("egress listener unavailable, falling back to consul", "error", err)
 			return d.queryConsul(raw, proto)
