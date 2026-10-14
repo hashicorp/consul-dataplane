@@ -1,3 +1,16 @@
+## 2.1.0-rc2 (October 14, 2026)
+
+SECURITY:
+
+* Upgrade `golang.org/x/net` to v0.60.0 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
+* Upgrade go version to 1.26.9 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
+* Update application and container dependencies, including patched Debian Bookworm OpenSSL libraries in the container image. [[GH-1314](https://github.com/hashicorp/consul-dataplane/pull/1314)]
+
+BUG FIXES:
+
+* dns-proxy: Fill unspecified namespace, partition and datacenter tokens of virtual FQDNs from the source proxy's own defaults, as the Consul server does, instead of from the upstream identities advertised through CDS. Remove the upstream index and the CDS cluster tap that supported it. [[GH-1328](https://github.com/hashicorp/consul-dataplane/pull/1328)]
+* dns-proxy: Do not strip the `.service` label from `<svc>.service.virtual.consul` queries, since the Consul server does not accept it; such names are now forwarded to Consul. Fall back to Consul when Envoy's DNS listener returns a non-success response such as NXDOMAIN, without backing off the listener. [[GH-1328](https://github.com/hashicorp/consul-dataplane/pull/1328)] [[GH-1333](https://github.com/hashicorp/consul-dataplane/pull/1333)]
+
 ## 2.1.0-rc1 (September 28, 2026)
 
 SECURITY:
