@@ -57,10 +57,6 @@ type DNSServerParams struct {
 	VirtualDNSInlineAddr string
 	// VirtualDNSEgressAddr is the address of Envoy's egress DNS listener (127.0.0.1:8654).
 	VirtualDNSEgressAddr string
-	// UpstreamIndex, when set, is consulted during virtual-FQDN expansion to
-	// fill missing namespace/partition/datacenter tokens from the real upstream
-	// identity (decoded from CDS SNIs) instead of the source proxy defaults.
-	UpstreamIndex *UpstreamIndex
 }
 
 // DNSServerInterface is the interface for athe DNSServer
@@ -91,7 +87,6 @@ type DNSServer struct {
 	datacenter           string
 	virtualDNSInlineAddr string
 	virtualDNSEgressAddr string
-	upstreamIndex        *UpstreamIndex
 
 	// inlineListenerUnavailableTill/egressListenerUnavailableTill store the
 	// deadline, expressed as nanoseconds elapsed since processStart (i.e.
@@ -125,7 +120,6 @@ func NewDNSServer(p DNSServerParams) (DNSServerInterface, error) {
 	s.virtualDNSEgressAddr = p.VirtualDNSEgressAddr
 	s.namespace = p.Namespace
 	s.token = p.Token
-	s.upstreamIndex = p.UpstreamIndex
 	return s, nil
 }
 
@@ -401,16 +395,14 @@ func classifyDomain(name string) domainClass {
 // Accepted forms (all ending in ".consul"):
 //
 //	<svc>.virtual.consul
-//	<svc>.service.virtual.consul
 //	<port>.<svc>.virtual.consul
-//	<port>.<svc>.service.virtual.consul
-//	<svc>[.service].virtual.<val>.ns.consul
-//	<svc>[.service].virtual.<val>.ap.consul
-//	<svc>[.service].virtual.<val>.dc.consul
-//	<svc>[.service].virtual.<val>.ns.<val>.ap.consul
-//	<svc>[.service].virtual.<val>.ns.<val>.dc.consul
-//	<svc>[.service].virtual.<val>.ap.<val>.dc.consul
-//	<svc>[.service].virtual.<val>.ns.<val>.ap.<val>.dc.consul
+//	<svc>.virtual.<val>.ns.consul
+//	<svc>.virtual.<val>.ap.consul
+//	<svc>.virtual.<val>.dc.consul
+//	<svc>.virtual.<val>.ns.<val>.ap.consul
+//	<svc>.virtual.<val>.ns.<val>.dc.consul
+//	<svc>.virtual.<val>.ap.<val>.dc.consul
+//	<svc>.virtual.<val>.ns.<val>.ap.<val>.dc.consul
 //	(and the <port>.<svc> prefix applies to every qualifier form above)
 //
 // The optional leading <port> label is the Consul named-port virtual DNS form
@@ -433,9 +425,9 @@ func parseVirtualTokens(name string) (port, svc, ns, partition, dc string, ok bo
 		return "", "", "", "", "", false
 	}
 	prefix := name[:virtualIdx]
-	// Strip the optional ".service" query-kind alias (e.g. "api.service.virtual…"
-	// or "http.api.service.virtual…" → strip ".service" suffix).
-	prefix = strings.TrimSuffix(prefix, ".service")
+	// The Consul server does not accept a ".service" query-kind label before
+	// ".virtual." ("api.service.virtual.consul" is NXDOMAIN there), so it is not
+	// stripped: such a name parses as "<port>.<svc>" and is forwarded to Consul.
 	if prefix == "" {
 		return "", "", "", "", "", false
 	}
@@ -466,7 +458,7 @@ func parseVirtualTokens(name string) (port, svc, ns, partition, dc string, ok bo
 
 	// The remainder must end with "consul" (the TLD).
 	if remainder == "consul" {
-		// Bare form: <svc>[.service].virtual.consul — no qualifiers.
+		// Bare form: <svc>.virtual.consul — no qualifiers.
 		return port, svc, "", "", "", true
 	}
 	const consulSuffix = ".consul"
@@ -538,21 +530,9 @@ func (d *DNSServer) expandVirtualName(name string) string {
 		return strings.ToLower(strings.TrimSuffix(name, "."))
 	}
 
-	// Consult the upstream index using any explicit tokens as constraints.
-	// A unique match fills the tokens the query left unspecified.
-	if comp, found := d.upstreamIndex.Lookup(svc, ns, partition, dc); found {
-		if ns == "" {
-			ns = comp.Namespace
-		}
-		if partition == "" {
-			partition = comp.Partition
-		}
-		if dc == "" {
-			dc = comp.Datacenter
-		}
-	}
-
-	// Fill anything still unspecified from the source proxy defaults.
+	// Fill unspecified tokens from the source proxy's own defaults, as the Consul
+	// server does. Borrowing them from the upstream index would resolve names in
+	// other namespaces that the server answers differently.
 	if ns == "" {
 		ns = d.namespace
 	}
@@ -767,7 +747,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 
 		// Forward to Envoy egress DNS listener (UDP only — c-ares plugin is UDP).
 		resp, err := forwardUDP(d.virtualDNSEgressAddr, raw, envoyDNSForwardTimeout)
-		if err != nil {
+		if err != nil || !isEnvoyHit(resp) {
 			d.markEgressListenerUnavailable()
 			d.logger.Debug("egress listener unavailable, falling back to consul", "error", err)
 			return d.queryConsul(raw, proto)
