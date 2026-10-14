@@ -1,0 +1,6 @@
+```release-note:security
+Upgrade go version to 1.26.9 to address security vulnerabilities.
+```
+```release-note:security
+Upgrade `golang.org/x/net` to v0.60.0 to address security vulnerabilities.
+```
