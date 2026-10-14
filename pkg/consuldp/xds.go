@@ -9,14 +9,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-metrics"
 	"github.com/hashi-derek/grpc-proxy/proxy"
+	"github.com/hashicorp/go-metrics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	"github.com/hashicorp/consul-dataplane/pkg/dns"
 )
 
 const (
@@ -120,26 +118,17 @@ func (cdp *ConsulDataplane) xdsServerExited() chan struct{} { return cdp.xdsServ
 
 func (cdp *ConsulDataplane) streamInterceptor() grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		return handler(srv, &metricServerStream{ServerStream: ss, upstreamIndex: cdp.upstreamIndex})
+		return handler(srv, &metricServerStream{ServerStream: ss})
 	}
 }
 
 type metricServerStream struct {
 	grpc.ServerStream
-	// upstreamIndex, when set, receives CDS cluster SNIs decoded from the
-	// server->Envoy frames that pass through this stream.
-	upstreamIndex *dns.UpstreamIndex
 }
 
 func (s *metricServerStream) SendMsg(m interface{}) error {
 	err := s.ServerStream.SendMsg(m)
 	if err == nil {
-		// Tap CDS frames only after the send succeeds so the upstream index
-		// never reflects a delta that Envoy did not actually receive. Updating
-		// before the send would let a failed write advance the index while
-		// Envoy retains its previous inline DNS table, potentially turning
-		// previously resolvable names into NXDOMAIN.
-		tapClusterFrame(s.upstreamIndex, m)
 		metrics.SetGauge([]string{"envoy_connected"}, 1)
 		return nil
 	}
