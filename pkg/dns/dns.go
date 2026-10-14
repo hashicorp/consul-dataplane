@@ -425,9 +425,6 @@ func parseVirtualTokens(name string) (port, svc, ns, partition, dc string, ok bo
 		return "", "", "", "", "", false
 	}
 	prefix := name[:virtualIdx]
-	// The Consul server does not accept a ".service" query-kind label before
-	// ".virtual." ("api.service.virtual.consul" is NXDOMAIN there), so it is not
-	// stripped: such a name parses as "<port>.<svc>" and is forwarded to Consul.
 	if prefix == "" {
 		return "", "", "", "", "", false
 	}
@@ -518,12 +515,9 @@ func parseVirtualTokens(name string) (port, svc, ns, partition, dc string, ok bo
 // }
 
 // expandVirtualName expands a short-form virtual domain name into its canonical
-// FQDN. Missing namespace/partition/datacenter tokens are first resolved from
-// the upstream identity advertised through CDS (the same raw identity the
-// control plane used to build Envoy's inline DNS table); any still-missing
-// tokens fall back to the source proxy's own namespace/partition/datacenter.
-// This keeps the dataplane's expansion consistent with Envoy's inline answer in
-// cross-partition, cross-namespace, and cross-datacenter scenarios.
+// FQDN. Missing namespace/partition/datacenter tokens are filled from the source
+// proxy's own defaults, matching how the Consul server resolves them. Explicit
+// tokens in the name are preserved.
 func (d *DNSServer) expandVirtualName(name string) string {
 	_, svc, ns, partition, dc, ok := parseVirtualTokens(name)
 	if !ok {
@@ -531,8 +525,7 @@ func (d *DNSServer) expandVirtualName(name string) string {
 	}
 
 	// Fill unspecified tokens from the source proxy's own defaults, as the Consul
-	// server does. Borrowing them from the upstream index would resolve names in
-	// other namespaces that the server answers differently.
+	// server does.
 	if ns == "" {
 		ns = d.namespace
 	}
@@ -750,6 +743,12 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 		if err != nil || !isEnvoyHit(resp) {
 			d.markEgressListenerUnavailable()
 			d.logger.Debug("egress listener unavailable, falling back to consul", "error", err)
+			return d.queryConsul(raw, proto)
+		}
+		if !isEnvoyHit(resp) {
+			// A non-success rcode (e.g. NXDOMAIN) is a normal answer from a healthy
+			// listener, so fall back for this query without backing off.
+			d.logger.Debug("egress listener returned non-success rcode, falling back to consul", "domain", originalName)
 			return d.queryConsul(raw, proto)
 		}
 		d.logger.Debug("external dns resolved via egress listener", "domain", originalName)
