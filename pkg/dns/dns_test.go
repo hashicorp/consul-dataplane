@@ -549,6 +549,39 @@ func (s *DNSTestSuite) Test_TriageAndResolve_ExternalDomain_EgressForwardingAndF
 		s.Require().Equal(consulResp, resp)
 		s.Require().False(server.canTryEgressListener())
 	})
+
+	s.Run("falls back to consul on egress NXDOMAIN without backing off", func() {
+		mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+		query := buildDNSQuery(s.T(), "www.example.com")
+		envoyResp := buildDNSAnswerResponse(s.T(), "www.example.com", "www.example.com", dnsmessage.RCodeNameError)
+		consulResp := buildDNSAnswerResponse(s.T(), "www.example.com", "www.example.com", dnsmessage.RCodeSuccess)
+
+		udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+		s.Require().NoError(err)
+		defer udpConn.Close()
+		go func() {
+			buf := make([]byte, 4096)
+			if _, addr, readErr := udpConn.ReadFromUDP(buf); readErr == nil {
+				_, _ = udpConn.WriteToUDP(envoyResp, addr)
+			}
+		}()
+
+		server := DNSServer{
+			client:               mockedDNSConsulClient,
+			logger:               hclog.Default(),
+			datacenter:           "dc1",
+			virtualDNSEgressAddr: udpConn.LocalAddr().String(),
+		}
+		mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+			Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+			Once()
+
+		resp, err := server.triageAndResolve(query, pbdns.Protocol_PROTOCOL_UDP)
+		s.Require().NoError(err)
+		s.Require().Equal(consulResp, resp)
+		// A healthy listener answering NXDOMAIN must not put it in backoff.
+		s.Require().True(server.canTryEgressListener())
+	})
 }
 
 func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
