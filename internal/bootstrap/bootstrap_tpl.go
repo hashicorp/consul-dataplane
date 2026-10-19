@@ -194,7 +194,8 @@ const bootstrapTemplate = `{
       {
         "name": "base",
         "static_layer": {
-          "re2.max_program_size.error_level": 1048576
+          "re2.max_program_size.error_level": 1048576,
+          "envoy.restart_features.shared_cares_dns_resolver": false
         }
       }
     ]

@@ -1,0 +1,3 @@
+```release-note:bug
+Disable Envoy's shared c-ares DNS resolver (`envoy.restart_features.shared_cares_dns_resolver`) in the bootstrap configuration to prevent Envoy crashes in the `egress_dns` listener under concurrent external DNS lookups when `localized-dns` is enabled with server recursors.
+```
