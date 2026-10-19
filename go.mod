@@ -6,7 +6,7 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/hashi-derek/grpc-proxy v0.0.0-20231207191910-191266484d75
 	github.com/hashicorp/consul-server-connection-manager v0.1.12
-	github.com/hashicorp/consul/proto-public v0.8.1
+	github.com/hashicorp/consul/proto-public v0.9.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-metrics v0.6.1
 	github.com/hashicorp/go-multierror v1.1.1
@@ -50,11 +50,4 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-// Pin transitive module-graph dependencies to patched versions for repository scans.
-require (
-	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/yuin/goldmark v1.7.17 // indirect
-	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

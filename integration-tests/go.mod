@@ -5,7 +5,7 @@ go 1.26.9
 require (
 	github.com/docker/go-connections v0.7.0
 	github.com/go-jose/go-jose/v4 v4.1.4
-	github.com/hashicorp/consul/api v1.34.4
+	github.com/hashicorp/consul/api v1.35.0
 	github.com/miekg/dns v1.1.72
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.0
@@ -80,16 +80,6 @@ require (
 	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	google.golang.org/grpc v1.83.2 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-)
-
-// Pin transitive module-graph dependencies to patched versions for repository scans.
-require (
-	github.com/yuin/goldmark v1.7.17 // indirect
-	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

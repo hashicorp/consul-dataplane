@@ -1,0 +1,3 @@
+```release-note:improvement
+Update `github.com/hashicorp/consul/proto-public` to v0.9.0.
+```
