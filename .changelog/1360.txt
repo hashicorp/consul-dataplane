@@ -1,0 +1,3 @@
+```release-note:bug
+Include the standalone `echo` executable in the standard and FIPS distroless images so that `exec=echo` server address discovery works without adding a shell or BusyBox.
+```
