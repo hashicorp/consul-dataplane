@@ -6,6 +6,7 @@ SECURITY:
 * Update the `go-discover` build stage to v1.5.0, removing the `github.com/Azure/go-autorest/autorest/adal` dependency (weak/legacy cryptographic algorithms) in favor of modern Azure SDK credential libraries. [[GH-1306](https://github.com/hashicorp/consul-dataplane/pull/1306)]
 * Upgrade `golang.org/x/net` to v0.60.0 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
 * Upgrade go version to 1.26.9 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
+* Upgrade go version to 1.26.10 to address security vulnerabilities. [[GH-1354](https://github.com/hashicorp/consul-dataplane/pull/1354)]
 * Update application and container dependencies, including patched Debian Bookworm OpenSSL libraries in the container image. [[GH-1314](https://github.com/hashicorp/consul-dataplane/pull/1314)]
 
 FEATURES:
