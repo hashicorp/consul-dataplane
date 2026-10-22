@@ -115,6 +115,7 @@ COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
+COPY --from=setcap-envoy-binary /bin/echo /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
 
 # Since we can't know at build time if a runtime will attempt to bind to privileged ports,
@@ -159,6 +160,7 @@ COPY LICENSE /usr/share/doc/$PRODUCT_NAME/LICENSE.txt
 
 COPY --from=dumb-init /usr/bin/dumb-init /usr/local/bin/
 COPY --from=go-discover /go/bin/discover /usr/local/bin/
+COPY --from=setcap-envoy-fips-binary /bin/echo /usr/local/bin/
 COPY LICENSE /licenses/copyright.txt
 
 # Since we can't know at build time if a runtime will attempt to bind to privileged ports,
