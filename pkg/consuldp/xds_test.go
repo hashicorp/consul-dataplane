@@ -15,6 +15,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/stretchr/testify/require"
+	"io"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -142,4 +144,87 @@ func TestSetupXDSServer(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestEnvoyLogScannerFatalExit verifies that the envoyLogScanner writer closes
+// xdsServer.exitedCh when it sees the "Envoy version too old" rejection message
+// in Envoy's stderr output — the canonical detection point for this fatal error.
+func TestEnvoyLogScannerFatalExit(t *testing.T) {
+	type testCase struct {
+		name        string
+		logLine     string
+		expectClose bool
+	}
+
+	testCases := []testCase{
+		{
+			name:        "exact rejection message",
+			logLine:     "[warning] envoy.config(20) DeltaAggregatedResources gRPC config stream to consul-dataplane closed: 3, Envoy 1.33.6 is too old and is not supported by Consul",
+			expectClose: true,
+		},
+		{
+			name:        "different envoy version in message",
+			logLine:     "Envoy 1.29.0 is too old and is not supported by Consul",
+			expectClose: true,
+		},
+		{
+			name:        "unrelated log line",
+			logLine:     "[info] envoy.main(20) starting main dispatch loop",
+			expectClose: false,
+		},
+		{
+			name:        "empty log line",
+			logLine:     "",
+			expectClose: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cdp := &ConsulDataplane{
+				cfg:    &Config{XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: 0}},
+				logger: hclog.NewNullLogger(),
+			}
+			require.NoError(t, cdp.setupXDSServer())
+
+			scanner := cdp.newEnvoyLogScanner(io.Discard)
+			_, err := scanner.Write([]byte(tc.logLine))
+			require.NoError(t, err)
+
+			if tc.expectClose {
+				select {
+				case <-cdp.xdsServer.exitedCh:
+					// expected
+				case <-time.After(time.Second):
+					t.Fatal("exitedCh was not closed after fatal Envoy log message")
+				}
+			} else {
+				select {
+				case <-cdp.xdsServer.exitedCh:
+					t.Fatal("exitedCh was unexpectedly closed for a non-fatal log message")
+				case <-time.After(200 * time.Millisecond):
+					// expected: channel still open
+				}
+			}
+		})
+	}
+}
+
+// TestEnvoyLogScannerCloseOnce verifies that multiple writes containing the fatal
+// message do not panic from a double-close of exitedCh.
+func TestEnvoyLogScannerCloseOnce(t *testing.T) {
+	cdp := &ConsulDataplane{
+		cfg:    &Config{XDSServer: &XDSServer{BindAddress: "127.0.0.1", BindPort: 0}},
+		logger: hclog.NewNullLogger(),
+	}
+	require.NoError(t, cdp.setupXDSServer())
+
+	scanner := cdp.newEnvoyLogScanner(io.Discard)
+	fatalMsg := []byte("Envoy 1.33.6 is too old and is not supported by Consul")
+
+	require.NotPanics(t, func() {
+		for i := 0; i < 5; i++ {
+			_, _ = scanner.Write(fatalMsg)
+		}
+	})
 }
