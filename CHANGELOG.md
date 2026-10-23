@@ -1,3 +1,9 @@
+## 1.8.18 (October 15, 2026)
+SECURITY:
+
+* Upgrade `golang.org/x/net` to v0.60.0 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
+* Upgrade go version to 1.26.9 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
+
 ## 1.8.17 (September 9, 2026)
 
 SECURITY:
