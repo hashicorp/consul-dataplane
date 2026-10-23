@@ -1,22 +1,12 @@
-## 2.1.0-rc2 (October 14, 2026)
-
-SECURITY:
-
-* Upgrade `golang.org/x/net` to v0.60.0 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
-* Upgrade go version to 1.26.9 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
-* Update application and container dependencies, including patched Debian Bookworm OpenSSL libraries in the container image. [[GH-1314](https://github.com/hashicorp/consul-dataplane/pull/1314)]
-
-BUG FIXES:
-
-* dns-proxy: Fill unspecified namespace, partition and datacenter tokens of virtual FQDNs from the source proxy's own defaults, as the Consul server does, instead of from the upstream identities advertised through CDS. Remove the upstream index and the CDS cluster tap that supported it. [[GH-1328](https://github.com/hashicorp/consul-dataplane/pull/1328)]
-* dns-proxy: Do not strip the `.service` label from `<svc>.service.virtual.consul` queries, since the Consul server does not accept it; such names are now forwarded to Consul. Fall back to Consul when Envoy's DNS listener returns a non-success response such as NXDOMAIN, without backing off the listener. [[GH-1328](https://github.com/hashicorp/consul-dataplane/pull/1328)] [[GH-1333](https://github.com/hashicorp/consul-dataplane/pull/1333)]
-
-## 2.1.0-rc1 (September 28, 2026)
+## 2.1.0 (October 20, 2026)
 
 SECURITY:
 
 * Pin `docker/login-action` to a commit hash to fix high-severity code-scanning alerts for missing pinned commit hashes in GitHub Actions workflows. [[GH-1272](https://github.com/hashicorp/consul-dataplane/pull/1272)]
 * Update the `go-discover` build stage to v1.5.0, removing the `github.com/Azure/go-autorest/autorest/adal` dependency (weak/legacy cryptographic algorithms) in favor of modern Azure SDK credential libraries. [[GH-1306](https://github.com/hashicorp/consul-dataplane/pull/1306)]
+* Upgrade `golang.org/x/net` to v0.60.0 to address security vulnerabilities. [[GH-1322](https://github.com/hashicorp/consul-dataplane/pull/1322)]
+* Upgrade go version to 1.26.10 to address security vulnerability GO-2026-6809 in crypto/x509. [[GH-1353](https://github.com/hashicorp/consul-dataplane/pull/1353)]
+* Update application and container dependencies, including patched Debian Bookworm OpenSSL libraries in the container image. [[GH-1314](https://github.com/hashicorp/consul-dataplane/pull/1314)]
 
 FEATURES:
 
@@ -29,6 +19,13 @@ IMPROVEMENTS:
 * Update Envoy version to 1.39.1 [[GH-1305](https://github.com/hashicorp/consul-dataplane/pull/1305)]
 * Updated integration test with `nftables` from `iptables`. [[GH-1218](https://github.com/hashicorp/consul-dataplane/pull/1218)]
 * ci: Increased the stale PR automation windows to 90 days before marking a pull request stale and 60 days before closing it. [[GH-1197](https://github.com/hashicorp/consul-dataplane/pull/1197)]
+* Update `github.com/hashicorp/consul/proto-public` to v0.9.0. [[GH-1345](https://github.com/hashicorp/consul-dataplane/pull/1345)]
+
+BUG FIXES:
+
+* dns-proxy: Fill unspecified namespace, partition and datacenter tokens of virtual FQDNs from the source proxy's own defaults, as the Consul server does, instead of from the upstream identities advertised through CDS. Remove the upstream index and the CDS cluster tap that supported it. [[GH-1328](https://github.com/hashicorp/consul-dataplane/pull/1328)]
+* dns-proxy: Do not strip the `.service` label from `<svc>.service.virtual.consul` queries, since the Consul server does not accept it; such names are now forwarded to Consul. Fall back to Consul when Envoy's DNS listener returns a non-success response such as NXDOMAIN, without backing off the listener. [[GH-1328](https://github.com/hashicorp/consul-dataplane/pull/1328)] [[GH-1333](https://github.com/hashicorp/consul-dataplane/pull/1333)]
+* Disable Envoy's shared c-ares DNS resolver (`envoy.restart_features.shared_cares_dns_resolver`) in the bootstrap configuration to prevent Envoy crashes in the `egress_dns` listener under concurrent external DNS lookups when `localized-dns` is enabled with server recursors. [[GH-1343](https://github.com/hashicorp/consul-dataplane/pull/1343)]
 
 ## 2.0.4 (September 9, 2026)
 
