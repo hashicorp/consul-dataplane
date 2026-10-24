@@ -1,6 +1,6 @@
 module github.com/hashicorp/consul-dataplane/integration-tests
 
-go 1.26.9
+go 1.26.10
 
 require (
 	github.com/docker/go-connections v0.7.0
