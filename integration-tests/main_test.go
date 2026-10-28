@@ -428,16 +428,23 @@ func TestIntegration(t *testing.T) {
 
 	// virtual .virtual.consul resolves after consul server outage
 	//
-	// Consul servers >= v2.2 push Envoy DNS listeners (the inline virtual-DNS
-	// table) over xDS, so Envoy can continue answering *.virtual.consul queries
-	// from its local table after the control plane is gone. On older servers the
-	// listener is never pushed, so resolution after an outage is not expected to
-	// work. The test is therefore only asserted on v2.2+; on earlier versions it
-	// is skipped to avoid a spurious failure.
+	// Consul servers with the localized-dns feature gate (v2.1+) push Envoy DNS
+	// listeners (the inline virtual table) over xDS once the gate is enabled, which
+	// the test server does in its config. Envoy can then keep answering
+	// *.virtual.consul queries from its local table after the control plane is gone.
+	// On older servers the listener is never pushed, so resolution after an outage is
+	// not expected to work and the test is skipped to avoid a spurious failure.
 	t.Run("virtual .virtual.consul resolves after consul server outage", func(t *testing.T) {
-		// Determine whether the running Consul server is new enough to push the
-		// inline virtual-DNS listener over xDS. The feature landed in v2.2.
-		supportsInlineDNS := semver.Compare(semver.MajorMinor(opts.ServerVersion), "v2.2") >= 0
+		supportsInlineDNS := SupportsLocalizedDNS(opts.ServerVersion)
+
+		if supportsInlineDNS {
+			// The gate is resolved through Raft and the proxy only receives the listener
+			// after that, so wait for it before taking the server down.
+			require.Eventually(t, func() bool {
+				return EnvoyHasListener(t, adminIP, adminPort, "virtual_dns")
+			}, 60*time.Second, time.Second,
+				"consul server %s did not push the inline virtual DNS listener with localized-dns enabled", opts.ServerVersion)
+		}
 
 		serverContainerID := server.Container.GetContainerID()
 		dockerCli, err := client.NewClientWithOpts(client.WithAPIVersionNegotiation())
@@ -450,7 +457,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("consul server container %s killed (SIGKILL) to simulate control-plane outage", serverContainerID)
 
 		if !supportsInlineDNS {
-			t.Skipf("skipping outage-resilience check: consul server %s < v2.2 does not push inline virtual-DNS listeners over xDS",
+			t.Skipf("skipping outage-resilience check: consul server %s < v2.1 has no localized-dns feature gate and does not push inline virtual-DNS listeners over xDS",
 				opts.ServerVersion)
 		}
 
