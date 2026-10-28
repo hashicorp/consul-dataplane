@@ -387,6 +387,8 @@ jobs:
             image: hashicorppreview/consul:2.0-dev
           - version: v2.1.0-dev
             image: hashicorppreview/consul:2.1-dev
+          - version: v3.0.0-dev
+            image: hashicorppreview/consul:3.0-dev
         dataplane:
           - image_suffix: ""
             docker_target: "release-default"
