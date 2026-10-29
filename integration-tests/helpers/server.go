@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"golang.org/x/mod/semver"
 
 	"github.com/hashicorp/consul/api"
 )
@@ -65,6 +66,22 @@ var (
 	`
 )
 
+// localizedDNSConfig enables the localized-dns feature gate, which makes the server push the
+// inline virtual DNS listener to Envoy. The gate is off by default.
+const localizedDNSConfig = `
+		feature_gates {
+			bootstrap = {
+				"localized-dns" = true
+			}
+		}
+	`
+
+// SupportsLocalizedDNS reports whether a Consul server of the given version has the localized-dns
+// feature gate (v2.1 and later).
+func SupportsLocalizedDNS(serverVersion string) bool {
+	return semver.Compare(semver.MajorMinor(serverVersion), "v2.1") >= 0
+}
+
 type ConsulServer struct {
 	Container *Container
 	Client    *api.Client
@@ -77,7 +94,11 @@ func RunServer(t *testing.T, suite *Suite) *ConsulServer {
 	GenerateServerTLS(t, suite)
 
 	volume := suite.Volume(t)
-	volume.WriteFile(t, "server.hcl", []byte(serverConfig))
+	config := serverConfig
+	if SupportsLocalizedDNS(suite.opts.ServerVersion) {
+		config += localizedDNSConfig
+	}
+	volume.WriteFile(t, "server.hcl", []byte(config))
 
 	container := suite.RunContainer(t, "server", true, ContainerRequest{
 		Image: suite.opts.ServerImage,
