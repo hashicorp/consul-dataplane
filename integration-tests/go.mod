@@ -4,7 +4,7 @@ go 1.26.10
 
 require (
 	github.com/docker/go-connections v0.7.0
-	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/hashicorp/consul/api v1.35.0
 	github.com/miekg/dns v1.1.72
 	github.com/moby/moby/api v1.55.0
