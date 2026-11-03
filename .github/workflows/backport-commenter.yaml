@@ -23,7 +23,7 @@ on:
 env:
   # This needs to be updated to the date of the last release.
   # workflow_dispatch inputs override these values when manually triggered.
-  BPA_COMMENTER_BEGIN_DATE: ${{ github.event.inputs['begin-date'] || '2026-08-05' }}
+  BPA_COMMENTER_BEGIN_DATE: ${{ github.event.inputs['begin-date'] || '2026-10-22' }}
   # This needs to be updated to the versions that are currently being backported.
   # Active releases: 1.8, 2.1
   BPA_COMMENTER_VERSIONS: ${{ github.event.inputs.versions || '1.8,2.1' }}
