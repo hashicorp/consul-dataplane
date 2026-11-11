@@ -14,7 +14,7 @@ ARG GOLANG_VERSION
 ARG ENVOY_VERSION=1.39.1
 ARG ENVOY_FIPS_SUFFIX=fips1403
 ARG OPENSSL_MIN_VERSION=3.0.22-1~deb12u1
-FROM hashicorppreview/envoy-dev:${ENVOY_VERSION}-latest AS envoy-binary
+FROM envoyproxy/envoy:v1.40.0 AS envoy-binary
 
 # Modify the envoy binary to be able to bind to privileged ports (< 1024).
 FROM ubuntu:22.04 AS setcap-envoy-binary
