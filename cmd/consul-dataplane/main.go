@@ -8,9 +8,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -165,14 +167,13 @@ func run() error {
 		return nil
 	}
 
-	consulDPDefaultFlags, err := buildDefaultConsulDPFlags()
-	if err != nil {
-		return err
-	}
-
 	if flagOpts.checkProxyHealth {
 		fmt.Printf("Checking envoy proxy health\n")
-		runProxyReadyCmd(consulDPDefaultFlags)
+		adminAddr, err := flagOpts.envoyAdminAddr()
+		if err != nil {
+			return err
+		}
+		doHealthCheck(adminAddr, http.DefaultClient, os.Exit)
 		return nil
 	}
 
@@ -251,21 +252,39 @@ func readProxyIDFromFile() {
 	}
 }
 
-func runProxyReadyCmd(config DataplaneConfigFlags) {
-	// Define the Envoy admin endpoint URL. This is typically internal and
-	// only accessible from within the Pod on the loopback interface.
-
-	adminPort := *config.Envoy.AdminBindPort
-
-	if flagOpts.dataplaneConfig.Envoy.AdminBindPort != nil {
-		adminPort = *flagOpts.dataplaneConfig.Envoy.AdminBindPort
+// envoyAdminAddr returns the host:port of the Envoy admin server that
+// -check-proxy-health should probe. It applies the same precedence as a
+// running dataplane (defaults, then -config-file, then flags and environment
+// variables) so the probe targets the address Envoy actually listens on.
+func (f *FlagOpts) envoyAdminAddr() (string, error) {
+	cfg, err := buildDefaultConsulDPFlags()
+	if err != nil {
+		return "", err
+	}
+	if f.configFile != "" {
+		fileCfg, err := f.buildConfigFromFile()
+		if err != nil {
+			return "", err
+		}
+		cfg, err = mergeConfigs(cfg, fileCfg)
+		if err != nil {
+			return "", err
+		}
+	}
+	cfg, err = mergeConfigs(cfg, f.dataplaneConfig)
+	if err != nil {
+		return "", err
 	}
 
-	doHealthCheck(adminPort, http.DefaultClient, os.Exit)
+	host := stringVal(cfg.Envoy.AdminBindAddr)
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	return net.JoinHostPort(host, strconv.Itoa(intVal(cfg.Envoy.AdminBindPort))), nil
 }
 
-func doHealthCheck(adminPort int, client *http.Client, exitFunc func(int)) {
-	envoyAdminURL := fmt.Sprintf("http://127.0.0.1:%d/ready", adminPort)
+func doHealthCheck(adminAddr string, client *http.Client, exitFunc func(int)) {
+	envoyAdminURL := fmt.Sprintf("http://%s/ready", adminAddr)
 
 	// Create a context with a timeout for the HTTP request. This prevents
 	// the check from hanging indefinitely. A short timeout is best for probes.
