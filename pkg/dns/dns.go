@@ -520,9 +520,10 @@ func (d *DNSServer) expandVirtualName(name string) string {
 }
 
 // isSidecarQueryType reports whether Envoy's DNS listeners can answer a query
-// of type qt. The inline table is built only from address lists, so only A and
-// AAAA can ever hit; every other type (SRV, TXT, ...) goes straight to Consul
-// rather than paying an Envoy round trip that is guaranteed to miss.
+// of type qt. The inline table is built only from address lists and the egress
+// listener's external resolution only handles address records, so only A and
+// AAAA can ever hit; every other type (SRV, TXT, MX, ...) goes straight to
+// Consul rather than paying an Envoy round trip that is guaranteed to miss.
 func isSidecarQueryType(qt dnsmessage.Type) bool {
 	return qt == dnsmessage.TypeA || qt == dnsmessage.TypeAAAA
 }
@@ -715,7 +716,7 @@ func (d *DNSServer) triageAndResolve(raw []byte, proto pbdns.Protocol) ([]byte, 
 
 	class := classifyDomain(originalName)
 
-	if class == domainClassVirtual && !isSidecarQueryType(msg.Questions[0].Type) {
+	if class != domainClassConsul && !isSidecarQueryType(msg.Questions[0].Type) {
 		d.logger.Debug("query type not served by sidecar dns listeners, querying consul directly",
 			"domain", originalName, "qtype", msg.Questions[0].Type)
 		return d.queryConsul(raw, proto)
