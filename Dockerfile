@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libcap2-bin && 
     setcap CAP_NET_BIND_SERVICE=+ep /usr/local/bin/$BIN_NAME && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-FROM hashicorppreview/envoy-fips:${ENVOY_VERSION}-${ENVOY_FIPS_SUFFIX} AS envoy-fips-binary
+FROM hashicorp/envoy-fips:${ENVOY_VERSION}-${ENVOY_FIPS_SUFFIX} AS envoy-fips-binary
 
 # Modify the envoy-fips binary to be able to bind to privileged ports (< 1024).
 FROM debian:bookworm-slim AS setcap-envoy-fips-binary
