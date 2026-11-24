@@ -799,7 +799,95 @@ func (s *DNSTestSuite) Test_TriageAndResolve_VirtualDomain() {
 	})
 }
 
+func (s *DNSTestSuite) Test_TriageAndResolve_NonAddressQueryTypesSkipSidecar() {
+	// Only A and AAAA can be answered by Envoy's DNS listeners. Anything else
+	// must go straight to Consul; a forward attempt to these unreachable
+	// listener addresses would put them into backoff.
+	cases := map[string]dnsmessage.Type{
+		"svc.virtual.consul":        dnsmessage.TypeSRV,
+		"http.svc.virtual.consul":   dnsmessage.TypeTXT,
+		"www.example.com":           dnsmessage.TypeMX,
+		"_web._tcp.example.com":     dnsmessage.TypeSRV,
+		"db.virtual.p1.peer.consul": dnsmessage.TypePTR,
+	}
+	for name, qt := range cases {
+		s.Run(name, func() {
+			mockedDNSConsulClient := mocks.NewDNSServiceClient(s.T())
+			consulResp := buildDNSRCodeResponse(s.T(), name, dnsmessage.RCodeSuccess)
+			mockedDNSConsulClient.On("Query", mock.Anything, mock.Anything).
+				Return(&pbdns.QueryResponse{Msg: consulResp}, nil).
+				Once()
+
+			server := DNSServer{
+				client:               mockedDNSConsulClient,
+				logger:               hclog.Default(),
+				namespace:            "default",
+				partition:            "default",
+				datacenter:           "dc1",
+				virtualDNSInlineAddr: "127.0.0.1:1",
+				virtualDNSEgressAddr: "127.0.0.1:1",
+			}
+
+			resp, err := server.triageAndResolve(buildDNSQueryType(s.T(), name, qt), pbdns.Protocol_PROTOCOL_UDP)
+			s.Require().NoError(err)
+			s.Require().Equal(consulResp, resp)
+			s.Require().True(server.canTryInlineListener())
+			s.Require().True(server.canTryEgressListener())
+		})
+	}
+}
+
+func (s *DNSTestSuite) Test_TriageAndResolve_InlineKeyCarriesPortAndPeer() {
+	cases := []struct {
+		original string
+		expanded string
+		qtype    dnsmessage.Type
+	}{
+		{"http.api.virtual.consul", "http.api.virtual.default.ns.default.ap.dc1.dc.consul", dnsmessage.TypeA},
+		{"db.virtual.peer-a.peer.consul", "db.virtual.peer-a.peer.default.ns.default.ap.dc1.dc.consul", dnsmessage.TypeA},
+		{"api.virtual.consul", "api.virtual.default.ns.default.ap.dc1.dc.consul", dnsmessage.TypeAAAA},
+	}
+	for _, tc := range cases {
+		s.Run(tc.original, func() {
+			udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 0})
+			s.Require().NoError(err)
+			defer udpConn.Close()
+
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				buf := make([]byte, 4096)
+				n, addr, readErr := udpConn.ReadFromUDP(buf)
+				if readErr != nil {
+					return
+				}
+				s.Equal(canonicalName(tc.expanded), firstQuestionNameFromRaw(s.T(), buf[:n]))
+				_, _ = udpConn.WriteToUDP(buildDNSAnswerResponse(s.T(), tc.expanded, tc.expanded, dnsmessage.RCodeSuccess), addr)
+			}()
+
+			server := DNSServer{
+				client:               mocks.NewDNSServiceClient(s.T()),
+				logger:               hclog.Default(),
+				namespace:            "default",
+				partition:            "default",
+				datacenter:           "dc1",
+				virtualDNSInlineAddr: udpConn.LocalAddr().String(),
+			}
+
+			resp, err := server.triageAndResolve(buildDNSQueryType(s.T(), tc.original, tc.qtype), pbdns.Protocol_PROTOCOL_UDP)
+			s.Require().NoError(err)
+			s.Require().Equal(canonicalName(tc.original), firstAnswerNameFromRaw(s.T(), resp))
+			<-done
+		})
+	}
+}
+
 func buildDNSQuery(t *testing.T, name string) []byte {
+	t.Helper()
+	return buildDNSQueryType(t, name, dnsmessage.TypeA)
+}
+
+func buildDNSQueryType(t *testing.T, name string, qtype dnsmessage.Type) []byte {
 	t.Helper()
 	qName, err := dnsmessage.NewName(canonicalName(name))
 	require.NoError(t, err)
@@ -808,7 +896,7 @@ func buildDNSQuery(t *testing.T, name string) []byte {
 		Header: dnsmessage.Header{ID: 1, RecursionDesired: true},
 		Questions: []dnsmessage.Question{{
 			Name:  qName,
-			Type:  dnsmessage.TypeA,
+			Type:  qtype,
 			Class: dnsmessage.ClassINET,
 		}},
 	}
@@ -910,13 +998,14 @@ func firstAnswerNameFromRaw(t *testing.T, raw []byte) string {
 // every combination of omitted ns/partition/dc qualifiers.
 func TestParseVirtualTokens(t *testing.T) {
 	cases := []struct {
-		name    string
-		input   string
-		wantSvc string
-		wantNS  string
-		wantAP  string
-		wantDC  string
-		wantOK  bool
+		name     string
+		input    string
+		wantSvc  string
+		wantNS   string
+		wantAP   string
+		wantDC   string
+		wantPeer string
+		wantOK   bool
 	}{
 		// (1) bare — no qualifiers at all
 		{
@@ -992,9 +1081,8 @@ func TestParseVirtualTokens(t *testing.T) {
 
 		// ── named-port virtual DNS form (<port>.<svc>.virtual.consul) ────────
 		// Consul DNS parses "http.api.virtual.consul" as port "http", service
-		// "api" (agent/dns.go: queryParts = ["http", "api"]). The Envoy inline
-		// DNS table is keyed on the base service name only, so the port label
-		// must be stripped and the returned svc must be "api".
+		// "api" (agent/dns.go: queryParts = ["http", "api"]). The port is
+		// reported separately, so the returned svc must be "api".
 		{
 			name:    "named-port bare no qualifiers",
 			input:   "http.api.virtual.consul",
@@ -1071,6 +1159,27 @@ func TestParseVirtualTokens(t *testing.T) {
 			input:  "svc.virtual.myns.consul",
 			wantOK: false,
 		},
+		{
+			name:     "peer only",
+			input:    "svc.virtual.peer-a.peer.consul",
+			wantSvc:  "svc",
+			wantPeer: "peer-a",
+			wantOK:   true,
+		},
+		{
+			name:     "peer with namespace and partition",
+			input:    "svc.virtual.peer-a.peer.myns.ns.myap.ap.consul",
+			wantSvc:  "svc",
+			wantPeer: "peer-a",
+			wantNS:   "myns",
+			wantAP:   "myap",
+			wantOK:   true,
+		},
+		{
+			name:   "empty port label rejected",
+			input:  ".svc.virtual.consul",
+			wantOK: false,
+		},
 		// An unrecognised qualifier must not silently be swallowed.
 		{
 			name:   "unrecognised qualifier rejected",
@@ -1081,7 +1190,8 @@ func TestParseVirtualTokens(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, gotSvc, gotNS, gotAP, gotDC, gotOK := parseVirtualTokens(tc.input)
+			got, gotOK := parseVirtualTokens(tc.input)
+			gotSvc, gotNS, gotAP, gotDC := got.svc, got.ns, got.partition, got.dc
 			if gotOK != tc.wantOK {
 				t.Fatalf("parseVirtualTokens(%q) ok = %v, want %v", tc.input, gotOK, tc.wantOK)
 			}
@@ -1099,6 +1209,9 @@ func TestParseVirtualTokens(t *testing.T) {
 			}
 			if gotDC != tc.wantDC {
 				t.Errorf("dc: got %q, want %q", gotDC, tc.wantDC)
+			}
+			if got.peer != tc.wantPeer {
+				t.Errorf("peer: got %q, want %q", got.peer, tc.wantPeer)
 			}
 		})
 	}
