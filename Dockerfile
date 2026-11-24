@@ -11,7 +11,7 @@
 # prebuilt binaries in any other form.
 #
 ARG GOLANG_VERSION
-ARG ENVOY_VERSION=1.39.1
+ARG ENVOY_VERSION=1.40.2
 ARG ENVOY_FIPS_SUFFIX=fips1403
 ARG OPENSSL_MIN_VERSION=3.0.22-1~deb12u1
 FROM hashicorppreview/envoy-dev:${ENVOY_VERSION}-latest AS envoy-binary
