@@ -82,8 +82,8 @@ github.com/hashi-derek/grpc-proxy v0.0.0-20231207191910-191266484d75 h1:V5Uqf7Vo
 github.com/hashi-derek/grpc-proxy v0.0.0-20231207191910-191266484d75/go.mod h1:5eEnHfK72jOkp4gC1dI/Q/E9MFNOM/ewE/vql5ijV3g=
 github.com/hashicorp/consul-server-connection-manager v0.1.12 h1:c/7LIghSdVqQKu4v9SPzxeHot0pphQ/FtRzzDlN3Vrg=
 github.com/hashicorp/consul-server-connection-manager v0.1.12/go.mod h1:f1x48hfZMLUTqdwBVPTezV43COWTixtnLmSbxjD0SHg=
-github.com/hashicorp/consul/proto-public v0.9.0 h1:My2sEI5hEOSuZxWYiFW/9Zp968ZCpUszfj5q1YRvBwA=
-github.com/hashicorp/consul/proto-public v0.9.0/go.mod h1:eDA+db9kHVKnQw6C+svVqpfsqpOTjId/imwb70/TlII=
+github.com/hashicorp/consul/proto-public v0.9.1 h1:5Ecz/qItN3dEZtpBGNOlJMhQ9Cio0b+YfFZWMoPsOQs=
+github.com/hashicorp/consul/proto-public v0.9.1/go.mod h1:DcaZQVfPQkQx+P3TNm0cXM179us309Lr7xPyMqW2pyg=
 github.com/hashicorp/consul/sdk v0.16.2 h1:cGX/djeEe9r087ARiKVWwVWCF64J+yW0G6ftZMZYbj0=
 github.com/hashicorp/consul/sdk v0.16.2/go.mod h1:onxcZjYVsPx5XMveAC/OtoIsdr32fykB7INFltDoRE8=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
