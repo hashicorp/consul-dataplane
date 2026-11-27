@@ -1,0 +1,3 @@
+```release-note:security
+build: overlay patched tzdata and ca-certificates onto distroless images and bump go.opentelemetry.io/otel to v1.47.0
+```
