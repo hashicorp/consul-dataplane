@@ -1,0 +1,2 @@
+```release-note:bug
+dns-proxy: Send DNS query types other than A and AAAA directly to Consul instead of Envoy DNS listeners. Preserve named-port and peer qualifiers when rewriting virtual service names so Envoy can look up the correct identity-specific virtual IP.
